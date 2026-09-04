@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+<meta name="theme-color" content="#0a0a12">
+<title>MagicKnights</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="map"></canvas>
+<canvas id="battle" hidden></canvas>
+<div id="hud" hidden>
+  <div id="resbar"></div>
+  <div id="side">
+    <div id="minimap-wrap"><canvas id="minimap" width="140" height="140"></canvas></div>
+    <div id="hero-list" class="list"></div>
+    <div id="town-list" class="list"></div>
+    <div id="side-buttons">
+      <button id="btn-next-hero" title="Следващ герой">➤</button>
+      <button id="btn-sleep" title="Героят почива">💤</button>
+      <button id="btn-hero" title="Екран на героя">🧙</button>
+      <button id="btn-menu" title="Меню">☰</button>
+      <button id="btn-end" title="Край на хода">⏭ Ход</button>
+    </div>
+  </div>
+  <div id="hint"></div>
+</div>
+<div id="battlebar" hidden></div>
+<div id="overlay"></div>
+<div id="toasts"></div>
+<script>
+window.addEventListener('error', function (e) {
+  try {
+    var d = document.createElement('pre'); d.style.cssText = 'position:fixed;left:0;top:0;right:0;z-index:9999;background:#300;color:#fff;padding:8px;font:12px monospace;white-space:pre-wrap;max-height:40%;overflow:auto';
+    d.textContent = 'MagicKnights: грешка\n' + e.message + '\n' + (e.filename || '') + ':' + e.lineno + ':' + e.colno;
+    document.body.appendChild(d);
+  } catch (err) {}
+});
+</script>
+<script src="js/rng.js?v=1"></script>
+<script src="js/data.js?v=1"></script>
+<script src="js/pathfind.js?v=1"></script>
+<script src="js/mapgen.js?v=1"></script>
+<script src="js/world.js?v=1"></script>
+<script src="js/battle.js?v=1"></script>
+<script src="js/ai.js?v=1"></script>
+<script src="js/gfx.js?v=1"></script>
+<script src="js/render.js?v=1"></script>
+<script src="js/ui.js?v=1"></script>
+<script src="js/battleui.js?v=1"></script>
+<script src="js/main.js?v=1"></script>
+</body>
+</html>
