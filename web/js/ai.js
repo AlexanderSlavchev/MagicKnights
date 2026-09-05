@@ -16,7 +16,11 @@
     p.towns.slice().forEach((tid) => {
       const t = world.towns[tid];
       // строим по приоритет
-      for (const id of BUILD_ORDER) { if (!t.buildings[id] && world.canBuild(t, id).ok) { world.build(t, id); break; } }
+      const order = BUILD_ORDER.slice();
+      if (world.isCoastal(t) && (world.template === 'islands' || p.aiStuck >= 2)) order.splice(3, 0, 'shipyard');
+      for (const id of order) { if (!t.buildings[id] && world.canBuild(t, id).ok) { world.build(t, id); break; } }
+      // Кораб, когато героите нямат сухоземни цели
+      if (t.buildings.shipyard && p.aiStuck >= 1 && !world.map.objects.some((o) => o.type === 'boat' && o.owner === p.id) && !p.heroes.some((id) => world.heroes[id].boat)) world.buildBoat(t);
       // набор: в посетилия герой, иначе гарнизон
       const vis = t.visitor ? world.heroes[t.visitor] : null;
       recruitAll(world, t, vis ? vis.army : t.garrison);
@@ -36,7 +40,8 @@
       let guard = 0;
       while (h.movement > 0 && world.heroes[h.id] && guard++ < 12) {
         const target = pickTarget(world, h, p);
-        if (!target) break;
+        if (!target) { if (guard === 1) p.aiStuck = (p.aiStuck || 0) + 1; break; }
+        if (guard === 1) p.aiStuck = 0;
         const path = target.path;
         let stopped = false;
         for (const st of path.path) {
@@ -84,6 +89,7 @@
         if (!world.heroes[h.id]) break;
         world.autoLevelUp(h);
         if (!stopped && target.kind === 'explore') break;
+        if (world.heroes[h.id] && h.movement === 0) break;
         yield { type: 'moved', hero: h };
       }
     }
@@ -129,11 +135,14 @@
     const cands = [];
     const bonus = D.DIFFICULTY[world.difficulty].aiBonus || 1;
     const home = p.towns.length ? world.towns[p.towns[0]] : null;
+    const range = h.boat ? 40 : 22;
     world.map.objects.forEach((o) => {
       if ((o.z || 0) !== (h.z || 0)) return;
-      if (o.type === 'boat' || o.type === 'sea_chest' || o.type === 'shipwreck' || o.type === 'whirlpool') return;
+      if (o.type === 'whirlpool') return;
+      if (o.type === 'boat') { if (!h.boat && (o.owner === h.owner || o.owner < 0) && (p.aiStuck >= 1 || world.template === 'islands')) cands.push({ x: o.x, y: o.y, v: 2000, kind: 'board', obj: o }); return; }
+      if (o.type === 'sea_chest' || o.type === 'shipwreck') { if (h.boat && !o.empty) cands.push({ x: o.x, y: o.y, v: 1200, kind: 'visit', obj: o }); return; }
       const d = Math.hypot(o.x - h.x, o.y - h.y);
-      if (d > 22) return;
+      if (d > range) return;
       let v = 0, kind = 'visit';
       switch (o.type) {
         case 'resource': v = o.res === 'gold' ? o.amount : o.res === 'wood' || o.res === 'ore' ? o.amount * 60 : o.amount * 120; break;
@@ -197,6 +206,12 @@
     let tgt = null, bd = Infinity;
     for (const id in world.towns) { const t = world.towns[id]; if (t.owner !== h.owner && (t.z || 0) === (h.z || 0)) { const d = Math.hypot(t.x - h.x, t.y - h.y); if (d < bd) { bd = d; tgt = t; } } }
     if (!tgt && h.z) { world.map.objects.forEach((o) => { if (o.type === 'gate' && o.z === 1) { const d = Math.hypot(o.x - h.x, o.y - h.y); if (d < bd) { bd = d; tgt = o; } } }); }
+    // На кораб: плаваме към най-близкия чужд град на друг бряг
+    if (h.boat) {
+      let best = null, bs = 0;
+      for (const id in world.towns) { const t = world.towns[id]; if (t.owner === h.owner || (t.z || 0) !== (h.z || 0)) continue; const path = MK.Path.findPath(world, h, t.x, t.y, 30000); if (path) { const sc = 5000 / (1 + path.total / 1500); if (sc > bs) { bs = sc; best = path; } } }
+      if (best) return { path: best, kind: 'explore' };
+    }
     if (tgt) {
       // стъпваме до частична цел по посока
       for (let tries = 0; tries < 6; tries++) {

@@ -206,7 +206,7 @@
   cls('mercenary', 'Наемник', 'workshop', [3, 1, 1, 1], [40, 30, 15, 15], [30, 30, 20, 20], ['archery', 'estates'], false, { archery: 8, estates: 5 });
   cls('artificer', 'Изобретател', 'workshop', [1, 1, 2, 2], [15, 15, 35, 35], [25, 25, 25, 25], ['wisdom', 'intelligence'], true, { intelligence: 7, earth: 5 });
   // Нови умения за всички класове
-  Object.keys(D.CLASS_SKILL_WEIGHTS).forEach((k) => { const w = D.CLASS_SKILL_WEIGHTS[k]; if (!w.diplomacy) w.diplomacy = 3; if (!w.navigation) w.navigation = 1; });
+  Object.keys(D.CLASS_SKILL_WEIGHTS).forEach((k) => { const w = D.CLASS_SKILL_WEIGHTS[k]; w.diplomacy = Math.max(w.diplomacy || 0, 4); if (!w.navigation) w.navigation = 1; });
   D.SKILLS.diplomacy = { name: 'Дипломация', desc: (l) => 'Съществата се присъединяват по-лесно; предаването струва ' + [20, 40, 60][l - 1] + '% по-малко.' };
   D.SKILLS.navigation = { name: 'Мореплаване', desc: (l) => '+' + [50, 100, 150][l - 1] + '% движение по вода.' };
 

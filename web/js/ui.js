@@ -25,7 +25,11 @@
     for (const k in cost) { if (!cost[k]) continue; const lack = res && (res[k] || 0) < cost[k]; c.appendChild(el('span', { class: lack ? 'lack' : '' }, el('i', { style: 'background:' + D.RES_COLOR[k] }), String(cost[k]))); }
     return c;
   }
-  function spriteCanvas(src, w, h) { const c = el('canvas', { width: w, height: h }); c.getContext('2d').drawImage(src, 0, 0, w, h); return c; }
+  function spriteCanvas(src, w, h) {
+    const c = el('canvas', { width: w, height: h }); const g = c.getContext('2d');
+    const k = Math.min(w / src.width, h / src.height); const dw = src.width * k, dh = src.height * k;
+    g.drawImage(src, (w - dw) / 2, h - dh, dw, dh); return c;
+  }
   function toast(text) { const t = el('div', { class: 'toast' }, text); document.getElementById('toasts').appendChild(t); setTimeout(() => t.remove(), 4000); }
 
   // Модален диалог. buttons: [{label, value, cls}] → Promise<value>
@@ -154,7 +158,7 @@
     p.heroes.forEach((id) => {
       const h = w.heroes[id];
       const it = el('div', { class: 'item' + (game.selected === h ? ' sel' : ''), title: h.name, onclick: () => game.selectHero(h, true) });
-      it.appendChild(spriteCanvas(G.portrait(h, 64, p.color), 44, 44));
+      it.appendChild(spriteCanvas(G.portrait(h, 96, p.color), 44, 44));
       it.appendChild(el('div', { class: 'bar', style: 'width:' + Math.round(100 * h.movement / Math.max(1, h.maxMovement)) + '%' }));
       it.appendChild(el('div', { class: 'mana', style: 'height:' + Math.round(100 * h.mana / Math.max(1, w.maxMana(h))) + '%' }));
       if (h.pendingLevels) it.appendChild(el('div', { class: 'dot' }));
@@ -165,7 +169,7 @@
     p.towns.forEach((id) => {
       const t = w.towns[id];
       const it = el('div', { class: 'item', title: t.name, onclick: () => { game.renderer.center(t.x, t.y); showTown(game, t); } });
-      it.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 64, w), 44, 44));
+      it.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44));
       if (!t.builtToday) it.appendChild(el('div', { class: 'dot', style: 'background:#8f8' }));
       tl.appendChild(it);
     });
@@ -181,7 +185,7 @@
     for (let i = 0; i < 7; i++) {
       const sl = army[i];
       const d = el('div', { class: 'slot' + (sel && sel.army === army && sel.i === i ? ' sel' : ''), onclick: () => onPick(army, i) });
-      if (sl) { const c = D.creatureOf(sl.c); d.title = c.name; d.appendChild(spriteCanvas(G.creatureSprite(c, 64), 56, 52)); d.appendChild(el('div', { class: 'n' }, String(sl.n))); if (c.upg) d.appendChild(el('div', { class: 'u' }, '★')); }
+      if (sl) { const c = D.creatureOf(sl.c); d.title = c.name; d.appendChild(spriteCanvas(G.creatureSprite(c, 96), 56, 52)); d.appendChild(el('div', { class: 'n' }, String(sl.n))); if (c.upg) d.appendChild(el('div', { class: 'u' }, '★')); }
       row.appendChild(d);
     }
     return row;
@@ -226,7 +230,7 @@
   function creatureInfo(c, extra) {
     const f = D.factionById(c.faction);
     const content = el('div', null,
-      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.creatureSprite(c, 64), 64, 64), el('div', null, el('div', { class: 'sub' }, (f ? f.name : 'Неутрални') + ' · ниво ' + c.tier + (c.upg ? ' (подобрено)' : '')), el('div', { class: 'cost' }, costHtml(c.cost)))),
+      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.creatureSprite(c, 128), 72, 84), el('div', null, el('div', { class: 'sub' }, (f ? f.name : 'Неутрални') + ' · ниво ' + c.tier + (c.upg ? ' (подобрено)' : '')), el('div', { class: 'cost' }, costHtml(c.cost)))),
       el('div', { class: 'stats', style: 'margin:8px 0' }, el('div', null, el('b', null, c.att), el('small', null, 'Атака')), el('div', null, el('b', null, c.def), el('small', null, 'Защита')), el('div', null, el('b', null, c.dmin + '–' + c.dmax), el('small', null, 'Щети')), el('div', null, el('b', null, c.hp), el('small', null, 'Живот')), el('div', null, el('b', null, c.spd), el('small', null, 'Скорост')), el('div', null, el('b', null, c.growth), el('small', null, 'Растеж'))),
       el('p', { class: 'tiny' }, 'Способности: ' + abilityText(c)),
       extra || null
@@ -242,7 +246,7 @@
     const render = () => {
       s.innerHTML = '';
       const p = w.players[h.owner];
-      s.appendChild(el('header', null, spriteCanvas(G.portrait(h, 64, p.color), 44, 44), el('h1', null, h.name + ' — ' + D.CLASSES[h.cls].name + ', ниво ' + h.level), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
+      s.appendChild(el('header', null, spriteCanvas(G.portrait(h, 96, p.color), 44, 44), el('h1', null, h.name + ' — ' + D.CLASSES[h.cls].name + ', ниво ' + h.level), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
       const body = el('div', { class: 'body' });
       const cols = el('div', { class: 'cols' });
       // характеристики
@@ -324,7 +328,7 @@
     const render = () => {
       s.innerHTML = '';
       const f = D.factionById(t.faction);
-      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 64, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? ' · строено днес' : '')), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
+      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? ' · строено днес' : '')), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
       const body = el('div', { class: 'body' });
       // армии
       const ap = el('div', { class: 'panel' });
@@ -332,7 +336,7 @@
       ap.appendChild(armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game)));
       const v = visitor();
       if (v) {
-        ap.appendChild(el('div', { class: 'row', style: 'margin-top:6px' }, spriteCanvas(G.portrait(v, 64, p.color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, v.name + ', ниво ' + v.level), el('div', { class: 'sub' }, 'Посетил герой · движение ' + v.movement)), el('button', { class: 'small', onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, 'Герой')));
+        ap.appendChild(el('div', { class: 'row', style: 'margin-top:6px' }, spriteCanvas(G.portrait(v, 96, p.color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, v.name + ', ниво ' + v.level), el('div', { class: 'sub' }, 'Посетил герой · движение ' + v.movement)), el('button', { class: 'small', onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, 'Герой')));
         ap.appendChild(armyRow(game, v.army, state.sel, (a, i) => armyPick(state, a, i, render, game)));
       }
       body.appendChild(ap);
@@ -379,7 +383,7 @@
           const target = visitor() ? visitor().army : t.garrison;
           const max = Math.min(t.avail[tier], w.maxAffordable(p, cid));
           const row = el('div', { class: 'row' });
-          const cv = spriteCanvas(G.creatureSprite(c, 64), 48, 48); cv.style.cursor = 'pointer'; cv.addEventListener('click', () => creatureInfo(c));
+          const cv = spriteCanvas(G.creatureSprite(c, 96), 48, 56); cv.style.cursor = 'pointer'; cv.addEventListener('click', () => creatureInfo(c));
           row.appendChild(cv);
           row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, c.name), el('div', { class: 'sub' }, 'Налични: ' + t.avail[tier] + ' · растеж ' + w.growthOf(t, tier) + '/седм. · А' + c.att + ' З' + c.def + ' Щ' + c.dmin + '–' + c.dmax + ' Ж' + c.hp + ' С' + c.spd), costHtml(c.cost, p.res)));
           row.appendChild(el('button', { class: 'small', disabled: max > 0 ? null : 'disabled', onclick: () => recruitDialog(cid, tier, u, max, target) }, 'Набор'));
@@ -395,7 +399,7 @@
         army.forEach((sl, i) => {
           const cost = w.upgradeCost(t, army, i); if (!cost) return;
           const c = D.creatureOf(sl.c), u = D.upgradeOf(c);
-          pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(u, 64), 40, 40), el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Подобри ' + sl.n + ' × ' + c.name + ' → ' + u.name), costHtml(cost, p.res)), el('button', { class: 'small', disabled: w.canAfford(p, cost) ? null : 'disabled', onclick: () => { const r = w.upgradeStack(t, army, i); if (!r.ok) toast(r.why); render(); } }, 'Подобри')));
+          pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(u, 96), 40, 48), el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Подобри ' + sl.n + ' × ' + c.name + ' → ' + u.name), costHtml(cost, p.res)), el('button', { class: 'small', disabled: w.canAfford(p, cost) ? null : 'disabled', onclick: () => { const r = w.upgradeStack(t, army, i); if (!r.ok) toast(r.why); render(); } }, 'Подобри')));
         });
       });
     };
@@ -423,7 +427,7 @@
       list.forEach((proto, i) => {
         const cls = D.CLASSES[proto.cls];
         const fake = { cls: proto.cls, portrait: proto.portrait };
-        pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.portrait(fake, 64, p.color), 44, 44), el('div', { class: 'grow' }, el('div', { class: 'name' }, proto.name + (proto.keep ? ', ниво ' + proto.keep.level : '')), el('div', { class: 'sub' }, cls.name + ' · ' + D.factionById(proto.faction).name + ' · армия: ' + proto.army.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ')), el('div', { class: 'sub' }, 'Цена: 2500 злато')), el('button', { class: 'small primary', disabled: p.res.gold >= 2500 && !t.visitor && p.heroes.length < 8 ? null : 'disabled', onclick: () => { const r = w.hireHero(t, i); if (r.ok) { if (proto.keep) Object.assign(r.hero, proto.keep); toast(r.hero.name + ' се присъединява.'); } else toast(r.why); render(); } }, 'Наеми')));
+        pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.portrait(fake, 96, p.color), 44, 44), el('div', { class: 'grow' }, el('div', { class: 'name' }, proto.name + (proto.keep ? ', ниво ' + proto.keep.level : '')), el('div', { class: 'sub' }, cls.name + ' · ' + D.factionById(proto.faction).name + ' · армия: ' + proto.army.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ')), el('div', { class: 'sub' }, 'Цена: 2500 злато')), el('button', { class: 'small primary', disabled: p.res.gold >= 2500 && !t.visitor && p.heroes.length < 8 ? null : 'disabled', onclick: () => { const r = w.hireHero(t, i); if (r.ok) { if (proto.keep) Object.assign(r.hero, proto.keep); toast(r.hero.name + ' се присъединява.'); } else toast(r.why); render(); } }, 'Наеми')));
       });
       if (t.visitor) pane.appendChild(el('div', { class: 'tiny' }, 'В града вече има герой — изведи го, за да наемеш друг.'));
     };

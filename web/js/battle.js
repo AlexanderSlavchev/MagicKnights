@@ -794,11 +794,24 @@
       if (bestHex && (bestHex.x !== s.x || bestHex.y !== s.y)) { this.doMove(s, bestHex.x, bestHex.y); s.acted = true; s.actionKind = 'move'; return; }
       this.doDefend(s);
     }
+    sideStrength(side) { return this.alive(side).reduce((s, st) => s + st.count * D.fightValue(st.c), 0); }
+    // ИИ се предава, когато битката е безнадеждна (само пред герой, с достатъчно злато)
+    aiConsiderSurrender(side) {
+      if (!this.canSurrender(side) || this.round < 2) return false;
+      const my = this.sideStrength(side), en = this.sideStrength(1 - side);
+      if (my <= 0 || my > en * 0.3) return false;
+      const cost = this.surrenderCost(side);
+      const p = this.world && this.world.players[this.sides[side].owner];
+      if (!p || p.res.gold < cost || cost < 200) return false;
+      return this.doSurrender(side);
+    }
     runAuto(maxRounds) {
       maxRounds = maxRounds || 60;
+      let lastRound = 0;
       while (!this.finished) {
         const s = this.nextTurn();
         if (!s) break;
+        if (this.round !== lastRound) { lastRound = this.round; for (const side of [0, 1]) if (!this.finished) this.aiConsiderSurrender(side); if (this.finished) break; }
         this.aiAct(s);
         this.afterAction(s);
         if (this.round > maxRounds) { this.finished = true; this.winner = 1; break; }
