@@ -71,6 +71,10 @@
           g.fillStyle = shade(base, 1.05); g.beginPath(); g.moveTo(x, S * 0.95 - h); g.lineTo(x - w, S * 0.95); g.lineTo(x - w * 0.1, S * 0.95); g.fill();
           g.fillStyle = terrain === 7 ? '#e06030' : '#f0f4f8'; g.beginPath(); g.moveTo(x, S * 0.95 - h); g.lineTo(x + w * 0.3, S * 0.95 - h * 0.65); g.lineTo(x - w * 0.3, S * 0.95 - h * 0.65); g.fill();
         }
+      } else if (kind === 5) { // подземна скала (стена на пещера)
+        g.fillStyle = '#2a2226'; g.fillRect(0, 0, S, S);
+        for (let i = 0; i < 6; i++) { const x = r(i) * S, y = r(i + 6) * S, rad = S * (0.1 + r(i + 12) * 0.16); g.fillStyle = shade('#3a3036', 0.8 + r(i + 3) * 0.5); g.beginPath(); g.moveTo(x - rad, y + rad * 0.6); g.lineTo(x - rad * 0.4, y - rad); g.lineTo(x + rad * 0.7, y - rad * 0.7); g.lineTo(x + rad, y + rad * 0.5); g.fill(); }
+        if (r(20) > 0.7) { g.fillStyle = '#a070e0'; g.beginPath(); g.moveTo(S * 0.5, S * 0.3); g.lineTo(S * 0.58, S * 0.55); g.lineTo(S * 0.5, S * 0.65); g.lineTo(S * 0.42, S * 0.55); g.fill(); }
       } else if (kind === 3) { // скали
         for (let i = 0; i < 4; i++) {
           const x = S * (0.2 + r(i) * 0.6), y = S * (0.35 + r(i + 4) * 0.45), rad = S * (0.1 + r(i + 8) * 0.12);
@@ -155,6 +159,45 @@
           if (ownerCol) flag(g, S * 0.82, S * 0.45, S, ownerCol);
           break;
         }
+        case 'boat': {
+          g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(cx, S * 0.8, S * 0.42, S * 0.1, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = '#6a4a2a'; g.beginPath(); g.moveTo(S * 0.1, S * 0.58); g.lineTo(S * 0.9, S * 0.58); g.lineTo(S * 0.78, S * 0.8); g.lineTo(S * 0.22, S * 0.8); g.closePath(); g.fill();
+          g.fillStyle = '#8a6a3a'; g.fillRect(S * 0.1, S * 0.56, S * 0.8, S * 0.05);
+          g.fillStyle = '#3a2a1a'; g.fillRect(cx - S * 0.02, S * 0.15, S * 0.04, S * 0.45);
+          g.fillStyle = ownerCol || '#e8e0d0'; g.beginPath(); g.moveTo(cx + S * 0.02, S * 0.17); g.lineTo(cx + S * 0.34, S * 0.5); g.lineTo(cx + S * 0.02, S * 0.5); g.fill();
+          g.fillStyle = '#f0e8d8'; g.beginPath(); g.moveTo(cx - S * 0.02, S * 0.2); g.lineTo(cx - S * 0.3, S * 0.5); g.lineTo(cx - S * 0.02, S * 0.5); g.fill();
+          break;
+        }
+        case 'gate': {
+          g.fillStyle = '#4a4048'; g.beginPath(); g.moveTo(S * 0.15, S * 0.9); g.lineTo(S * 0.2, S * 0.35); g.quadraticCurveTo(cx, S * 0.05, S * 0.8, S * 0.35); g.lineTo(S * 0.85, S * 0.9); g.fill();
+          g.fillStyle = '#0a0810'; g.beginPath(); g.moveTo(S * 0.3, S * 0.9); g.lineTo(S * 0.32, S * 0.45); g.quadraticCurveTo(cx, S * 0.25, S * 0.68, S * 0.45); g.lineTo(S * 0.7, S * 0.9); g.fill();
+          g.fillStyle = 'rgba(160,120,255,0.5)'; g.beginPath(); g.ellipse(cx, S * 0.7, S * 0.14, S * 0.2, 0, 0, Math.PI * 2); g.fill();
+          break;
+        }
+        case 'whirlpool': {
+          g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = S * 0.05;
+          for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(cx, S * 0.55, S * (0.12 + k * 0.11), k * 1.2, k * 1.2 + 4.2); g.stroke(); }
+          break;
+        }
+        case 'lighthouse': {
+          shadow();
+          g.fillStyle = '#e8e0d0'; g.beginPath(); g.moveTo(cx - S * 0.12, S * 0.85); g.lineTo(cx - S * 0.08, S * 0.25); g.lineTo(cx + S * 0.08, S * 0.25); g.lineTo(cx + S * 0.12, S * 0.85); g.fill();
+          g.fillStyle = '#d23c3c'; g.fillRect(cx - S * 0.11, S * 0.55, S * 0.22, S * 0.1);
+          g.fillStyle = '#ffe070'; g.fillRect(cx - S * 0.1, S * 0.15, S * 0.2, S * 0.12);
+          g.fillStyle = 'rgba(255,230,120,0.35)'; g.beginPath(); g.moveTo(cx + S * 0.1, S * 0.2); g.lineTo(S, S * 0.05); g.lineTo(S, S * 0.4); g.fill();
+          if (ownerCol) flag(g, cx + S * 0.2, S * 0.5, S, ownerCol);
+          break;
+        }
+        case 'sea_chest': {
+          g.fillStyle = '#5a3a1a'; g.fillRect(S * 0.25, S * 0.5, S * 0.5, S * 0.28); g.fillStyle = '#e8c040'; g.fillRect(S * 0.25, S * 0.5, S * 0.5, S * 0.05); g.fillStyle = 'rgba(255,255,255,0.4)'; g.beginPath(); g.ellipse(cx, S * 0.82, S * 0.35, S * 0.06, 0, 0, Math.PI * 2); g.fill();
+          break;
+        }
+        case 'shipwreck': {
+          g.fillStyle = '#4a3a2a'; g.beginPath(); g.moveTo(S * 0.15, S * 0.7); g.lineTo(S * 0.85, S * 0.6); g.lineTo(S * 0.75, S * 0.85); g.lineTo(S * 0.3, S * 0.85); g.fill();
+          g.fillStyle = '#3a2a1a'; g.save(); g.translate(cx, S * 0.62); g.rotate(-0.4); g.fillRect(-S * 0.02, -S * 0.45, S * 0.04, S * 0.45); g.restore();
+          if (o.empty) g.globalAlpha = 0.6;
+          break;
+        }
         default: {
           const glyph = { windmill: '🌬', watermill: '⚙', learning: '📜', rally: '🚩', mercenary: '⚔', tower_def: '🛡', star_axis: '✨', garden: '🌸', campfire: '🔥', shrine1: '⛩', shrine2: '⛩', shrine3: '⛩', tree_knowledge: '🌳', magic_well: '💧', wagon: '🛒', fountain: '⛲', idol: '🗿', obelisk: '🗼', stables: '🐎', sanctuary: '🏛', school_war: '🏫', school_magic: '🔮', library: '📚', monolith: '🌀' }[o.type] || '?';
           g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(cx, S * 0.82, S * 0.3, S * 0.1, 0, 0, Math.PI * 2); g.fill();
@@ -168,6 +211,16 @@
 
   // ---------------------------------------------------------------- герои и същества
   function heroSprite(h, S, color, mounted) {
+    if (h.boat) return sprite('hb' + color + '_' + S, S, S, (g) => {
+      const cx = S / 2;
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(cx, S * 0.82, S * 0.44, S * 0.1, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#6a4a2a'; g.beginPath(); g.moveTo(S * 0.08, S * 0.58); g.lineTo(S * 0.92, S * 0.58); g.lineTo(S * 0.8, S * 0.82); g.lineTo(S * 0.2, S * 0.82); g.closePath(); g.fill();
+      g.fillStyle = '#3a2a1a'; g.fillRect(cx - S * 0.02, S * 0.12, S * 0.04, S * 0.48);
+      g.fillStyle = color; g.beginPath(); g.moveTo(cx + S * 0.02, S * 0.14); g.lineTo(cx + S * 0.36, S * 0.5); g.lineTo(cx + S * 0.02, S * 0.5); g.fill();
+      g.fillStyle = '#f0e8d8'; g.beginPath(); g.moveTo(cx - S * 0.02, S * 0.18); g.lineTo(cx - S * 0.32, S * 0.5); g.lineTo(cx - S * 0.02, S * 0.5); g.fill();
+      g.fillStyle = '#e8c8a0'; g.beginPath(); g.arc(cx - S * 0.2, S * 0.5, S * 0.06, 0, Math.PI * 2); g.fill();
+      g.fillStyle = color; g.fillRect(cx - S * 0.26, S * 0.55, S * 0.12, S * 0.1);
+    });
     return sprite('h' + h.faction + '_' + color + '_' + S + '_' + (h.portrait || 0), S, S, (g) => {
       const cx = S / 2;
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.ellipse(cx, S * 0.86, S * 0.32, S * 0.1, 0, 0, Math.PI * 2); g.fill();
@@ -185,7 +238,7 @@
       g.fillStyle = color; g.beginPath(); g.moveTo(cx - S * 0.24, S * 0.15); g.lineTo(cx - S * 0.05, S * 0.21); g.lineTo(cx - S * 0.24, S * 0.28); g.fill();
     });
   }
-  const FAM_COLOR = { kingdom: '#6f9fe8', grove: '#6fc070', necropolis: '#a07fd0', neutral: '#c0a070' };
+  const FAM_COLOR = { kingdom: '#6f9fe8', grove: '#6fc070', necropolis: '#a07fd0', neutral: '#c0a070', academy: '#a8d0f0', inferno: '#e07050', dungeon: '#9070b0', horde: '#c89050', marsh: '#70a070', elements: '#d0b8f8', harbor: '#50b0c8', workshop: '#c0a878' };
   function creatureSprite(c, S, flip) {
     return sprite('c' + c.id + '_' + S + '_' + (flip ? 'f' : ''), S, S, (g) => {
       const col = FAM_COLOR[c.faction] || '#aaa';

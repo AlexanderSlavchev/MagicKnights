@@ -47,7 +47,7 @@ const server = http.createServer((req, res) => {
     h.spells = ['magic_arrow', 'haste', 'slow', 'fireball']; h.mana = 30; h.pow = 3;
     const mon = w.map.objects.filter((o) => o.type === 'monster').sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
     const ctx = w.startBattle(h, { type: 'monster', obj: mon });
-    g._battlePromise = g.fightAsHuman(ctx, 0);
+    g._battlePromise = g.fight(ctx);
   });
   await page.waitForTimeout(500);
   await page.click('text=В бой!');

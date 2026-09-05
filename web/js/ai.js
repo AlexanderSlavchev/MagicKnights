@@ -50,7 +50,7 @@
                 const res = yield { type: 'battle', ctx: ev };
                 world.resolveBattle(ev, res);
               } else {
-                ev.world = world; ev.seed = world.rng.int(1, 1e9); ev.terrain = world.map.terrain[world.idx(h.x, h.y)];
+                ev.world = world; ev.seed = world.rng.int(1, 1e9); ev.terrain = world.terrainAt(h.x, h.y, h.z);
                 const b = new MK.Battle(ev);
                 const res = b.runAuto();
                 world.resolveBattle(ev, res);
@@ -58,7 +58,19 @@
               world.events = world.events.filter((e) => e.type !== 'battleResult' && e.type !== 'enterTown');
               stopped = true; break;
             }
-            if (ev.type === 'choice') { const i = ev.aiPick ? ev.aiPick() : 0; ev.options[i].apply(); world.autoLevelUp(h); stopped = true; break; }
+            if (ev.type === 'choice') {
+              const i = ev.aiPick ? ev.aiPick() : 0; ev.options[i].apply(); world.autoLevelUp(h);
+              // дипломацията може да е вкарала битка в опашката
+              const bev = world.events.find((e) => e.type === 'battle');
+              if (bev) {
+                world.events = world.events.filter((e) => e !== bev);
+                const humanInvolved = world.players[bev.defender.owner] && world.players[bev.defender.owner].human;
+                if (humanInvolved && !opts.autoAll) { const res = yield { type: 'battle', ctx: bev }; world.resolveBattle(bev, res); }
+                else { bev.world = world; bev.seed = world.rng.int(1, 1e9); bev.terrain = world.terrainAt(h.x, h.y, h.z); world.resolveBattle(bev, new MK.Battle(bev).runAuto()); }
+                world.events = world.events.filter((e) => e.type !== 'battleResult' && e.type !== 'enterTown');
+              }
+              stopped = true; break;
+            }
             if (ev.type === 'dwelling') { aiDwelling(world, h, ev.obj); stopped = true; break; }
             if (ev.type === 'enterTown') {
               const t = ev.town; if (t.owner === h.owner) { recruitAll(world, t, h.army); mergeGarrison(t, h); }
@@ -66,6 +78,7 @@
             }
             if (ev.type === 'meet') { mergeHeroes(world, h, ev.other); stopped = true; break; }
             if (ev.type === 'visit') { stopped = true; break; }
+            if (ev.type === 'join') { stopped = true; break; }
           }
         }
         if (!world.heroes[h.id]) break;
@@ -117,6 +130,8 @@
     const bonus = D.DIFFICULTY[world.difficulty].aiBonus || 1;
     const home = p.towns.length ? world.towns[p.towns[0]] : null;
     world.map.objects.forEach((o) => {
+      if ((o.z || 0) !== (h.z || 0)) return;
+      if (o.type === 'boat' || o.type === 'sea_chest' || o.type === 'shipwreck' || o.type === 'whirlpool') return;
       const d = Math.hypot(o.x - h.x, o.y - h.y);
       if (d > 22) return;
       let v = 0, kind = 'visit';
@@ -131,6 +146,8 @@
         case 'shrine1': case 'shrine2': case 'shrine3': v = h.spells.includes(o.spell) ? 0 : 500; break;
         case 'windmill': case 'watermill': v = o.takenWeek === world.week() ? 0 : 600; break;
         case 'wagon': v = o.empty ? 0 : 700; break;
+        case 'lighthouse': if (o.owner !== h.owner) v = 300; break;
+        case 'gate': v = h.z ? 900 : (world.week() >= 2 ? 800 : 0); break;
         case 'monster': {
           const str = o.count * D.fightValue(D.creatureOf(o.creature));
           if (my > str * 1.5 / bonus) { v = 400 + str * 0.5; kind = 'fight'; }
@@ -158,7 +175,7 @@
     // Вражески герои
     for (const id in world.heroes) {
       const e = world.heroes[id];
-      if (e.owner === h.owner || e.owner < 0) continue;
+      if (e.owner === h.owner || e.owner < 0 || (e.z || 0) !== (h.z || 0) || e.boat) continue;
       const d = Math.hypot(e.x - h.x, e.y - h.y);
       if (d > 14) continue;
       const str = world.heroStrength(e) + (e.inTown ? Army.strength(world.towns[e.inTown].garrison) : 0);
@@ -178,14 +195,15 @@
     if (best) return best;
     // Нищо ценно наблизо: към най-близкия неразкрит район или вражески град
     let tgt = null, bd = Infinity;
-    for (const id in world.towns) { const t = world.towns[id]; if (t.owner !== h.owner) { const d = Math.hypot(t.x - h.x, t.y - h.y); if (d < bd) { bd = d; tgt = t; } } }
+    for (const id in world.towns) { const t = world.towns[id]; if (t.owner !== h.owner && (t.z || 0) === (h.z || 0)) { const d = Math.hypot(t.x - h.x, t.y - h.y); if (d < bd) { bd = d; tgt = t; } } }
+    if (!tgt && h.z) { world.map.objects.forEach((o) => { if (o.type === 'gate' && o.z === 1) { const d = Math.hypot(o.x - h.x, o.y - h.y); if (d < bd) { bd = d; tgt = o; } } }); }
     if (tgt) {
       // стъпваме до частична цел по посока
       for (let tries = 0; tries < 6; tries++) {
         const f = Math.min(1, (6 + tries * 3) / bd);
         const tx = Math.round(h.x + (tgt.x - h.x) * f), ty = Math.round(h.y + (tgt.y - h.y) * f);
         if (!world.inb(tx, ty)) continue;
-        if (world.objectAt(tx, ty) || world.heroAt(tx, ty)) continue;
+        if (world.objectAt(tx, ty, h.z) || world.heroAt(tx, ty, h.z)) continue;
         const path = MK.Path.findPath(world, h, tx, ty, 8000);
         if (path && pathSafe(world, h, path, my, bonus)) return { path, kind: 'explore' };
       }
@@ -193,7 +211,7 @@
     // Случайна достижима безопасна плочка
     const reach = MK.Path.reachable(world, h, h.movement);
     const far = [];
-    reach.forEach((c, i) => { const x = i % world.map.w, y = Math.floor(i / world.map.w); if (!world.objectAt(x, y) && !world.heroAt(x, y) && c > 0) far.push({ c, x, y }); });
+    reach.forEach((c, i) => { const x = i % world.map.w, y = Math.floor(i / world.map.w); if (!world.objectAt(x, y, h.z) && !world.heroAt(x, y, h.z) && c > 0 && !world.isWater(x, y, h.z)) far.push({ c, x, y }); });
     far.sort((a, b) => b.c - a.c);
     for (const f of far.slice(0, 8)) { const path = MK.Path.findPath(world, h, f.x, f.y, 8000); if (path && pathSafe(world, h, path, my, bonus)) return { path, kind: 'explore' }; }
     return null;
@@ -204,7 +222,7 @@
     for (const st of path.path) {
       const isLast = st === path.path[path.path.length - 1];
       for (let d = 0; d < 8; d++) {
-        const o = world.objectAt(st.x + MK.DIRS[d][0], st.y + MK.DIRS[d][1]);
+        const o = world.objectAt(st.x + MK.DIRS[d][0], st.y + MK.DIRS[d][1], h.z);
         if (!o || o.type !== 'monster' || (isLast && o === targetObj)) continue;
         // последната стъпка върху обект (мина, ресурс) също може да бъде причакана
         const str = o.count * D.fightValue(D.creatureOf(o.creature));

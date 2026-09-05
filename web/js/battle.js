@@ -1,6 +1,7 @@
 /* Битка: хексово поле 15×11, ред по скорост, чакане/защита, ответен удар,
-   стрелба с наказания, класическата формула за щети, морал и късмет,
-   магии, специални способности, обсада с кули и стени, боен ИИ. */
+   стрелба с наказания, класическата формула за щети, морал и късмет, магии,
+   специални способности, двухексови същества, тактика, обсада с ров, стени,
+   порта, катапулт и кули, предаване, боен ИИ. */
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
@@ -20,21 +21,21 @@
       return out;
     },
     toCube(x, y) { const q = x - ((y - (y & 1)) >> 1); const r = y; return [q, r, -q - r]; },
+    fromCube(q, r) { const y = r, x = q + ((y - (y & 1)) >> 1); return [x, y]; },
     dist(x1, y1, x2, y2) { const a = Hex.toCube(x1, y1), b = Hex.toCube(x2, y2); return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2])); },
-    // Хексът "зад" целта по линията от атакуващия (за дъх на дракон)
     behind(ax, ay, tx, ty) {
       const a = Hex.toCube(ax, ay), t = Hex.toCube(tx, ty);
       const d = [t[0] - a[0], t[1] - a[1], t[2] - a[2]];
-      const c = [t[0] + d[0], t[1] + d[1], t[2] + d[2]];
-      const y = c[1], x = c[0] + ((y - (y & 1)) >> 1);
+      const [x, y] = Hex.fromCube(t[0] + d[0], t[1] + d[1]);
       return Hex.inb(x, y) ? [x, y] : null;
     }
   };
   MK.Hex = Hex;
 
   const START_ROWS = { 1: [5], 2: [3, 7], 3: [2, 5, 8], 4: [1, 4, 6, 9], 5: [0, 3, 5, 7, 10], 6: [0, 2, 4, 6, 8, 10], 7: [0, 2, 4, 5, 6, 8, 10] };
+  const GATE = Hex.idx(10, 5);
+  const NO_MORALE = new Set(['academy2', 'academy2u', 'academy3', 'academy3u', 'workshop4', 'workshop4u', 'elements2', 'elements2u', 'elements3', 'elements3u', 'elements4', 'elements4u', 'elements5', 'elements5u', 'elements6', 'elements6u', 'n_golem']);
 
-  // ---------------------------------------------------------------- битката
   class Battle {
     /* ctx: {attacker:{hero,army,owner}, defender:{hero,army,owner,garrison,obj}, town, kind, world, seed, terrain} */
     constructor(ctx) {
@@ -48,20 +49,25 @@
       this.winner = null;
       this.sides = [this.makeSide(ctx.attacker, 0), this.makeSide(ctx.defender, 1)];
       this.stacks = [];
-      this.obstacles = new Set();
-      this.walls = new Set();
+      this.obstacles = new Set();   // естествени препятствия
+      this.walls = new Set();       // стени (без портата)
+      this.wallHp = {};             // idx -> hp (стени и порта)
+      this.rubble = new Set();      // разбити стени
+      this.moat = new Set();
       this.towers = [];
-      this.siege = 0;
-      if (ctx.town && this.world) {
-        this.siege = this.world.fortLevel(ctx.town);
-      }
+      this.siege = ctx.town && this.world ? this.world.fortLevel(ctx.town) : 0;
       this.placeObstacles();
       this.placeStacks();
+      this.stacks.forEach((s) => { s.origCount = s.count; });
       this.casted = [false, false];
       this.queue = [];
       this.waitQueue = [];
       this.current = null;
       this.events = [];
+      // Тактика: страната с по-висока тактика подрежда ръчно (в интерфейса)
+      const t0 = this.sides[0].tactics, t1 = this.sides[1].tactics;
+      this.tacticsSide = t0 > t1 ? 0 : t1 > t0 && !this.siege ? 1 : -1;
+      this.tacticsLevel = Math.abs(t0 - t1);
     }
     makeSide(s, i) {
       const w = this.world;
@@ -71,13 +77,17 @@
       side.def = h ? w.stat(h, 'def') : 0;
       side.pow = h ? w.stat(h, 'pow') : 0;
       side.know = h ? w.stat(h, 'know') : 0;
-      side.skills = h ? h.skills : {};
-      side.spells = h ? h.spells : [];
+      side.skills = {};
+      if (h) Object.keys(D.SKILLS).forEach((k) => { const l = w.skillLevel(h, k); if (l) side.skills[k] = l; });
+      side.skillMult = (k) => (h ? w.skillMult(h, k) : 1);
+      side.spells = h ? w.heroSpells(h) : [];
       side.morale = h ? w.heroMorale(h) : 0;
       side.luck = h ? w.heroLuck(h) : 0;
       side.arts = h ? h.arts : [];
+      side.sets = h ? w.heroSets(h) : [];
+      side.spec = h ? h.spec : null;
+      side.level = h ? h.level : 0;
       side.hpBonus = h ? w.artBonus(h, 'hpBonus') : 0;
-      // морал от смесени фракции
       const fs = MK.Army.factions(s.army); if (s.garrison) MK.Army.factions(s.garrison).forEach((f) => fs.add(f));
       fs.delete('neutral');
       side.factionMorale = fs.size <= 1 ? (fs.size === 1 ? 1 : 0) : fs.size === 2 ? 0 : -(fs.size - 2);
@@ -86,26 +96,59 @@
       side.tactics = side.skills.tactics || 0;
       return side;
     }
+    hasSet(side, id) { return this.sides[side].sets.some((s) => s === D.ART_SETS[id]); }
     placeObstacles() {
-      const n = this.rng.int(3, 7);
+      const n = this.rng.int(3, 7) + (this.terrain === 5 || this.terrain === 8 ? 2 : 0) - (this.terrain === 3 ? 1 : 0);
       for (let k = 0; k < n; k++) {
         const x = this.rng.int(3, W - 4), y = this.rng.int(0, H - 1);
-        if (this.siege && x >= 9) continue;
+        if (this.siege && x >= 8) continue;
         this.obstacles.add(Hex.idx(x, y));
-        if (this.rng.chance(0.5)) { const nb = this.rng.pick(Hex.neighbors(x, y)); if (nb[0] >= 3 && nb[0] <= W - 4 && !(this.siege && nb[0] >= 9)) this.obstacles.add(Hex.idx(nb[0], nb[1])); }
+        if (this.rng.chance(0.5)) { const nb = this.rng.pick(Hex.neighbors(x, y)); if (nb[0] >= 3 && nb[0] <= W - 4 && !(this.siege && nb[0] >= 8)) this.obstacles.add(Hex.idx(nb[0], nb[1])); }
       }
       if (this.siege) {
-        // Стени в колона 10, отворена порта в редове 4-6; кули по нивата
-        for (let y = 0; y < H; y++) if (y < 4 || y > 6) { this.walls.add(Hex.idx(10, y)); this.obstacles.add(Hex.idx(10, y)); }
+        const hp = this.siege; // здравина на сегмент
+        for (let y = 0; y < H; y++) {
+          const i = Hex.idx(10, y);
+          if (i === GATE) { this.wallHp[i] = hp + 1; continue; }
+          this.walls.add(i); this.wallHp[i] = hp;
+          if (this.siege >= 2) this.moat.add(Hex.idx(9, y));
+        }
         if (this.siege >= 2) this.towers.push({ x: 13, y: 5, dmg: 15 });
         if (this.siege >= 3) { this.towers.push({ x: 12, y: 0, dmg: 10 }); this.towers.push({ x: 12, y: 10, dmg: 10 }); }
       }
     }
+    // Проходимост на хекс за страна (стени, порта, естествени препятствия)
+    blocked(i, side) {
+      if (this.obstacles.has(i)) return true;
+      if (this.walls.has(i)) return true;
+      if (i === GATE && this.siege && this.wallHp[GATE] > 0 && side === 0) return true;
+      return false;
+    }
+    isGateIntact() { return this.siege && this.wallHp[GATE] > 0; }
+    // ---------------------------------------------------------------- хексове на стек
+    tailX(s, x) { return x + (s.side === 0 ? -1 : 1); }
+    hexesAt(s, x, y) { return s.wide ? [[x, y], [this.tailX(s, x), y]] : [[x, y]]; }
+    hexes(s) { return this.hexesAt(s, s.x, s.y); }
+    occupant(x, y) { for (const s of this.stacks) { if (!s.alive) continue; if (s.x === x && s.y === y) return s; if (s.wide && s.y === y && this.tailX(s, s.x) === x) return s; } return null; }
+    stackAt(x, y) { return this.occupant(x, y); }
+    canStand(s, x, y) {
+      for (const [hx, hy] of this.hexesAt(s, x, y)) {
+        if (!Hex.inb(hx, hy) || this.blocked(Hex.idx(hx, hy), s.side)) return false;
+        const o = this.occupant(hx, hy); if (o && o !== s) return false;
+      }
+      return true;
+    }
+    adjacent(a, b) { for (const [ax, ay] of this.hexes(a)) for (const [bx, by] of this.hexes(b)) if (Hex.dist(ax, ay, bx, by) === 1) return true; return false; }
+    adjacentAt(a, x, y, b) { for (const [ax, ay] of this.hexesAt(a, x, y)) for (const [bx, by] of this.hexes(b)) if (Hex.dist(ax, ay, bx, by) === 1) return true; return false; }
+    distBetween(a, b) { let m = Infinity; for (const [ax, ay] of this.hexes(a)) for (const [bx, by] of this.hexes(b)) m = Math.min(m, Hex.dist(ax, ay, bx, by)); return m; }
+    distToHex(s, x, y) { let m = Infinity; for (const [ax, ay] of this.hexes(s)) m = Math.min(m, Hex.dist(ax, ay, x, y)); return m; }
+    inMoat(s) { return this.moat.size > 0 && this.hexes(s).some(([x, y]) => this.moat.has(Hex.idx(x, y))); }
+
     addStack(side, slot, sl, x, y, fromGarrison) {
       const c = D.creatureOf(sl.c);
       const s = {
-        id: this.stacks.length, side, slot, fromGarrison: !!fromGarrison, ref: sl, c, count: sl.n, hp: c.hp + this.sides[side].hpBonus, maxHp: c.hp + this.sides[side].hpBonus,
-        x, y, shots: c.shots, effects: {}, retaliations: 0, waited: false, defended: false, acted: false, alive: true, killed: 0, movedHexes: 0, boundBy: null
+        id: this.stacks.length, side, slot, fromGarrison: !!fromGarrison, ref: sl, c, wide: !!c.wide, count: sl.n, hp: c.hp + this.sides[side].hpBonus, maxHp: c.hp + this.sides[side].hpBonus,
+        x, y, shots: c.shots, effects: {}, retaliations: 0, waited: false, defended: false, acted: false, alive: true, killed: 0, movedHexes: 0, boundBy: null, reborn: false
       };
       this.stacks.push(s);
       return s;
@@ -118,60 +161,77 @@
         if (side.garrison) side.garrison.forEach((sl, i) => { if (sl && sl.n > 0 && slots.length < 7) slots.push({ sl, i, g: true }); });
         const rows = START_ROWS[Math.min(7, slots.length)] || [];
         let col = si === 0 ? 0 : W - 1;
-        if (side.tactics && !(si === 1 && this.siege)) col += si === 0 ? side.tactics : -side.tactics;
         if (si === 1 && this.siege) col = W - 2;
-        slots.forEach((s, k) => {
-          let x = col, y = rows[k] ?? k;
-          // ако хексът е препятствие — търсим свободен наблизо
-          while (this.obstacles.has(Hex.idx(x, y)) || this.stackAt(x, y)) { x += si === 0 ? 1 : -1; }
-          this.addStack(si, s.i, s.sl, x, y, s.g);
+        slots.forEach((sd, k) => {
+          const c = D.creatureOf(sd.sl.c);
+          let x = col + (c.wide ? (si === 0 ? 1 : -1) : 0), y = rows[k] ?? k;
+          const probe = { side: si, wide: !!c.wide, alive: false };
+          let guard = 0;
+          while (!this.canStand(probe, x, y) && guard++ < 20) { x += si === 0 ? 1 : -1; if (x < 0 || x >= W) { x = col; y = (y + 1) % H; } }
+          this.addStack(si, sd.i, sd.sl, x, y, sd.g);
         });
       });
+      // Автоматична тактика за ИИ (човекът подрежда ръчно)
+      [0, 1].forEach((si) => {
+        const side = this.sides[si]; const other = this.sides[1 - si];
+        const t = side.tactics - other.tactics;
+        if (t <= 0 || (si === 1 && this.siege)) return;
+        this.alive(si).forEach((s) => { for (let k = 0; k < t; k++) { const nx = s.x + (si === 0 ? 1 : -1); if (this.canStand(s, nx, s.y)) s.x = nx; } });
+      });
     }
-    stackAt(x, y) { return this.stacks.find((s) => s.alive && s.x === x && s.y === y) || null; }
+    // Ръчна тактика: колони, в които страната може да подрежда
+    tacticsAllowed(side, x) { const t = this.tacticsLevel; return side === 0 ? x <= 1 + 2 * t : x >= W - 2 - 2 * t; }
+    placeStack(s, x, y) { if (!this.tacticsAllowed(s.side, x) || !this.canStand(s, x, y)) return false; s.x = x; s.y = y; return true; }
     alive(side) { return this.stacks.filter((s) => s.alive && s.side === side); }
-    enemySide(s) { return 1 - s.side; }
     pushEv(e) { this.events.push(e); }
 
     // ------------------------------------------------------------ характеристики
     eff(s, name) { const e = s.effects[name]; return e ? e.val : 0; }
     isNative(s) { const f = D.factionById(s.c.faction); return f && f.terrain === this.terrain; }
+    specBonus(s) { const sp = this.sides[s.side].spec; if (!sp || sp.kind !== 'creature') return 0; const c = D.creatureOf(sp.id); return c.faction === s.c.faction && c.tier === s.c.tier ? Math.floor(this.sides[s.side].level / 3) : 0; }
+    isSpecCreature(s) { const sp = this.sides[s.side].spec; return sp && sp.kind === 'creature' && D.creatureOf(sp.id).faction === s.c.faction && D.creatureOf(sp.id).tier === s.c.tier; }
     speed(s) {
       let v = s.c.spd + this.eff(s, 'haste') + this.eff(s, 'prayer');
       if (s.effects.slow) v = Math.floor(v * (1 - s.effects.slow.val / 100));
       if (this.isNative(s)) v += 1;
+      if (this.isSpecCreature(s)) v += 1;
+      if (this.hasSet(s.side, 'wolf')) v += 2;
       return Math.max(1, v);
     }
     attack(s, ranged) {
       const side = this.sides[s.side];
-      let a = s.c.att + side.att + this.eff(s, 'prayer') - this.eff(s, 'weakness');
+      let a = s.c.att + side.att + this.eff(s, 'prayer') - this.eff(s, 'weakness') + this.specBonus(s);
       if (!ranged) a += this.eff(s, 'bloodlust'); else a += this.eff(s, 'precision');
       if (this.isNative(s)) a += 1;
       return Math.max(0, a);
     }
     defense(s) {
       const side = this.sides[s.side];
-      let d = s.c.def + side.def + this.eff(s, 'stoneskin') + this.eff(s, 'prayer') - this.eff(s, 'disrupt');
+      let d = s.c.def + side.def + this.eff(s, 'stoneskin') + this.eff(s, 'prayer') - this.eff(s, 'disrupt') + this.specBonus(s);
       if (s.defended) d += Math.ceil(s.c.def * 0.2);
       if (this.isNative(s)) d += 1;
+      if (this.inMoat(s)) d -= 3;
       return Math.max(0, d);
     }
     morale(s) {
-      if (s.c.abilities.undead || s.c.faction === 'neutral' && s.c.abilities.undead) return 0;
+      if (s.c.abilities.undead || NO_MORALE.has(s.c.id)) return 0;
       const side = this.sides[s.side];
       let m = side.morale + side.factionMorale + this.eff(s, 'mirth') - this.eff(s, 'sorrow');
       if (side.hasUndead && !s.c.abilities.undead) m -= 1;
       if (this.alive(s.side).some((o) => o.c.abilities.moraleAura && o !== s)) m += 1;
       if (this.alive(1 - s.side).some((o) => o.c.abilities.fearAura)) m -= 1;
+      if (s.c.abilities.goodMorale) m = Math.max(1, m);
       return Math.max(-3, Math.min(3, m));
     }
     luck(s) {
       const side = this.sides[s.side];
-      return Math.max(-3, Math.min(3, side.luck + this.eff(s, 'fortune') - this.eff(s, 'misfortune')));
+      let l = side.luck + this.eff(s, 'fortune') - this.eff(s, 'misfortune');
+      if (this.alive(1 - s.side).some((o) => o.c.abilities.badLuckAura)) l -= 1;
+      return Math.max(-3, Math.min(3, l));
     }
     isShooter(s) { return !!s.c.abilities.shooter && s.shots > 0; }
-    adjacentEnemy(s) { return Hex.neighbors(s.x, s.y).some(([x, y]) => { const o = this.stackAt(x, y); return o && o.side !== s.side; }); }
-    behindWall(s) { return this.siege && s.x > 10; }
+    adjacentEnemy(s) { return this.alive(1 - s.side).some((e) => this.adjacent(s, e)); }
+    behindWall(s) { return this.siege && s.x > 10 && this.walls.size > 4; }
 
     // ------------------------------------------------------------ рундове и ред
     startRound() {
@@ -181,10 +241,23 @@
         if (!s.alive) return;
         s.waited = false; s.defended = false; s.acted = false; s.movedHexes = 0;
         s.retaliations = s.c.abilities.retaliations || 1;
-        // ефекти с продължителност
         for (const k in s.effects) { const e = s.effects[k]; if (e.turns !== Infinity && --e.turns <= 0) delete s.effects[k]; }
         if (s.c.abilities.regenerate) s.hp = s.maxHp;
       });
+      // Катапултът на нападателя удря стена или порта
+      if (this.siege && this.alive(0).length) {
+        const intact = Object.keys(this.wallHp).map(Number).filter((i) => this.wallHp[i] > 0);
+        if (intact.length) {
+          const i = this.wallHp[GATE] > 0 && this.rng.chance(0.5) ? GATE : this.rng.pick(intact);
+          if (this.wallHp[i] > 0) {
+            this.wallHp[i] = Math.max(0, this.wallHp[i] - 2);
+            const destroyed = this.wallHp[i] <= 0;
+            if (destroyed) { this.walls.delete(i); this.rubble.add(i); }
+            this.pushEv({ type: 'catapult', idx: i, destroyed, gate: i === GATE });
+            this.logLine('Катапултът удря ' + (i === GATE ? 'портата' : 'стената') + (destroyed ? ' и я разбива!' : '.'));
+          }
+        }
+      }
       // Кули стрелят по нападателя
       this.towers.forEach((t) => {
         const targets = this.alive(0);
@@ -205,7 +278,6 @@
       this.waitQueue = [];
       this.pushEv({ type: 'round', round: this.round });
     }
-    /* Взима следващия стек за действие; обработва морал (лош) и слепота. Връща стека или null ако битката е приключила. */
     nextTurn() {
       if (this.finished) return null;
       for (;;) {
@@ -215,10 +287,8 @@
         else { this.waitQueue.sort((a, b) => this.speed(a) - this.speed(b)); s = this.waitQueue.shift(); }
         if (!s.alive) continue;
         if (s.effects.blind) { this.pushEv({ type: 'skip', stack: s.id, why: 'blind' }); continue; }
-        if (s.effects.bound && s.boundBy && !(s.boundBy.alive && Hex.dist(s.x, s.y, s.boundBy.x, s.boundBy.y) === 1)) { delete s.effects.bound; s.boundBy = null; }
-        // Присмукване на мана
+        if (s.effects.bound && s.boundBy && !(s.boundBy.alive && this.adjacent(s, s.boundBy))) { delete s.effects.bound; s.boundBy = null; }
         if (s.c.abilities.manaDrain) { const es = this.sides[1 - s.side]; if (es.hero && es.mana > 0) { es.mana = Math.max(0, es.mana - s.c.abilities.manaDrain); this.pushEv({ type: 'manaDrain', stack: s.id }); } }
-        // Лош морал
         if (!s.waited) {
           const m = this.morale(s);
           if (m < 0 && this.rng.chance(-m / 24)) { s.acted = true; this.pushEv({ type: 'morale', stack: s.id, good: false }); this.logLine(s.c.name + ' се колебае от лош морал.'); continue; }
@@ -227,7 +297,6 @@
         return s;
       }
     }
-    /* Извиква се след действие: добър морал дава още един ход веднага */
     afterAction(s) {
       if (this.finished) return;
       this.checkEnd();
@@ -245,28 +314,32 @@
     }
 
     // ------------------------------------------------------------ движение
-    /* Достижими хексове за стека: Map idx -> {x,y,dist,prev} */
+    /* Достижими позиции (глава): Map idx -> {x,y,d,prev} */
     reach(s) {
       const sp = this.speed(s);
       const out = new Map();
-      if (s.effects.bound) { out.set(Hex.idx(s.x, s.y), { x: s.x, y: s.y, d: 0, prev: null }); return out; }
+      const start = Hex.idx(s.x, s.y);
+      out.set(start, { x: s.x, y: s.y, d: 0, prev: null });
+      if (s.effects.bound) return out;
       if (s.c.abilities.flying) {
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
           const d = Hex.dist(s.x, s.y, x, y);
-          if (d <= sp && !this.obstacles.has(Hex.idx(x, y)) && (!this.stackAt(x, y) || (x === s.x && y === s.y))) out.set(Hex.idx(x, y), { x, y, d, prev: null });
+          if (d <= sp && d > 0 && this.canStand(s, x, y)) out.set(Hex.idx(x, y), { x, y, d, prev: null });
         }
         return out;
       }
-      const start = Hex.idx(s.x, s.y);
-      out.set(start, { x: s.x, y: s.y, d: 0, prev: null });
       const q = [[s.x, s.y, 0]];
+      const startMoat = this.inMoat(s);
       while (q.length) {
         const [x, y, d] = q.shift();
         if (d >= sp) continue;
         for (const [nx, ny] of Hex.neighbors(x, y)) {
           const i = Hex.idx(nx, ny);
-          if (out.has(i) || this.obstacles.has(i) || this.stackAt(nx, ny)) continue;
+          if (out.has(i) || !this.canStand(s, nx, ny)) continue;
           out.set(i, { x: nx, y: ny, d: d + 1, prev: Hex.idx(x, y) });
+          // ровът спира движението
+          const moat = this.moat.size && this.hexesAt(s, nx, ny).some(([hx, hy]) => this.moat.has(Hex.idx(hx, hy)));
+          if (moat && !startMoat) continue;
           q.push([nx, ny, d + 1]);
         }
       }
@@ -277,7 +350,7 @@
       while (i !== null && i !== undefined) { const n = reach.get(i); if (!n) return null; path.push([n.x, n.y]); i = n.prev; }
       return path.reverse();
     }
-    /* Възможни атаки: за всеки враг — от кой достижим съседен хекс (или стрелба) */
+    /* Възможни атаки: стрелба или удар от достижима позиция */
     attackOptions(s, reach) {
       reach = reach || this.reach(s);
       const opts = [];
@@ -285,17 +358,14 @@
       if (this.isShooter(s) && !this.adjacentEnemy(s)) enemies.forEach((e) => opts.push({ target: e, ranged: true }));
       enemies.forEach((e) => {
         let best = null;
-        for (const [nx, ny] of Hex.neighbors(e.x, e.y)) {
-          const r = reach.get(Hex.idx(nx, ny));
-          if (r && (!best || r.d < best.d)) best = r;
-        }
+        reach.forEach((r) => { if (this.adjacentAt(s, r.x, r.y, e) && (!best || r.d < best.d)) best = r; });
         if (best) opts.push({ target: e, ranged: false, from: best });
       });
       return opts;
     }
 
     // ------------------------------------------------------------ щети
-    baseDamage(att, def) {
+    baseDamage(att) {
       const c = att.c;
       let dmin = c.dmin, dmax = c.dmax;
       if (att.effects.bless) { dmin = dmax = dmax + (att.effects.bless.val ? 1 : 0); }
@@ -306,57 +376,68 @@
       let s = 0; for (let i = 0; i < 10; i++) s += this.rng.int(dmin, dmax);
       return Math.round(s * n / 10);
     }
-    /* Пълна формула. opts: {ranged, retaliation, luckRoll:true} → {dmg, luck} */
     calcDamage(att, def, opts) {
       opts = opts || {};
       const ranged = !!opts.ranged;
-      const A = this.attack(att, ranged) + (att.effects.slayer && def.c.tier === 7 ? att.effects.slayer.val : 0);
-      const Dd = this.defense(def);
+      let A = this.attack(att, ranged) + (att.effects.slayer && def.c.tier === 7 ? att.effects.slayer.val : 0);
+      if (!ranged && def.c.abilities.ignoreAtt) A = Math.floor(A * (1 - def.c.abilities.ignoreAtt / 100));
+      let Dd = this.defense(def);
+      if (att.c.abilities.ignoreDef) Dd = Math.floor(Dd * (1 - att.c.abilities.ignoreDef / 100));
       let mult;
       if (A >= Dd) mult = Math.min(4, 1 + 0.05 * (A - Dd)); else mult = Math.max(0.3, 1 - 0.025 * (Dd - A));
-      let base = this.baseDamage(att, def);
+      const base = this.baseDamage(att);
       const side = this.sides[att.side], dside = this.sides[def.side];
       let bonus = 0, red = 1;
-      if (!ranged) bonus += [0, 0.1, 0.2, 0.3][side.skills.offense || 0]; else bonus += [0, 0.1, 0.25, 0.5][side.skills.archery || 0];
+      if (!ranged) bonus += [0, 0.1, 0.2, 0.3][side.skills.offense || 0] * side.skillMult('offense'); else bonus += [0, 0.1, 0.25, 0.5][side.skills.archery || 0] * side.skillMult('archery');
       if (!ranged && att.c.abilities.jousting) bonus += 0.05 * att.movedHexes;
+      if (att.c.abilities.thunderHit && this.rng.chance(att.c.abilities.thunderHit / 100)) { bonus += 0.25; opts.thunder = true; }
       let luck = 0;
       if (opts.luckRoll !== false && !opts.retaliation) {
         const l = this.luck(att);
         if (l > 0 && this.rng.chance(l / 24)) { bonus += 1; luck = 1; }
         else if (l < 0 && this.rng.chance(-l / 24)) { red *= 0.5; luck = -1; }
       }
-      red *= 1 - [0, 0.05, 0.1, 0.15][dside.skills.armorer || 0];
+      red *= 1 - [0, 0.05, 0.1, 0.15][dside.skills.armorer || 0] * dside.skillMult('armorer');
       if (!ranged && def.effects.shield) red *= 1 - def.effects.shield.val / 100;
       if (ranged && def.effects.airshield) red *= 1 - def.effects.airshield.val / 100;
       if (ranged) {
-        if (Hex.dist(att.x, att.y, def.x, def.y) > 10) red *= 0.5;
-        if (this.siege && this.behindWall(def) && !this.behindWall(att)) red *= 0.5;
+        if (this.distBetween(att, def) > 10) red *= 0.5;
+        if (this.siege && this.behindWall(def) && !this.behindWall(att) && !att.c.abilities.noObstaclePenalty) red *= 0.5;
       } else if (att.c.abilities.shooter && !att.c.abilities.noMeleePenalty) red *= 0.5;
       if (att.c.abilities.deathBlow && !opts.retaliation && this.rng.chance(att.c.abilities.deathBlow / 100)) { bonus += 1; opts.deathBlow = true; }
-      let dmg = Math.floor(base * mult * (1 + bonus) * red);
+      const dmg = Math.floor(base * mult * (1 + bonus) * red);
       return { dmg: Math.max(1, dmg), luck, deathBlow: !!opts.deathBlow };
     }
-    /* Прилага щети: връща {kills, dmg} */
     applyDamage(s, dmg) {
       const total = (s.count - 1) * s.maxHp + s.hp;
       const left = total - dmg;
       let kills;
-      if (left <= 0) { kills = s.count; s.count = 0; s.hp = 0; s.alive = false; this.pushEv({ type: 'death', stack: s.id }); }
+      if (left <= 0) { kills = s.count; s.count = 0; s.hp = 0; s.alive = false; this.onDeath(s); }
       else { const nc = Math.ceil(left / s.maxHp); kills = s.count - nc; s.count = nc; s.hp = left - (nc - 1) * s.maxHp; }
       s.killed += kills;
       s.ref.n = s.count;
       const es = this.sides[1 - s.side];
       es.kills = (es.kills || 0) + kills; es.hpKilled = (es.hpKilled || 0) + Math.min(dmg, total);
-      if (!s.alive) { this.stacks.forEach((o) => { if (o.boundBy === s) { o.boundBy = null; delete o.effects.bound; } }); }
       return { kills, dmg: Math.min(dmg, total) };
     }
+    onDeath(s) {
+      this.pushEv({ type: 'death', stack: s.id });
+      this.stacks.forEach((o) => { if (o.boundBy === s) { o.boundBy = null; delete o.effects.bound; } });
+      if (s.c.abilities.rebirth && !s.reborn) {
+        s.reborn = true;
+        const n = Math.max(1, Math.floor(s.origCount * 0.2));
+        s.alive = true; s.count = n; s.hp = s.maxHp; s.ref.n = n; s.effects = {};
+        this.pushEv({ type: 'rebirth', stack: s.id, count: n });
+        this.logLine(s.c.name + ' се преражда от пепелта: ' + n + '!');
+      }
+    }
+    killCreatures(s, n) { if (n <= 0 || !s.alive) return 0; n = Math.min(n, s.count); const dmg = (n - 1) * s.maxHp + s.hp; return this.applyDamage(s, dmg).kills; }
     heal(s, amount, resurrect) {
       if (!s.alive && !resurrect) return 0;
-      const orig = s.ref.n0 ?? s.origCount;
       const maxCount = s.origCount;
       const total = (s.count - 1) * s.maxHp + s.hp;
       let nt = Math.min(maxCount * s.maxHp, Math.max(0, total) + amount);
-      if (!resurrect) nt = Math.min(nt, s.count * s.maxHp); // само лечение на живите
+      if (!resurrect) nt = Math.min(nt, s.count * s.maxHp);
       const nc = Math.max(0, Math.ceil(nt / s.maxHp));
       const healed = nt - Math.max(0, total);
       if (nc > 0) { s.alive = true; s.count = nc; s.hp = nt - (nc - 1) * s.maxHp; s.ref.n = nc; }
@@ -368,51 +449,62 @@
     doMove(s, x, y) {
       const reach = this.reach(s);
       const r = reach.get(Hex.idx(x, y));
-      if (!r || this.stackAt(x, y)) return false;
+      if (!r || !this.canStand(s, x, y)) return false;
       const path = s.c.abilities.flying ? [[s.x, s.y], [x, y]] : this.pathTo(reach, x, y);
       s.movedHexes = r.d;
       this.pushEv({ type: 'move', stack: s.id, path, fly: !!s.c.abilities.flying });
       s.x = x; s.y = y;
-      // ако е бил вързан — вече не
       return true;
     }
-    /* Единичен удар (без ответ). Връща {dmg,kills,luck} */
     strike(att, def, opts) {
       const r = this.calcDamage(att, def, opts);
       const a = this.applyDamage(def, r.dmg);
       this.pushEv({ type: 'hit', from: att.id, to: def.id, dmg: a.dmg, kills: a.kills, luck: r.luck, ranged: !!opts.ranged, retaliation: !!opts.retaliation, deathBlow: r.deathBlow });
       this.logLine((opts.retaliation ? 'Ответен удар: ' : opts.ranged ? 'Изстрел: ' : '') + att.c.name + ' → ' + def.c.name + ': ' + a.dmg + ' щети' + (a.kills ? ', убити ' + a.kills : '') + (r.luck > 0 ? ' (късмет!)' : r.luck < 0 ? ' (лош късмет)' : '') + (r.deathBlow ? ' (смъртоносен удар!)' : '') + '.');
-      // Специални ефекти при удар
-      if (!opts.ranged || att.c.abilities.shooter === undefined) {
-        if (att.c.abilities.lifeDrain && a.dmg > 0) { const h = this.heal(att, a.dmg, true); if (h > 0) this.pushEv({ type: 'heal', stack: att.id, amount: h }); }
-      }
+      const ab = att.c.abilities;
+      if (!opts.ranged && ab.lifeDrain && a.dmg > 0) { const h = this.heal(att, a.dmg, true); if (h > 0) this.pushEv({ type: 'heal', stack: att.id, amount: h }); }
+      if (!opts.ranged && def.c.abilities.fireShield && att.alive && !att.c.abilities.fireImmune) { const back = Math.floor(a.dmg * def.c.abilities.fireShield / 100); if (back > 0) { const rb = this.applyDamage(att, back); this.pushEv({ type: 'hit', from: def.id, to: att.id, dmg: rb.dmg, kills: rb.kills, fire: true }); this.logLine('Огнен щит: ' + back + ' щети на ' + att.c.name + '.'); } }
       if (def.alive) {
-        const ab = att.c.abilities;
         if (ab.curseHit && this.rng.chance(ab.curseHit / 100)) this.addEffect(def, 'curse', 0, 3);
-        if (ab.blindHit && !opts.retaliation && !def.c.abilities.undead && this.rng.chance(ab.blindHit / 100)) this.addEffect(def, 'blind', 1, 2);
+        if (ab.blindHit && !opts.retaliation && !def.c.abilities.undead && !def.c.abilities.mindImmune && !def.c.abilities.blindImmune && this.rng.chance(ab.blindHit / 100)) this.addEffect(def, 'blind', 1, 2);
         if (ab.bindHit && !opts.ranged) { this.addEffect(def, 'bound', 1, Infinity); def.boundBy = att; }
         if (ab.ageHit && this.rng.chance(ab.ageHit / 100)) this.addEffect(def, 'weakness', 6, 3);
+        if (ab.weakHit && !this.hasSet(def.side, 'dawn')) this.addEffect(def, 'weakness', 3, 3);
+        if (ab.dispelHit) { ['haste', 'bless', 'shield', 'stoneskin', 'bloodlust', 'precision', 'fortune', 'mirth', 'prayer', 'airshield', 'slayer', 'counterstrike', 'antimagic'].forEach((k) => delete def.effects[k]); }
+        if (ab.deathStare && !opts.retaliation && !opts.ranged && !def.c.abilities.undead && !def.c.abilities.mindImmune) {
+          let n = 0; for (let i = 0; i < Math.min(att.count, 100); i++) if (this.rng.chance(ab.deathStare / 100)) n++;
+          n = Math.min(n, Math.ceil(att.count / 10));
+          if (n > 0) { const k = this.killCreatures(def, n); this.pushEv({ type: 'stare', stack: def.id, kills: k }); this.logLine('Смъртоносен поглед: ' + k + ' × ' + def.c.name + ' падат.'); }
+        }
       }
       return a;
     }
-    // Стек удря стек (с всички добавки: дъх, обкръжение, облак), после ответ
+    // Хексът зад целта по линията от нападателя (за дъх); за двухексови — отвъд цялото същество
+    breathTarget(att, def) {
+      let best = null, bd = Infinity;
+      for (const [ax, ay] of this.hexes(att)) for (const [dx, dy] of this.hexes(def)) { const d = Hex.dist(ax, ay, dx, dy); if (d < bd) { bd = d; best = [ax, ay, dx, dy]; } }
+      if (!best) return null;
+      let b = Hex.behind(best[0], best[1], best[2], best[3]);
+      if (b && this.occupant(b[0], b[1]) === def) b = Hex.behind(best[2], best[3], b[0], b[1]);
+      if (!b) return null;
+      const o = this.occupant(b[0], b[1]);
+      return o && o !== att && o !== def ? o : null;
+    }
     meleeAttack(att, def) {
       const targets = [def];
-      if (att.c.abilities.breath) { const b = Hex.behind(att.x, att.y, def.x, def.y); if (b) { const o = this.stackAt(b[0], b[1]); if (o && o !== att) targets.push(o); } }
-      if (att.c.abilities.allAround) Hex.neighbors(att.x, att.y).forEach(([x, y]) => { const o = this.stackAt(x, y); if (o && o.side !== att.side && o !== def) targets.push(o); });
+      if (att.c.abilities.breath) { const o = this.breathTarget(att, def); if (o) targets.push(o); }
+      if (att.c.abilities.allAround) this.alive(1 - att.side).forEach((o) => { if (o !== def && this.adjacent(att, o)) targets.push(o); });
       targets.forEach((t) => { if (t.alive) this.strike(att, t, { ranged: false }); });
-      if (def.effects.blind) delete def.effects.blind; // ударът събужда ослепения
-      // Ответен удар
-      if (def.alive && !att.c.abilities.noRetaliation && (def.retaliations > 0) && !def.effects.blind) {
+      if (def.effects.blind) delete def.effects.blind;
+      if (def.alive && !att.c.abilities.noRetaliation && def.retaliations > 0 && !def.effects.blind) {
         def.retaliations--;
         this.strike(def, att, { ranged: false, retaliation: true });
-        if (def.effects.counterstrike && def.retaliations <= 0) { /* контраудар вече е вдигнал броя */ }
       }
     }
     doAttack(s, target, fromX, fromY) {
       if (!target.alive || target.side === s.side) return false;
       if (fromX !== undefined && (fromX !== s.x || fromY !== s.y)) { if (!this.doMove(s, fromX, fromY)) return false; }
-      if (Hex.dist(s.x, s.y, target.x, target.y) !== 1) return false;
+      if (!this.adjacent(s, target)) return false;
       s.actionKind = 'attack';
       this.meleeAttack(s, target);
       if (s.alive && target.alive && s.c.abilities.doubleAttack) this.meleeAttack(s, target);
@@ -425,7 +517,7 @@
       const volley = () => {
         s.shots--;
         this.strike(s, target, { ranged: true });
-        if (s.c.abilities.deathCloud) Hex.neighbors(target.x, target.y).forEach(([x, y]) => { const o = this.stackAt(x, y); if (o && !o.c.abilities.undead && o.alive) this.strike(s, o, { ranged: true, luckRoll: false }); });
+        if (s.c.abilities.deathCloud) { const seen = new Set([target.id]); this.hexes(target).forEach(([tx, ty]) => Hex.neighbors(tx, ty).forEach(([x, y]) => { const o = this.occupant(x, y); if (o && !seen.has(o.id) && !o.c.abilities.undead && o.alive && !o.c.abilities.fireImmune) { seen.add(o.id); this.strike(s, o, { ranged: true, luckRoll: false }); } })); }
         if (target.effects.blind) delete target.effects.blind;
       };
       volley();
@@ -435,13 +527,28 @@
     }
     doWait(s) { if (s.waited) return false; s.waited = true; s.actionKind = 'wait'; this.waitQueue.push(s); this.pushEv({ type: 'wait', stack: s.id }); return true; }
     doDefend(s) { s.defended = true; s.acted = true; s.actionKind = 'defend'; this.pushEv({ type: 'defend', stack: s.id }); return true; }
-    // Бягство: героят на страната напуска (губи армията); ако е чудовище — не може
     canRetreat(side) { const sd = this.sides[side]; return !!sd.hero && !(this.ctx.town && side === 1); }
     doRetreat(side) {
       if (!this.canRetreat(side)) return false;
       this.finished = true; this.winner = 1 - side; this.retreated = side;
       this.stacks.filter((s) => s.side === side && s.alive).forEach((s) => { s.alive = false; s.ref.n = 0; });
       this.pushEv({ type: 'retreat', side });
+      return true;
+    }
+    // Предаване: срещу злато армията се запазва; само пред герой
+    canSurrender(side) { return this.canRetreat(side) && !!this.sides[1 - side].hero; }
+    surrenderCost(side) {
+      const sd = this.sides[side];
+      let sum = 0; this.alive(side).forEach((s) => { sum += s.count * s.c.cost.gold; });
+      return Math.floor(sum * 0.5 * (1 - [0, 0.2, 0.4, 0.6][sd.skills.diplomacy || 0]));
+    }
+    doSurrender(side) {
+      if (!this.canSurrender(side)) return false;
+      const cost = this.surrenderCost(side);
+      const p = this.world.players[this.sides[side].owner];
+      if (!p || p.res.gold < cost) return false;
+      this.finished = true; this.winner = 1 - side; this.surrendered = side; this.surrenderCostVal = cost;
+      this.pushEv({ type: 'surrender', side, cost });
       return true;
     }
 
@@ -453,51 +560,52 @@
       this.pushEv({ type: 'effect', stack: s.id, name, val });
     }
     schoolLevel(side, spell) {
+      if (spell.school === 'air' && this.hasSet(side.i, 'storm')) return 3;
       if (spell.school === 'all') { let m = 0; D.SCHOOLS.forEach((sc) => { m = Math.max(m, side.skills[sc] || 0); }); return m; }
       return side.skills[spell.school] || 0;
     }
+    specPow(side, spell) { return side.spec && side.spec.kind === 'spell' && side.spec.id === spell.id ? 3 : 0; }
     spellPower(side, spell) {
       const lvl = this.schoolLevel(side, spell);
-      let dmg = spell.base * (1 + lvl) + spell.perPow * side.pow;
+      let dmg = spell.base * (1 + lvl) + spell.perPow * (side.pow + this.specPow(side, spell));
       dmg *= 1 + [0, 0.05, 0.1, 0.15][side.skills.sorcery || 0];
       side.arts.forEach((aid) => { if (aid) { const a = D.artById[aid]; if (a.bonus.spellDmg && a.bonus.school === spell.school) dmg *= 1 + a.bonus.spellDmg / 100; } });
       return Math.floor(dmg);
     }
     canCast(side) { const sd = this.sides[side]; return !!sd.hero && !this.casted[side] && sd.spells.length > 0; }
     spellCost(side, spell) {
-      let c = spell.cost;
-      // Пегасите оскъпяват магиите на врага
       const extra = this.alive(1 - side).reduce((m, s) => Math.max(m, s.c.abilities.manaCost || 0), 0);
-      return c + extra;
+      return Math.max(1, spell.cost + extra - (this.specPow(this.sides[side], spell) ? 1 : 0));
     }
-    /* Може ли магията да засегне стека (имунитети). Връща {ok, why} */
     affects(spell, s, casterSide) {
       const ab = s.c.abilities;
       if (ab.spellImmune && spell.level <= ab.spellImmune) return { ok: false, why: 'имунитет' };
+      if (ab.fireImmune && spell.school === 'fire') return { ok: false, why: 'огнен имунитет' };
       if (s.effects.antimagic && spell.level <= s.effects.antimagic.val) return { ok: false, why: 'антимагия' };
       if (spell.onlyUndead && !ab.undead) return { ok: false, why: 'само немъртви' };
       if (spell.onlyLiving && ab.undead) return { ok: false, why: 'немъртвите са неуязвими' };
-      if (ab.undead && (spell.effect === 'blind' || spell.effect === 'mirth' || spell.effect === 'sorrow')) return { ok: false, why: 'немъртвите нямат ум' };
+      if ((ab.undead || ab.mindImmune) && (spell.effect === 'blind' || spell.effect === 'mirth' || spell.effect === 'sorrow')) return { ok: false, why: 'няма ум за омагьосване' };
+      if (ab.blindImmune && spell.effect === 'blind') return { ok: false, why: 'имунитет' };
+      if ((spell.effect === 'curse' || spell.effect === 'weakness') && this.hasSet(s.side, 'dawn')) return { ok: false, why: 'Доспехите на зората' };
       return { ok: true };
     }
     resists(spell, s, casterSide) {
       if (s.side === casterSide) return false;
       let res = s.c.abilities.magicRes || 0;
-      if (Hex.neighbors(s.x, s.y).some(([x, y]) => { const o = this.stackAt(x, y); return o && o.side === s.side && o.c.abilities.resAura; })) res = Math.max(res, 20);
+      if (this.alive(s.side).some((o) => o !== s && o.c.abilities.resAura && this.adjacent(o, s))) res = Math.max(res, 20);
       res += [0, 5, 10, 20][this.sides[s.side].skills.resistance || 0];
       return this.rng.chance(res / 100);
     }
-    /* Целите на магия при избор на хекс (x,y). Връща списък от стекове или null ако целта е невалидна */
     spellTargets(side, spell, x, y) {
       const lvl = this.schoolLevel(this.sides[side], spell);
       const mass = spell.mass && lvl >= 3;
-      const t = Hex.inb(x, y) ? this.stackAt(x, y) : null;
+      const t = Hex.inb(x, y) ? this.occupant(x, y) : null;
       switch (spell.kind) {
         case 'dmg': return t && t.side !== side ? [t] : null;
         case 'area': {
           if (!Hex.inb(x, y)) return null;
           const out = [];
-          this.stacks.forEach((s) => { if (!s.alive) return; const d = Hex.dist(s.x, s.y, x, y); if (d <= spell.radius && !(spell.ring && d === 0)) out.push(s); });
+          this.stacks.forEach((s) => { if (!s.alive) return; const d = this.distToHex(s, x, y); if (d <= spell.radius && !(spell.ring && d === 0)) out.push(s); });
           return out;
         }
         case 'all': return this.stacks.filter((s) => s.alive && (spell.both || s.side !== side));
@@ -505,7 +613,7 @@
         case 'buff': if (mass) return this.alive(side); return t && t.side === side ? [t] : null;
         case 'debuff': if (mass) return this.alive(1 - side); return t && t.side !== side ? [t] : null;
         case 'heal': if (mass) return this.alive(side); return t && t.side === side ? [t] : null;
-        case 'res': { // и мъртви стекове на своя хекс
+        case 'res': {
           const dead = this.stacks.find((s) => !s.alive && s.side === side && s.x === x && s.y === y && s.count === 0);
           const tt = t && t.side === side ? t : dead;
           return tt ? [tt] : null;
@@ -532,7 +640,7 @@
       const lvl = this.schoolLevel(sd, spell);
       sd.mana -= cost; this.casted[side] = true;
       if (sd.hero) sd.hero.mana = sd.mana;
-      const dur = Math.max(1, sd.pow);
+      const dur = Math.max(1, sd.pow + this.specPow(sd, spell));
       this.pushEv({ type: 'cast', side, spell: spellId, x, y });
       this.logLine((sd.hero ? sd.hero.name : 'Героят') + ' прави магия „' + spell.name + '“.');
       const affectedList = [];
@@ -546,18 +654,14 @@
         affectedList.push(t);
       };
       switch (spell.kind) {
-        case 'dmg': case 'area': case 'all': {
-          const dmg = this.spellPower(sd, spell);
-          targets.forEach((t) => hitDmg(t, dmg));
-          break;
-        }
+        case 'dmg': case 'area': case 'all': { const dmg = this.spellPower(sd, spell); targets.forEach((t) => hitDmg(t, dmg)); break; }
         case 'chain': {
           let dmg = this.spellPower(sd, spell);
           let cur = targets[0]; const hit = new Set();
           for (let k = 0; k < spell.hits[Math.max(0, lvl - 1)] && cur; k++) {
             hitDmg(cur, dmg); hit.add(cur.id); dmg = Math.floor(dmg / 2);
             let next = null, bd = Infinity;
-            this.stacks.forEach((s) => { if (s.alive && !hit.has(s.id)) { const d = Hex.dist(s.x, s.y, cur.x, cur.y); if (d < bd) { bd = d; next = s; } } });
+            this.stacks.forEach((s) => { if (s.alive && !hit.has(s.id)) { const d = this.distBetween(s, cur); if (d < bd) { bd = d; next = s; } } });
             cur = next;
           }
           break;
@@ -567,10 +671,9 @@
           targets.forEach((t) => {
             const a = this.affects(spell, t, side); if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; }
             if (spell.kind === 'debuff' && this.resists(spell, t, side)) { this.pushEv({ type: 'resist', stack: t.id }); return; }
-            if (spell.effect === 'counterstrike') { t.retaliations += val; }
+            if (spell.effect === 'counterstrike') t.retaliations += val;
             const e = { val, turns: spell.permanent ? Infinity : spell.effect === 'blind' ? 3 : dur, stack: !!spell.stack };
             if (spell.stack && t.effects[spell.effect]) t.effects[spell.effect].val += val; else t.effects[spell.effect] = e;
-            // противоположните ефекти се изключват
             const opp = { haste: 'slow', slow: 'haste', bless: 'curse', curse: 'bless', bloodlust: 'weakness', weakness: 'bloodlust', fortune: 'misfortune', misfortune: 'fortune', mirth: 'sorrow', sorrow: 'mirth' }[spell.effect];
             if (opp) delete t.effects[opp];
             this.pushEv({ type: 'effect', stack: t.id, name: spell.effect, val });
@@ -588,10 +691,7 @@
           targets.forEach((t) => { const a = this.affects(spell, t, side); if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; } const h = this.heal(t, amount, true); this.pushEv({ type: 'heal', stack: t.id, amount: h, resurrect: true }); this.logLine(t.c.name + ': възстановени ' + h + ' точки живот.'); affectedList.push(t); });
           break;
         }
-        case 'special': {
-          targets.forEach((t) => { for (const k in t.effects) if (k !== 'bound') delete t.effects[k]; this.pushEv({ type: 'dispel', stack: t.id }); affectedList.push(t); });
-          break;
-        }
+        case 'special': { targets.forEach((t) => { for (const k in t.effects) if (k !== 'bound') delete t.effects[k]; this.pushEv({ type: 'dispel', stack: t.id }); affectedList.push(t); }); break; }
       }
       this.checkEnd();
       return { ok: true, targets: affectedList };
@@ -606,11 +706,10 @@
       this.winner = a0 ? 0 : 1;
       this.pushEv({ type: 'end', winner: this.winner });
     }
-    /* Резултат за света */
     result() {
       const s0 = this.sides[0], s1 = this.sides[1];
       return {
-        winner: this.winner === 0 ? 'att' : 'def', retreated: this.retreated === 0,
+        winner: this.winner === 0 ? 'att' : 'def', retreated: this.retreated, surrendered: this.surrendered, surrenderCost: this.surrenderCostVal || 0,
         attKills: s0.kills || 0, attHpKilled: s0.hpKilled || 0, defKills: s1.kills || 0, defHpKilled: s1.hpKilled || 0,
         rounds: this.round
       };
@@ -618,19 +717,19 @@
 
     // ------------------------------------------------------------ боен ИИ
     valueOf(s) { return D.fightValue(s.c); }
-    /* Оценка на удар: очаквани убити × стойност − очакван ответен удар */
     evalAttack(s, opt) {
       const t = opt.target;
       const A = this.attack(s, opt.ranged), Dd = this.defense(t);
       const mult = A >= Dd ? Math.min(4, 1 + 0.05 * (A - Dd)) : Math.max(0.3, 1 - 0.025 * (Dd - A));
       let dmg = D.avgDmg(s.c) * s.count * mult;
-      if (opt.ranged && Hex.dist(s.x, s.y, t.x, t.y) > 10) dmg *= 0.5;
+      if (opt.ranged && this.distBetween(s, t) > 10) dmg *= 0.5;
       if (!opt.ranged && s.c.abilities.shooter && !s.c.abilities.noMeleePenalty) dmg *= 0.5;
       if (s.c.abilities.doubleAttack || (opt.ranged && s.c.abilities.doubleShot)) dmg *= 1.8;
       const total = (t.count - 1) * t.maxHp + t.hp;
       const kills = Math.min(t.count, dmg / t.maxHp);
       let score = Math.min(dmg, total) / t.maxHp * this.valueOf(t) * (kills >= t.count ? 1.3 : 1);
       if (t.c.abilities.shooter) score *= 1.2;
+      if (!opt.ranged && opt.from && this.moat.size && this.hexesAt(s, opt.from.x, opt.from.y).some(([x, y]) => this.moat.has(Hex.idx(x, y)))) score *= 0.7;
       if (!opt.ranged && t.alive && !s.c.abilities.noRetaliation && t.retaliations > 0 && kills < t.count) {
         const A2 = this.attack(t, false), D2 = this.defense(s);
         const m2 = A2 >= D2 ? Math.min(4, 1 + 0.05 * (A2 - D2)) : Math.max(0.3, 1 - 0.025 * (D2 - A2));
@@ -668,11 +767,9 @@
           own.forEach((t) => { if (!this.affects(sp, t, side).ok) return; const missing = t.origCount * t.maxHp - ((t.count - 1) * t.maxHp + t.hp); const amount = Math.min(missing, this.spellPower(sd, sp)); const sc = amount / t.maxHp * this.valueOf(t) * 1.1; if (sc > bs) { bs = sc; best = { sp, x: t.x, y: t.y }; } });
         }
       });
-      // прагът: да си струва маната
       if (best && bs > 25) { const r = this.doCast(side, best.sp.id, best.x, best.y); return r.ok; }
       return false;
     }
-    /* Ход на ИИ за текущия стек */
     aiAct(s) {
       const side = s.side;
       this.aiSpell(side);
@@ -685,20 +782,18 @@
         if (best.ranged) { this.doShoot(s, best.target); return; }
         this.doAttack(s, best.target, best.from.x, best.from.y); return;
       }
-      // Стрелец без изстрели или обкръжен → удря
       const enemies = this.alive(1 - side);
       if (!enemies.length) { this.doDefend(s); return; }
-      // Близък бой: няма достижим враг. Ако враговете могат да ни стигнат — чакаме (веднъж), иначе приближаваме.
-      const nearest = enemies.slice().sort((a, b) => Hex.dist(s.x, s.y, a.x, a.y) - Hex.dist(s.x, s.y, b.x, b.y))[0];
-      const enemyCanReach = enemies.some((e) => Hex.dist(e.x, e.y, s.x, s.y) <= this.speed(e) + 1 && !e.c.abilities.shooter);
-      if (!s.waited && enemyCanReach && !s.c.abilities.shooter && this.rng.chance(0.6)) { this.doWait(s); return; }
-      if (s.c.abilities.shooter && !this.isShooter(s) && !enemyCanReach) { /* без стрели: върви */ }
-      let bestHex = null, bd = Hex.dist(s.x, s.y, nearest.x, nearest.y);
-      reach.forEach((r) => { const d = Hex.dist(r.x, r.y, nearest.x, nearest.y); if (d < bd || (d === bd && bestHex && r.d < bestHex.d)) { bd = d; bestHex = r; } });
+      // Защитник при обсада: стрелците стоят зад стените
+      if (side === 1 && this.siege && s.c.abilities.shooter) { this.doDefend(s); return; }
+      const nearest = enemies.slice().sort((a, b) => this.distBetween(s, a) - this.distBetween(s, b))[0];
+      const enemyCanReach = enemies.some((e) => this.distBetween(e, s) <= this.speed(e) + 1 && !e.c.abilities.shooter);
+      if (!s.waited && enemyCanReach && !s.c.abilities.shooter && !(side === 0 && this.siege) && this.rng.chance(0.6)) { this.doWait(s); return; }
+      let bestHex = null, bd = this.distBetween(s, nearest);
+      reach.forEach((r) => { let d = Infinity; for (const [hx, hy] of this.hexesAt(s, r.x, r.y)) for (const [ex, ey] of this.hexes(nearest)) d = Math.min(d, Hex.dist(hx, hy, ex, ey)); if (d < bd || (d === bd && bestHex && r.d < bestHex.d)) { bd = d; bestHex = r; } });
       if (bestHex && (bestHex.x !== s.x || bestHex.y !== s.y)) { this.doMove(s, bestHex.x, bestHex.y); s.acted = true; s.actionKind = 'move'; return; }
       this.doDefend(s);
     }
-    /* Цялата битка автоматично (ИИ срещу ИИ или автобитка) */
     runAuto(maxRounds) {
       maxRounds = maxRounds || 60;
       while (!this.finished) {
@@ -711,8 +806,5 @@
       return this.result();
     }
   }
-  // Запомняме първоначалния брой за възкресение
-  const origPlace = Battle.prototype.placeStacks;
-  Battle.prototype.placeStacks = function () { origPlace.call(this); this.stacks.forEach((s) => { s.origCount = s.count; }); };
   MK.Battle = Battle;
 })();

@@ -53,11 +53,12 @@
     s.appendChild(el('div', { class: 'subtitle' }, 'Герои, замъци и битки на хексове — класическата стратегия наново, за телефона ти.'));
     s.appendChild(el('div', { class: 'stack' },
       el('button', { class: 'primary', onclick: () => showSetup(game) }, 'Нова игра'),
+      el('button', { onclick: () => showCampaign(game) }, 'Кампания'),
       el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, 'Продължи'),
       el('button', { onclick: () => showHelp() }, 'Как се играе'),
       game.world ? el('button', { onclick: () => closeScreens() }, 'Назад към играта') : null
     ));
-    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, 'Версия 0.1 · Фаза 1 · Цялата графика е процедурна и оригинална'));
+    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, 'Версия 0.3 · Фази 1–3 · 11 фракции, подземие, кораби, кампания · Цялата графика е процедурна и оригинална'));
   }
   function showHelp() {
     dialog({ title: 'Как се играе', content: el('div', null,
@@ -70,43 +71,76 @@
   }
 
   // ---------------------------------------------------------------- нова игра
+  function factionPicker(value, onPick, allowRandom) {
+    const row = el('div', { class: 'opt-row', style: 'gap:4px' });
+    if (allowRandom) row.appendChild(el('button', { class: 'small' + (value === 'random' ? ' sel' : ''), onclick: () => onPick('random') }, '🎲 Случайна'));
+    D.FACTIONS.forEach((f) => row.appendChild(el('button', { class: 'small' + (value === f.id ? ' sel' : ''), style: 'border-color:' + f.color, title: f.desc, onclick: () => onPick(f.id) }, f.name)));
+    return row;
+  }
   function showSetup(game) {
     const s = screen('menu');
-    const st = { size: 's', difficulty: 1, faction: 'kingdom', opponents: 1, oppFactions: ['necropolis', 'grove', 'kingdom'] };
+    const st = { size: 's', difficulty: 1, template: 'balanced', players: [{ type: 'human', faction: 'kingdom' }, { type: 'ai', faction: 'random' }, { type: 'none', faction: 'random' }, { type: 'none', faction: 'random' }] };
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, 'Нова игра'));
-    const body = el('div', { class: 'modal', style: 'max-width:560px' });
+    const body = el('div', { class: 'modal', style: 'max-width:620px' });
     const optRow = (label, options, get, set) => {
       const row = el('div', { class: 'opt-row' }, el('label', null, label));
-      const bs = options.map((o) => el('button', { class: 'small' + (get() === o.v ? ' sel' : ''), onclick: () => { set(o.v); render(); } }, o.l));
-      bs.forEach((b) => row.appendChild(b));
+      options.forEach((o) => row.appendChild(el('button', { class: 'small' + (get() === o.v ? ' sel' : ''), title: o.t || null, onclick: () => { set(o.v); render(); } }, o.l)));
       return row;
     };
     const render = () => {
       body.innerHTML = '';
-      body.appendChild(optRow('Карта', D.MAP_SIZES.map((m) => ({ v: m.id, l: m.name + ' (' + m.size + '×' + m.size + ')' })), () => st.size, (v) => { st.size = v; }));
+      body.appendChild(optRow('Карта', D.MAP_SIZES.map((m) => ({ v: m.id, l: m.name + ' (' + m.size + ')' })), () => st.size, (v) => { st.size = v; }));
+      body.appendChild(optRow('Шаблон', D.TEMPLATES.map((t) => ({ v: t.id, l: t.name, t: t.desc })), () => st.template, (v) => { st.template = v; }));
+      body.appendChild(el('div', { class: 'tiny', style: 'margin:-2px 0 6px 116px' }, D.TEMPLATE(st.template).desc + (D.TEMPLATE(st.template).underground && st.size === 's' ? ' Подземие има от средна карта нагоре.' : '')));
       body.appendChild(optRow('Трудност', D.DIFFICULTY.map((d) => ({ v: d.id, l: d.name })), () => st.difficulty, (v) => { st.difficulty = v; }));
-      body.appendChild(optRow('Противници', [1, 2, 3].map((n) => ({ v: n, l: String(n) })), () => st.opponents, (v) => { st.opponents = v; }));
-      body.appendChild(el('h3', { style: 'margin:10px 0 6px;color:#ffd870' }, 'Твоята фракция'));
-      D.FACTIONS.forEach((f) => {
-        const card = el('div', { class: 'faction-card' + (st.faction === f.id ? ' sel' : ''), onclick: () => { st.faction = f.id; render(); } });
-        card.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: f.id, owner: -2 }, 64, { players: [] }), 56, 56));
-        const army = el('div', { class: 'army' });
-        for (let t = 1; t <= 7; t++) { const c = D.creatureOf(f.id + t); const sl = el('div', { class: 'slot', style: 'width:34px;height:34px', title: c.name }); sl.appendChild(spriteCanvas(G.creatureSprite(c, 64), 30, 30)); sl.querySelector('canvas').style.height = '30px'; army.appendChild(sl); }
-        card.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, f.name), el('div', { class: 'sub' }, f.desc), army));
+      body.appendChild(el('h3', { style: 'margin:10px 0 6px;color:#ffd870' }, 'Играчи (до 4, повече от един човек = hot-seat на едно устройство)'));
+      st.players.forEach((pl, i) => {
+        const card = el('div', { class: 'panel', style: 'margin-bottom:6px;border-color:' + D.PLAYER_COLORS[i].col });
+        const types = [{ v: 'human', l: '🧑 Човек' }, { v: 'ai', l: '🤖 Компютър' }];
+        if (i > 0) types.push({ v: 'none', l: '— Няма' });
+        card.appendChild(optRow(D.PLAYER_COLORS[i].name, types, () => pl.type, (v) => { pl.type = v; }));
+        if (pl.type !== 'none') card.appendChild(factionPicker(pl.faction, (f) => { pl.faction = f; render(); }, true));
         body.appendChild(card);
       });
+      const humans = st.players.filter((p) => p.type === 'human').length, active = st.players.filter((p) => p.type !== 'none').length;
       body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' },
         el('button', { onclick: () => showMenu(game) }, 'Назад'),
-        el('button', { class: 'primary', onclick: () => {
-          const players = [{ faction: st.faction, human: true }];
-          const pool = D.FACTIONS.map((f) => f.id).filter((f) => f !== st.faction).concat(D.FACTIONS.map((f) => f.id));
-          for (let i = 0; i < st.opponents; i++) players.push({ faction: pool[i % pool.length], human: false });
-          game.newGame({ size: D.MAP_SIZES.find((m) => m.id === st.size).size, difficulty: st.difficulty, players, seed: (Math.random() * 4294967295) >>> 0 });
-        } }, 'Започни')
+        el('button', { class: 'primary', disabled: humans >= 1 && active >= 2 ? null : 'disabled', onclick: () => {
+          const players = st.players.filter((p) => p.type !== 'none').map((p) => ({ faction: p.faction === 'random' ? D.FACTIONS[Math.floor(Math.random() * D.FACTIONS.length)].id : p.faction, human: p.type === 'human' }));
+          // първият човек винаги е играч 0 (за подредба на ходовете)
+          players.sort((a, b) => (b.human ? 1 : 0) - (a.human ? 1 : 0));
+          game.newGame({ size: D.MAP_SIZES.find((m) => m.id === st.size).size, difficulty: st.difficulty, players, template: D.TEMPLATE(st.template), seed: (Math.random() * 4294967295) >>> 0 });
+        } }, humans > 1 ? 'Започни (hot-seat)' : 'Започни')
       ));
+      if (!(humans >= 1 && active >= 2)) body.appendChild(el('div', { class: 'tiny center' }, 'Нужен е поне един човек и поне двама играчи.'));
     };
     render();
     s.appendChild(body);
+  }
+
+  // ---------------------------------------------------------------- кампания
+  function showCampaign(game) {
+    const s = screen('menu');
+    const C = MK.CAMPAIGN, prog = MK.Campaign.load();
+    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, C.title));
+    const body = el('div', { class: 'modal', style: 'max-width:620px' });
+    body.appendChild(el('p', null, C.intro));
+    if (prog.hero) body.appendChild(el('p', { class: 'tiny' }, 'Пренасян герой: ' + prog.hero.name + ', ниво ' + prog.hero.level + ' (' + D.CLASSES[prog.hero.cls].name + ').'));
+    C.scenarios.forEach((sc, i) => {
+      const done = i < prog.done, avail = i === prog.done;
+      const row = el('div', { class: 'row' });
+      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done ? '✔ ' : avail ? '▶ ' : '🔒 ') + sc.id + '. ' + sc.title), el('div', { class: 'sub' }, sc.text), el('div', { class: 'tiny' }, D.MAP_SIZES.find((m) => m.size === sc.size).name + ' карта · ' + D.TEMPLATE(sc.template).name + ' · ' + D.DIFFICULTY[sc.difficulty].name + ' · противници: ' + sc.opponents.map((f) => D.factionById(f).name).join(', '))));
+      row.appendChild(el('button', { class: 'small' + (avail ? ' primary' : ''), disabled: avail || done ? null : 'disabled', onclick: () => game.startCampaign(i) }, done ? 'Отново' : 'Играй'));
+      body.appendChild(row);
+    });
+    body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' },
+      el('button', { onclick: () => showMenu(game) }, 'Назад'),
+      el('button', { class: 'danger', onclick: () => { MK.Campaign.reset(); showCampaign(game); } }, 'Изтрий напредъка')
+    ));
+    s.appendChild(body);
+  }
+  function passDevice(game, p) {
+    return dialog({ title: 'Ред на ' + p.colorName.toLowerCase() + ' играч', text: 'Подай устройството на ' + p.colorName.toLowerCase() + ' играч (' + D.factionById(p.faction).name + '). Другите да не гледат!', buttons: [{ label: 'Готов съм', value: true, cls: 'primary' }] });
   }
 
   // ---------------------------------------------------------------- HUD
@@ -136,6 +170,7 @@
       tl.appendChild(it);
     });
     document.getElementById('hint').textContent = game.hint || '';
+    const lb = document.getElementById('btn-level'); if (lb) { lb.hidden = !w.hasUnderground(); lb.textContent = game.renderer.z ? '⬆ Горе' : '⬇ Долу'; }
     game.renderer.drawMinimap(document.getElementById('minimap'), w, p);
   }
 
@@ -184,7 +219,8 @@
     if (a.lifeDrain) out.push('изпива живот'); if (a.regenerate) out.push('регенерира'); if (a.breath) out.push('дъх (удря 2 хекса)'); if (a.jousting) out.push('атака +5% на хекс разбег');
     if (a.magicRes) out.push(a.magicRes + '% магическа съпротива'); if (a.spellImmune) out.push('имунитет за магии до ' + a.spellImmune + ' ниво'); if (a.undead) out.push('немъртъв'); if (a.moraleAura) out.push('+1 морал на съюзниците');
     if (a.fearAura) out.push('−1 морал на врага'); if (a.curseHit) out.push(a.curseHit + '% проклятие при удар'); if (a.blindHit) out.push(a.blindHit + '% ослепяване при удар'); if (a.resurrect) out.push('възкресява'); if (a.deathBlow) out.push(a.deathBlow + '% смъртоносен удар');
-    if (a.ageHit) out.push(a.ageHit + '% състаряване'); if (a.manaDrain) out.push('изпива мана'); if (a.deathCloud) out.push('облак на смъртта'); if (a.bindHit) out.push('оплита корени'); if (a.resAura) out.push('20% съпротива за съседите'); if (a.allAround) out.push('удря всички съседи'); if (a.manaCost) out.push('+' + a.manaCost + ' цена на вражеските магии');
+    if (a.ageHit) out.push(a.ageHit + '% състаряване'); if (a.ignoreDef) out.push('пренебрегва ' + a.ignoreDef + '% от защитата'); if (a.ignoreAtt) out.push('намалява атаката на врага с ' + a.ignoreAtt + '%'); if (a.deathStare) out.push('смъртоносен поглед ' + a.deathStare + '%'); if (a.fireImmune) out.push('огнен имунитет'); if (a.mindImmune) out.push('имунитет за ум'); if (a.rebirth) out.push('прераждане'); if (a.fireShield) out.push('огнен щит ' + a.fireShield + '%'); if (a.badLuckAura) out.push('−1 късмет на врага'); if (a.goodMorale) out.push('винаги добър морал'); if (a.thunderHit) out.push(a.thunderHit + '% гръмотевичен удар'); if (a.weakHit) out.push('отслабва при удар'); if (a.dispelHit) out.push('разсейва магии при удар'); if (a.blindImmune) out.push('не може да бъде ослепен'); if (a.noObstaclePenalty) out.push('стреля през стени без наказание');
+    if (c.wide) out.push('заема два хекса'); if (a.manaDrain) out.push('изпива мана'); if (a.deathCloud) out.push('облак на смъртта'); if (a.bindHit) out.push('оплита корени'); if (a.resAura) out.push('20% съпротива за съседите'); if (a.allAround) out.push('удря всички съседи'); if (a.manaCost) out.push('+' + a.manaCost + ' цена на вражеските магии');
     return out.join(', ') || '—';
   }
   function creatureInfo(c, extra) {
@@ -215,7 +251,9 @@
       const nxt = D.LEVEL_XP[h.level + 1] || h.xp, cur = D.LEVEL_XP[h.level];
       left.appendChild(el('div', { class: 'tiny', style: 'margin:6px 0 2px' }, 'Опит ' + h.xp + ' / ' + nxt + ' · Мана ' + h.mana + '/' + w.maxMana(h) + ' · Движение ' + h.movement + '/' + h.maxMovement));
       left.appendChild(el('div', { class: 'xpbar' }, el('div', { style: 'width:' + Math.round(100 * (h.xp - cur) / Math.max(1, nxt - cur)) + '%' })));
-      left.appendChild(el('div', { class: 'tiny', style: 'margin-top:6px' }, 'Морал ' + fmtSign(w.heroMorale(h)) + ' · Късмет ' + fmtSign(w.heroLuck(h))));
+      left.appendChild(el('div', { class: 'tiny', style: 'margin-top:6px' }, 'Морал ' + fmtSign(w.heroMorale(h)) + ' · Късмет ' + fmtSign(w.heroLuck(h)) + (h.boat ? ' · на кораб' : '') + (h.z ? ' · в подземието' : '')));
+      if (h.spec) left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Специалност: ' + (h.spec.kind === 'creature' ? D.creatureOf(h.spec.id).name : h.spec.kind === 'skill' ? D.SKILLS[h.spec.id].name : h.spec.kind === 'spell' ? D.spellById[h.spec.id].name : D.RES_NAME[h.spec.id])), el('div', { class: 'sub' }, D.specialtyText(h.spec)))));
+      w.heroSets(h).forEach((set) => left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name', style: 'color:#ffd870' }, '✦ ' + set.name), el('div', { class: 'sub' }, set.desc)))));
       if (h.pendingLevels) left.appendChild(el('button', { class: 'primary', style: 'margin-top:8px;width:100%', onclick: () => game.processLevelUps(h).then(render) }, 'Ново ниво! Избери умение'));
       left.appendChild(el('h3', { style: 'margin-top:10px' }, 'Умения'));
       const sk = Object.keys(h.skills);
@@ -240,7 +278,7 @@
       const arts = el('div', { class: 'arts' });
       D.SLOTS.forEach((slot, i) => {
         const aid = h.arts[i];
-        const a = el('div', { class: 'art' + (aid ? ' filled' : ''), title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + ')', buttons: [{ label: 'В раницата', value: 'bp' }, { label: 'Добре', value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } }, aid ? artGlyph(D.artById[aid]) : '', el('small', null, D.SLOT_NAME[slot].slice(0, 4)));
+        const a = el('div', { class: 'art' + (aid ? ' filled' : ''), title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + (art.set ? ', част от „' + D.ART_SETS[art.set].name + '“' : '') + ')', buttons: [{ label: 'В раницата', value: 'bp' }, { label: 'Добре', value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } }, aid ? artGlyph(D.artById[aid]) : '', el('small', null, D.SLOT_NAME[slot].slice(0, 4)));
         arts.appendChild(a);
       });
       right.appendChild(arts);
@@ -318,6 +356,7 @@
     const renderBuild = (pane) => {
       pane.appendChild(el('h3', null, 'Построено: ' + Object.keys(t.buildings).map((id) => D.buildingFor(t.faction, id).name).join(', ')));
       pane.appendChild(el('div', { class: 'tiny', style: 'margin-bottom:6px' }, 'Доход на града: ' + w.townIncome(t) + ' злато на ден. Растеж: форт ' + ['няма', 'Форт', 'Цитадела (+50%)', 'Замък (+100%)'][w.fortLevel(t)] + '.'));
+      if (t.buildings.shipyard) pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Кораб'), el('div', { class: 'sub' }, 'Корабостроителницата спуска кораб на най-близката вода.'), costHtml({ gold: 1000, wood: 10 }, p.res)), el('button', { class: 'small primary', disabled: p.res.gold >= 1000 && p.res.wood >= 10 ? null : 'disabled', onclick: () => { const r = w.buildBoat(t); toast(r.ok ? 'Корабът е готов.' : r.why); render(); } }, 'Построй кораб')));
       D.BUILDINGS.forEach((b) => {
         if (t.buildings[b.id]) return;
         const bf = D.buildingFor(t.faction, b.id);
@@ -422,5 +461,5 @@
     });
   }
 
-  MK.UI = { el, dialog, toast, showMenu, showHelp, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { el, dialog, toast, showMenu, showHelp, showCampaign, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();

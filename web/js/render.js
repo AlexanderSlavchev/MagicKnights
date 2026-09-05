@@ -10,6 +10,7 @@
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
       this.cam = { x: 10, y: 10, zoom: 48 }; // центърът в плочки; zoom = px за плочка
+      this.z = 0;                             // текущо ниво
       this.minZoom = 22; this.maxZoom = 96;
       this.pathPreview = null;   // {path:[{x,y,cost}], reachableIdx}
       this.selected = null;      // герой
@@ -55,11 +56,11 @@
       this.world = world;
       this.time += dt || 16;
       const g = this.ctx, S = this.tileSize();
-      const m = world.map;
-      g.fillStyle = '#05060a'; g.fillRect(0, 0, this.vw, this.vh);
+      const m = Object.assign({ w: world.map.w, h: world.map.h }, world.lv(this.z));
+      g.fillStyle = this.z ? '#0a0608' : '#05060a'; g.fillRect(0, 0, this.vw, this.vh);
       const x0 = Math.max(0, Math.floor(this.cam.x - this.vw / 2 / S) - 1), x1 = Math.min(m.w - 1, Math.ceil(this.cam.x + this.vw / 2 / S) + 1);
       const y0 = Math.max(0, Math.floor(this.cam.y - this.vh / 2 / S) - 1), y1 = Math.min(m.h - 1, Math.ceil(this.cam.y + this.vh / 2 / S) + 1);
-      const fog = viewer.fog;
+      const fog = viewer.fog[this.z] || viewer.fog[0];
       const TS = Math.ceil(S) + 1;
       g.imageSmoothingEnabled = S < 40;
       // терен
@@ -97,7 +98,7 @@
           const i = y * m.w + x;
           if (!fog[i]) continue;
           const [sx, sy] = this.toScreen(x, y);
-          if (m.block[i]) g.drawImage(G.decor(m.block[i], (x * 31 + y * 17) & 7, 64, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.2, TS, TS * 1.2);
+          if (m.block[i]) { if (this.z && m.block[i] === 2) g.drawImage(G.decor(5, (x * 31 + y * 17) & 7, 64, m.terrain[i]), Math.floor(sx), Math.floor(sy), TS, TS); else g.drawImage(G.decor(m.block[i], (x * 31 + y * 17) & 7, 64, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.2, TS, TS * 1.2); }
           const oid = m.objAt[i];
           if (oid >= 0) {
             const o = world.objById(oid);
@@ -114,6 +115,7 @@
         // герои на този ред
         for (const id in world.heroes) {
           const h = world.heroes[id];
+          if ((h.z || 0) !== this.z) continue;
           let hx = h.x, hy = h.y;
           if (this.anim && this.anim.hero === h) { const a = this.anim; hx = a.fromX + (a.toX - a.fromX) * a.t; hy = a.fromY + (a.toY - a.fromY) * a.t; }
           if (Math.round(hy) !== y) continue;
@@ -175,17 +177,18 @@
       const m = world.map; const W = canvas.width, H = canvas.height;
       const sx = W / m.w, sy = H / m.h;
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+      const L = world.lv(this.z); const fogL = viewer.fog[this.z] || viewer.fog[0];
       for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-        const i = y * m.w + x; if (!viewer.fog[i]) continue;
-        g.fillStyle = m.block[i] ? MK.shade(D.TERRAIN[m.terrain[i]].col, 0.55) : D.TERRAIN[m.terrain[i]].col;
+        const i = y * m.w + x; if (!fogL[i]) continue;
+        g.fillStyle = L.block[i] ? MK.shade(D.TERRAIN[L.terrain[i]].col, 0.55) : D.TERRAIN[L.terrain[i]].col;
         g.fillRect(x * sx, y * sy, sx + 0.5, sy + 0.5);
       }
       m.objects.forEach((o) => {
-        if (!viewer.fog[o.y * m.w + o.x]) return;
+        if ((o.z || 0) !== this.z || !fogL[o.y * m.w + o.x]) return;
         if (o.type === 'town') { g.fillStyle = o.owner >= 0 ? world.players[o.owner].color : '#ccc'; g.fillRect(o.x * sx - 1.5, o.y * sy - 1.5, sx + 3, sy + 3); }
         else if (o.type === 'mine' && o.owner >= 0) { g.fillStyle = world.players[o.owner].color; g.fillRect(o.x * sx, o.y * sy, sx + 1, sy + 1); }
       });
-      for (const id in world.heroes) { const h = world.heroes[id]; if (!viewer.fog[h.y * m.w + h.x]) continue; g.fillStyle = world.players[h.owner].color; g.fillRect(h.x * sx - 1, h.y * sy - 1, sx + 2, sy + 2); }
+      for (const id in world.heroes) { const h = world.heroes[id]; if ((h.z || 0) !== this.z || !fogL[h.y * m.w + h.x]) continue; g.fillStyle = world.players[h.owner].color; g.fillRect(h.x * sx - 1, h.y * sy - 1, sx + 2, sy + 2); }
       // рамка на екрана
       const S = this.tileSize(); const hw = this.vw / 2 / S, hh = this.vh / 2 / S;
       g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 1; g.strokeRect((this.cam.x - hw) * sx, (this.cam.y - hh) * sy, hw * 2 * sx, hh * 2 * sy);
