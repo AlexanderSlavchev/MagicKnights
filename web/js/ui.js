@@ -51,6 +51,7 @@
 
   // ---------------------------------------------------------------- главно меню
   function showMenu(game) {
+    MK.Audio.menu();
     const s = screen('menu');
     const hasSave = !!localStorage.getItem('mk_save');
     s.appendChild(el('div', { class: 'title' }, 'MagicKnights'));
@@ -60,9 +61,19 @@
       el('button', { onclick: () => showCampaign(game) }, 'Кампания'),
       el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, 'Продължи'),
       el('button', { onclick: () => showHelp() }, 'Как се играе'),
-      game.world ? el('button', { onclick: () => closeScreens() }, 'Назад към играта') : null
+      game.world ? el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, 'Назад към играта') : null
     ));
-    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, 'Версия 0.3 · Фази 1–3 · 11 фракции, подземие, кораби, кампания · Цялата графика е процедурна и оригинална'));
+    s.appendChild(audioPanel());
+    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, 'Версия 0.3 · Фази 1–3 · 11 фракции, подземие, кораби, кампания · Музиката е оригинална'));
+  }
+  function audioPanel() {
+    const A = MK.Audio, box = el('div', { class: 'audio-panel' });
+    const mute = el('button', { class: 'small', onclick: () => { A.toggleMuted(); mute.textContent = A.settings.muted ? '🔇 Без звук' : '🔊 Звук'; } }, A.settings.muted ? '🔇 Без звук' : '🔊 Звук');
+    const slider = (label, val, on) => { const i = el('input', { type: 'range', min: 0, max: 100, value: Math.round(val * 100) }); i.addEventListener('input', () => on(i.value / 100)); return el('label', { class: 'tiny' }, label, i); };
+    box.appendChild(mute);
+    box.appendChild(slider('Музика', A.settings.music, (v) => A.setMusic(v)));
+    box.appendChild(slider('Ефекти', A.settings.sfx, (v) => A.setSfx(v)));
+    return box;
   }
   function showHelp() {
     dialog({ title: 'Как се играе', content: el('div', null,
@@ -124,6 +135,7 @@
 
   // ---------------------------------------------------------------- кампания
   function showCampaign(game) {
+    MK.Audio.campaign();
     const s = screen('menu');
     const C = MK.CAMPAIGN, prog = MK.Campaign.load();
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, C.title));
@@ -320,6 +332,7 @@
 
   // ---------------------------------------------------------------- град
   function showTown(game, t) {
+    MK.Audio.town(t.faction);
     const w = game.world;
     const p = w.players[t.owner];
     const s = screen('');
