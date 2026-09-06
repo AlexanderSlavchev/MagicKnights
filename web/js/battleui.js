@@ -68,7 +68,7 @@
     loopDraw() { if (!this.running) return; this.draw(); this.raf = requestAnimationFrame(() => this.loopDraw()); }
     groundPattern() {
       if (this._pat && this._patT === this.b.terrain) return this._pat;
-      const tile = this.b.terrain === 0 ? G.terrainTile(3, 0, 128) : G.terrainTile(this.b.terrain, 0, 128);
+      const tile = G.terrainAtlas(this.b.terrain === 0 ? 3 : this.b.terrain, 96);
       this._pat = this.ctx.createPattern(tile, 'repeat'); this._patT = this.b.terrain;
       return this._pat;
     }

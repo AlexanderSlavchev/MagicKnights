@@ -45,6 +45,8 @@
     }
     start() {
       document.getElementById('hud').hidden = false;
+      // подгряване на текстурите на терените от картата на фон
+      try { const ts = new Set(); this.world.map.levels.forEach((L) => L.terrain.forEach((t) => ts.add(t))); MK.Gfx.warm([...ts], [96, 128]); } catch (e) { /* без подгряване */ }
       const p = this.world.players[this.human];
       const h = this.world.heroes[p.heroes[0]];
       this.selectHero(h || null, true);

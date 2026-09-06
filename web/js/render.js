@@ -76,8 +76,8 @@
         if (!fog[i]) continue;
         const [sx, sy] = this.toScreen(x, y);
         const t = m.terrain[i];
-        if (t === 0) g.drawImage(G.waterTile(waterFrame, (x * 7 + y * 13) & 3, 64), Math.floor(sx), Math.floor(sy), TS, TS);
-        else g.drawImage(G.terrainTile(t, (x * 7 + y * 13) & 3, texSize), Math.floor(sx), Math.floor(sy), TS, TS);
+        if (t === 0) g.drawImage(G.waterTile(waterFrame, (x & 1) | ((y & 1) << 1), 64), 1, 1, 64, 64, Math.floor(sx), Math.floor(sy), TS, TS);
+        else g.drawImage(G.terrainTile(t, (x & 3) | ((y & 3) << 2), texSize), 1, 1, texSize, texSize, Math.floor(sx), Math.floor(sy), TS, TS);
       }
       // --- преливане между терените и бряг
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -91,15 +91,12 @@
           const nt = m.terrain[ny * m.w + nx];
           if (nt === t) continue;
           if (t === 0) { // бряг: пяна върху водата
-            const foam = 0.35 + 0.25 * Math.sin(T * 2.2 + x * 1.7 + y * 2.3);
-            const gr = MK.DIRS[d][0] ? g.createLinearGradient(sx + (MK.DIRS[d][0] > 0 ? S : 0), 0, sx + (MK.DIRS[d][0] > 0 ? S - S * 0.35 : S * 0.35), 0) : g.createLinearGradient(0, sy + (MK.DIRS[d][1] > 0 ? S : 0), 0, sy + (MK.DIRS[d][1] > 0 ? S - S * 0.35 : S * 0.35));
-            gr.addColorStop(0, 'rgba(230,240,250,' + foam + ')'); gr.addColorStop(0.5, 'rgba(120,180,220,0.25)'); gr.addColorStop(1, 'rgba(120,180,220,0)');
+            const foam = 0.4 + 0.2 * Math.sin(T * 2.2 + x * 1.7 + y * 2.3);
+            const gr = MK.DIRS[d][0] ? g.createLinearGradient(sx + (MK.DIRS[d][0] > 0 ? S : 0), 0, sx + (MK.DIRS[d][0] > 0 ? S - S * 0.34 : S * 0.34), 0) : g.createLinearGradient(0, sy + (MK.DIRS[d][1] > 0 ? S : 0), 0, sy + (MK.DIRS[d][1] > 0 ? S - S * 0.34 : S * 0.34));
+            gr.addColorStop(0, 'rgba(235,245,250,' + foam + ')'); gr.addColorStop(0.18, 'rgba(120,200,215,0.22)'); gr.addColorStop(1, 'rgba(70,160,190,0)');
             g.fillStyle = gr; g.fillRect(sx, sy, TS, TS);
-          } else if (nt !== 0) { // мек преход към съседния терен
-            const col = D.TERRAIN[nt].col;
-            const gr = MK.DIRS[d][0] ? g.createLinearGradient(sx + (MK.DIRS[d][0] > 0 ? S : 0), 0, sx + (MK.DIRS[d][0] > 0 ? S * 0.55 : S * 0.45), 0) : g.createLinearGradient(0, sy + (MK.DIRS[d][1] > 0 ? S : 0), 0, sy + (MK.DIRS[d][1] > 0 ? S * 0.55 : S * 0.45));
-            gr.addColorStop(0, MK.rgba(col, 0.55)); gr.addColorStop(1, MK.rgba(col, 0));
-            g.fillStyle = gr; g.fillRect(sx, sy, TS, TS);
+          } else if (nt !== 0) { // преход: текстурата на съседа навлиза с неравен ръб
+            g.drawImage(G.edgeBlend(nt, (x & 3) | ((y & 3) << 2), d, texSize), 1, 1, texSize, texSize, Math.floor(sx), Math.floor(sy), TS, TS);
           } else { // сушата до вода: тъмен влажен ръб
             const gr = MK.DIRS[d][0] ? g.createLinearGradient(sx + (MK.DIRS[d][0] > 0 ? S : 0), 0, sx + (MK.DIRS[d][0] > 0 ? S * 0.75 : S * 0.25), 0) : g.createLinearGradient(0, sy + (MK.DIRS[d][1] > 0 ? S : 0), 0, sy + (MK.DIRS[d][1] > 0 ? S * 0.75 : S * 0.25));
             gr.addColorStop(0, 'rgba(40,60,50,0.35)'); gr.addColorStop(1, 'rgba(40,60,50,0)');
@@ -128,8 +125,10 @@
       }
       // --- достижими плочки
       if (this.reach && this.selected && (this.selected.z || 0) === this.z) {
-        g.fillStyle = 'rgba(255,255,255,0.09)';
-        this.reach.forEach((c, i) => { const x = i % m.w, y = Math.floor(i / m.w); if (x < x0 || x > x1 || y < y0 || y > y1) return; const [sx, sy] = this.toScreen(x, y); g.fillRect(sx, sy, TS, TS); });
+        // един път за всички плочки: припокриванията не се сумират и не се вижда решетка
+        g.fillStyle = 'rgba(255,255,255,0.09)'; g.beginPath();
+        this.reach.forEach((c, i) => { const x = i % m.w, y = Math.floor(i / m.w); if (x < x0 || x > x1 || y < y0 || y > y1) return; const [sx, sy] = this.toScreen(x, y); g.rect(Math.floor(sx), Math.floor(sy), TS, TS); });
+        g.fill();
       }
       // --- декори, обекти и герои по редове
       const spriteS = S > 60 ? 128 : 96;
@@ -140,7 +139,15 @@
           const [sx, sy] = this.toScreen(x, y);
           if (m.block[i]) {
             if (this.z && m.block[i] === 2) g.drawImage(G.decor(5, (x * 31 + y * 17) & 7, spriteS, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.25, TS, TS * 1.25);
-            else g.drawImage(G.decor(m.block[i], (x * 31 + y * 17) & 7, spriteS, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.25, TS, TS * 1.25);
+            else {
+              let mask = 0;
+              if (m.block[i] === 2) { // съседни планини → слят масив
+                const isM = (xx, yy) => world.inb(xx, yy) && m.block[yy * m.w + xx] === 2;
+                mask = (isM(x, y - 1) ? 1 : 0) | (isM(x + 1, y) ? 2 : 0) | (isM(x, y + 1) ? 4 : 0) | (isM(x - 1, y) ? 8 : 0);
+              }
+              // планините ползват световната клетка (4×4) като вариант, за да продължават релефа си
+              g.drawImage(G.decor(m.block[i], m.block[i] === 2 ? (x & 3) | ((y & 3) << 2) : (x * 31 + y * 17) & 7, spriteS, m.terrain[i], mask), Math.floor(sx), Math.floor(sy) - S * 0.25, TS, TS * 1.25);
+            }
           }
           const oid = m.objAt[i];
           if (oid >= 0) {
@@ -194,8 +201,10 @@
             g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = Math.max(2, S * 0.05); g.beginPath(); g.ellipse(sx + S / 2, sy + S * 0.88, S * 0.42, S * 0.17, 0, 0, TAU); g.stroke();
             g.fillStyle = 'rgba(255,216,112,0.15)'; g.fill();
           }
-          g.drawImage(G.heroSprite(h, spriteS, col), Math.floor(sx), Math.floor(sy) - S * 0.4 - bob, TS, TS * 1.4);
-          if (!h.boat) this.drawFlag(sx + S * 0.66, sy + S * 0.02 - bob, S * 0.8, col, T + h.id);
+          const moving = this.anim && this.anim.hero === h;
+          const frame = moving ? 1 + Math.floor(((this.anim.t + (this.animStep || 0)) * 4) % 4) : 0;
+          const hs = h.boat ? 1 : 1.25;
+          g.drawImage(G.heroSprite(h, 160, col, frame), Math.floor(sx - S * (hs - 1) / 2), Math.floor(sy) - S * 0.4 * hs - S * (hs - 1) * 0.6 - (moving ? 0 : bob), TS * hs, TS * 1.4 * hs);
           if (h.inTown) { g.fillStyle = col; g.beginPath(); g.arc(sx + S * 0.86, sy + S * 0.14, S * 0.09, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1; g.stroke(); }
         }
       }
