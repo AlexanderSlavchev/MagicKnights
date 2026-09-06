@@ -92,15 +92,15 @@
   const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   // Палитри по височина/влажност — приглушени тонове като на аерофото
   const PAL = {
-    1: ['#3b5a25', '#527a30', '#6d943b', '#93a752'],      // трева: сенчесто/влажно → слънчево → изсъхнало
-    2: ['#54412c', '#735838', '#907046', '#ad8f62'],      // пръст
-    3: ['#b39566', '#cfb07c', '#e3c993', '#f0dcb0'],      // пясък
-    4: ['#c4d0de', '#dde5ee', '#eff4f9', '#ffffff'],      // сняг
-    5: ['#37472c', '#4f6536', '#687c46', '#849556'],      // блато
-    6: ['#665a4c', '#807262', '#9a8e7a', '#b8ac98'],      // пустош (камънак)
-    7: ['#221819', '#382829', '#483838', '#584847'],      // лава (кора)
-    8: ['#362d2f', '#4a3f41', '#5e5353', '#746767'],      // подземие
-    9: ['#574b5b', '#766879', '#928495', '#aca0ac']       // пустиня (пустош)
+    1: ['#3f7a26', '#559a30', '#72b43c', '#9cc94e'],      // трева: сенчесто → слънчево
+    2: ['#5a4430', '#7d5c3c', '#9c7649', '#b9956a'],      // пръст
+    3: ['#c4a06a', '#dcbe86', '#eed49c', '#f8e6b8'],      // пясък
+    4: ['#c8d8ea', '#e2ecf6', '#f4f8fc', '#ffffff'],      // сняг
+    5: ['#3b4e2a', '#55703a', '#6e8a48', '#8aa358'],      // блато
+    6: ['#6a5e50', '#867866', '#a2957f', '#beb29c'],      // пустош (камънак)
+    7: ['#2a1818', '#3e2828', '#503838', '#604848'],      // лава (кора)
+    8: ['#3a2e34', '#4e4046', '#625458', '#78686c'],      // подземие
+    9: ['#5c4e62', '#7c6c80', '#98889c', '#b2a4b4']       // пустиня (пустош)
   };
   function palColor(t, k) {
     const p = PAL[t] || PAL[1]; const n = p.length - 1; const f = Math.max(0, Math.min(0.9999, k)) * n; const i = Math.floor(f), r = f - i;
@@ -136,7 +136,7 @@
         const mid = pnoise(23 + t, x, y, P, 20), fine = pnoise(37 + t, x, y, P, 80), grain = pnoise(41, x, y, P, 220);
         let k = h * 0.6 + mid * 0.25 + fine * 0.15;
         let [r, gg, b] = palColor(t, k);
-        let f = light * (0.9 + grain * 0.2);
+        let f = light * (0.94 + grain * 0.12);
         if (t === 1 || t === 5) {
           // сухи/пожълтели петна и по-влажни тъмни ивици
           const dry = pfbm(53 + t, x, y, P, 3, 2);
@@ -151,8 +151,8 @@
             // храсти: тъмнозелени куполи със сянка към югоизток
             const [w1, , id] = pworley(x, y, P, 14, 9);
             const [s1, , sid] = pworley(x - S * 0.05, y - S * 0.05, P, 14, 9);
-            if (sid > 0.72 && s1 < 0.27 && !(id > 0.72 && w1 < 0.27)) f *= 0.72;
-            if (id > 0.72 && w1 < 0.27) {
+            if (sid > 0.9 && s1 < 0.27 && !(id > 0.9 && w1 < 0.27)) f *= 0.82;
+            if (id > 0.9 && w1 < 0.27) {
               const dome = 1 - w1 / 0.27; const lf = pnoise(19, x, y, P, 160);
               r = 46 + dome * 10; gg = 78 + dome * 22 + lf * 18; b = 30 + dome * 6;
               const [l1] = pworley(x + S * 0.02, y + S * 0.02, P, 14, 9);
@@ -254,156 +254,151 @@
     setTimeout(step, 50);
   }
 
-  // Общо релефно осветление за пикселни спрайтове: нормала от височинна карта, светлина от северозапад
-  const LX = -0.55, LY = -0.62, LZ = 0.56;
-  function litFrom(nx, ny, kz) {
-    const len = Math.hypot(nx * kz, ny * kz, 1);
-    return Math.max(0, (nx * kz * LX + ny * kz * LY + LZ) / len);
+  // ---------------------------------------------------------------- декор (гори, планини, скали) — рисуван стил, 3/4 поглед
+  // Декор-спрайтът е S × 1.6S: плочката заема долния квадрат (y от 0.6S до 1.6S), над него се издигат върхове и корони
+  const DECOR_H = 1.6;
+  // Иглолистно дърво: етажи от назъбени поли, светла лява и тъмна дясна страна, по желание сняг
+  function conifer(g, x, y, h, col, snow, seed) {
+    shadow(g, x + h * 0.08, y + h * 0.01, h * 0.28, h * 0.07, 0.3);
+    g.fillStyle = lgrad(g, x - h * 0.04, 0, x + h * 0.04, 0, [[0, '#5a3e28'], [1, '#2a1a10']]); g.fillRect(x - h * 0.035, y - h * 0.16, h * 0.07, h * 0.17);
+    const w = h * 0.36;
+    for (let t = 3; t >= 0; t--) {
+      const ty = y - h * (0.1 + t * 0.19), tw = w * (1 - t * 0.19), th = h * 0.34, apex = ty - th;
+      const jag = (k) => (hashN(seed, t, k) - 0.5) * tw * 0.3;
+      poly(g, [[x, apex], [x + tw * 0.5, ty - th * 0.4 + jag(1)], [x + tw * 0.8, ty - th * 0.15 + jag(2)], [x + tw, ty + jag(3)], [x + tw * 0.5, ty - th * 0.06], [x, ty + th * 0.05]], shade(col, 0.6));
+      poly(g, [[x, apex], [x - tw * 0.5, ty - th * 0.4 + jag(4)], [x - tw * 0.8, ty - th * 0.15 + jag(5)], [x - tw, ty + jag(6)], [x - tw * 0.5, ty - th * 0.06], [x, ty + th * 0.05]], shade(col, 1.18));
+      poly(g, [[x, apex], [x + tw * 0.3, ty - th * 0.12], [x, ty + th * 0.05], [x - tw * 0.3, ty - th * 0.12]], col);
+      if (snow) poly(g, [[x, apex], [x + tw * 0.45, ty - th * 0.42 + jag(1)], [x + tw * 0.18, ty - th * 0.36], [x, ty - th * 0.5], [x - tw * 0.18, ty - th * 0.36], [x - tw * 0.45, ty - th * 0.42 + jag(4)]], lgrad(g, x - tw, 0, x + tw, 0, [[0, '#ffffff'], [1, '#c8d8ec']]));
+    }
   }
-  /* Гора отгоре: корони като куполи с неравен ръб, листна текстура, светлина от северозапад,
-     тъмни процепи между дърветата и сянка върху земята */
-  function forest(g, S, W, Hh, crowns, conifer, colBase, seed) {
-    const H = new Float32Array(W * Hh), own = new Int8Array(W * Hh).fill(-1);
-    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-      let h = 0, best = -1;
-      for (let j = 0; j < crowns.length; j++) {
-        const c = crowns[j];
-        let d = Math.hypot(x - c.x, y - c.y) / c.r;
-        d *= 1 + (noiseA((x + j * 37 + seed) / (S * 0.03), (y + j * 11) / (S * 0.03)) - 0.5) * 0.36;
-        if (d >= 1) continue;
-        const hh = conifer ? c.r * Math.pow(1 - d, 0.75) * 1.25 : c.r * Math.sqrt(1 - d * d) * (0.9 + 0.2 * noiseB((x + seed) / (S * 0.05), y / (S * 0.05)));
-        if (hh > h) { h = hh; best = j; }
-      }
-      H[y * W + x] = h; own[y * W + x] = best;
-    }
-    const img = g.getImageData(0, 0, W, Hh); const d = img.data;
-    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-      const i = y * W + x, h = H[i];
-      if (h <= 0) continue;
-      const c = crowns[own[i]];
-      const hl = x > 0 ? H[i - 1] : 0, hr = x < W - 1 ? H[i + 1] : 0, hu = y > 0 ? H[i - W] : 0, hd = y < Hh - 1 ? H[i + W] : 0;
-      const lit = litFrom(hl - hr, hu - hd, 1.1);
-      const leaf = noiseC((x + seed * 3) / (S * 0.017), y / (S * 0.017)), clump = noiseD((x + seed) / (S * 0.045), y / (S * 0.045));
-      let f = 0.3 + lit * 0.95;
-      f *= 0.82 + leaf * 0.3 + (clump - 0.5) * 0.2;
-      if (h < c.r * 0.28) f *= 0.55 + (h / (c.r * 0.28)) * 0.45;   // процепи между короните
-      const col = c.col;
-      const a = Math.min(1, h / (S * 0.012));
-      d[i * 4] = d[i * 4] * (1 - a) + Math.min(255, col[0] * f) * a; d[i * 4 + 1] = d[i * 4 + 1] * (1 - a) + Math.min(255, col[1] * f) * a; d[i * 4 + 2] = d[i * 4 + 2] * (1 - a) + Math.min(255, col[2] * f) * a;
-      d[i * 4 + 3] = Math.max(d[i * 4 + 3], a * 255);
-    }
-    g.putImageData(img, 0, 0);
-    // сянка върху земята (югоизток) под короните
-    g.globalCompositeOperation = 'destination-over';
-    crowns.forEach((c) => shadow(g, c.x + c.r * 0.5, c.y + c.r * 0.5, c.r * 1.05, c.r * 0.85, 0.4));
-    g.globalCompositeOperation = 'source-over';
+  // Широколистно дърво: ствол и корона от кълба с осветление отгоре-ляво
+  function leafTree(g, x, y, h, col, seed) {
+    shadow(g, x + h * 0.1, y + h * 0.01, h * 0.3, h * 0.08, 0.3);
+    g.fillStyle = lgrad(g, x - h * 0.06, 0, x + h * 0.06, 0, [[0, '#6a4a34'], [0.5, '#3e2a1a'], [1, '#22160e']]);
+    g.beginPath(); g.moveTo(x - h * 0.06, y); g.quadraticCurveTo(x - h * 0.03, y - h * 0.25, x - h * 0.03, y - h * 0.42); g.lineTo(x + h * 0.03, y - h * 0.42); g.quadraticCurveTo(x + h * 0.04, y - h * 0.25, x + h * 0.07, y); g.fill();
+    const n = 5 + Math.floor(hashN(seed, 1, 2) * 3), cy = y - h * 0.64, R = h * 0.36;
+    const blobs = [];
+    for (let i = 0; i < n; i++) { const a = i / n * TAU + hashN(seed, i, 3) * 0.8, d = R * (0.3 + hashN(seed, i, 4) * 0.5); blobs.push([x + Math.cos(a) * d * 1.15, cy + Math.sin(a) * d * 0.8, R * (0.45 + hashN(seed, i, 5) * 0.3)]); }
+    blobs.push([x, cy - R * 0.08, R * 0.62]);
+    blobs.forEach(([bx, by, br]) => circ(g, bx + br * 0.08, by + br * 0.18, br * 1.02, shade(col, 0.5)));
+    blobs.sort((a, b) => a[1] - b[1]).forEach(([bx, by, br]) => { g.fillStyle = rgrad(g, bx, by, br, shade(col, 1.4), shade(col, 0.72), -br * 0.35, -br * 0.4); g.beginPath(); g.arc(bx, by, br, 0, TAU); g.fill(); });
+    g.fillStyle = 'rgba(255,255,200,0.22)'; blobs.forEach(([bx, by, br]) => { g.beginPath(); g.ellipse(bx - br * 0.3, by - br * 0.42, br * 0.32, br * 0.16, -0.5, 0, TAU); g.fill(); });
   }
-  /* Планински масив отгоре: релефът е периодичен в световни координати (период 4×4 плочки), затова
-     съседните планински плочки продължават хребетите си една в друга без шев; към свободните ръбове
-     масивът завършва с неравен склон. Скални пластове, снежни шапки по полегатите върхове, сипеи в основата. */
-  function mountain(g, S, W, Hh, base, terrain, variant, mask) {
-    const rock = parse(terrain === 7 ? '#5a3a3a' : terrain === 4 ? '#8892a4' : terrain === 9 ? '#786a7e' : terrain === 8 ? '#665a62' : '#8a7c6c');
-    const talus = parse(terrain === 7 ? '#3a2424' : terrain === 4 ? '#8a94a8' : terrain === 9 ? '#4a4050' : '#5a4e42');
-    const nN = mask & 1, nE = mask & 2, nS = mask & 4, nW = mask & 8;
-    const pr = (a, b) => a * b / Math.hypot(a, b);   // заоблен ъгъл между два свободни ръба
-    const cx0 = variant & 3, cy0 = (variant >> 2) & 3;
-    const H = new Float32Array(W * Hh);
-    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-      const u = x / S, v = (y - base) / S;
-      const gx = cx0 + u, gy = cy0 + v;
-      const wx = gx + (pnoise(301, gx, gy, 4, 5) - 0.5) * 0.3, wy = gy + (pnoise(307, gx, gy, 4, 5) - 0.5) * 0.3;
-      const big = pfbm(311, wx, wy, 4, 3, 2);
-      const rg = (seed, n) => 1 - Math.abs(2 * pnoise(seed, wx, wy, 4, n) - 1);
-      const rid = rg(317, 6) * 0.42 + rg(331, 14) * 0.3 + rg(337, 32) * 0.17 + rg(341, 70) * 0.11;
-      let h = (0.45 + 0.55 * smooth((big - 0.3) / 0.45)) * (0.35 + 0.85 * Math.pow(rid, 1.3)) + (pnoise(347, gx, gy, 4, 120) - 0.5) * 0.03;
-      // очертание
-      const oz = pnoise(353, gx, gy, 4, 20) * 0.6 + pnoise(359, gx, gy, 4, 48) * 0.4;
-      const dW = nW ? 1 : Math.max(0.001, u), dE = nE ? 1 : Math.max(0.001, 1 - u), dS = nS ? 1 : Math.max(0.001, 1 - v), dN = nN ? 1 : v + 0.14;
-      let dd = Math.min(dW, dE, dS, dN);
-      if (dN > 0) { if (!nW && !nN) dd = Math.min(dd, pr(dW, dN)); if (!nE && !nN) dd = Math.min(dd, pr(dE, dN)); }
-      if (!nW && !nS) dd = Math.min(dd, pr(dW, dS)); if (!nE && !nS) dd = Math.min(dd, pr(dE, dS));
-      let shape = smooth((dd - 0.05 + (oz - 0.5) * 0.24) / 0.14);
-      if (nN && v < 0) shape *= smooth((v + 0.08) / 0.08);
-      H[y * W + x] = h * shape;
+  // Сухо дърво: ствол с разклонени голи клони
+  function deadTree(g, x, y, h, seed) {
+    shadow(g, x + h * 0.06, y, h * 0.16, h * 0.05, 0.25);
+    g.strokeStyle = '#4a3a2e'; g.lineCap = 'round';
+    const branch = (bx, by, ang, len, w, depth) => {
+      const ex = bx + Math.cos(ang) * len, ey = by + Math.sin(ang) * len;
+      g.lineWidth = Math.max(1, w); g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke();
+      if (depth <= 0) return;
+      branch(ex, ey, ang - 0.5 - hashN(seed, depth, 1) * 0.4, len * 0.65, w * 0.65, depth - 1);
+      branch(ex, ey, ang + 0.4 + hashN(seed, depth, 2) * 0.4, len * 0.6, w * 0.65, depth - 1);
+    };
+    branch(x, y, -Math.PI / 2 + (hashN(seed, 9, 9) - 0.5) * 0.3, h * 0.42, h * 0.07, 3);
+  }
+  // Планински връх: назъбен силует, светла лява и тъмна дясна страна, хребетни линии, снежна шапка или лавен кратер
+  function peak(g, x, baseY, h, w, rockL, rockR, snowK, seed, lava) {
+    const apex = [x + (hashN(seed, 0, 7) - 0.5) * w * 0.15, baseY - h];
+    const side = (dir) => {
+      const pts = [];
+      for (let i = 1; i <= 6; i++) { const t = i / 6; const jag = (hashN(seed, i, dir) - 0.5) * w * 0.14 * (1 - t * 0.5); pts.push([apex[0] + dir * w * (t * (0.55 + 0.45 * t)) + jag * dir, baseY - h * Math.pow(1 - t, 1.25) + (hashN(seed, i, dir + 4) - 0.5) * h * 0.06]); }
+      pts[pts.length - 1][1] = baseY;
+      return pts;
+    };
+    const L = side(-1), R = side(1);
+    const footL = [apex[0] - w, baseY], footR = [apex[0] + w, baseY];
+    const ridgeBase = [apex[0] + w * 0.08, baseY];
+    // лява (светла) и дясна (тъмна) страна
+    poly(g, [apex, ...L, footL, ridgeBase], lgrad(g, apex[0] - w, 0, apex[0], 0, [[0, shade(rockL, 0.85)], [1, shade(rockL, 1.15)]]));
+    poly(g, [apex, ...R, footR, ridgeBase], lgrad(g, apex[0], 0, apex[0] + w, 0, [[0, shade(rockR, 0.9)], [1, shade(rockR, 0.6)]]));
+    // хребети и пластове
+    g.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const t = 0.3 + k * 0.22, ex = apex[0] - w * (0.25 + k * 0.2), ey = baseY - h * (1 - t) * 0.5;
+      g.strokeStyle = 'rgba(0,0,0,0.22)'; g.lineWidth = Math.max(1, w * 0.02); g.beginPath(); g.moveTo(apex[0] - w * 0.05, apex[1] + h * 0.1 * k); g.quadraticCurveTo(ex * 0.6 + apex[0] * 0.4, (ey + apex[1]) / 2, ex, ey); g.stroke();
+      const rx = apex[0] + w * (0.3 + k * 0.2), ry = baseY - h * (1 - t) * 0.45;
+      g.strokeStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.moveTo(apex[0] + w * 0.03, apex[1] + h * 0.12 * k); g.quadraticCurveTo(rx * 0.6 + apex[0] * 0.4, (ry + apex[1]) / 2, rx, ry); g.stroke();
     }
-    const img = g.getImageData(0, 0, W, Hh); const d = img.data;
-    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-      const i = y * W + x, h = H[i];
-      if (h < 0.025) continue;
-      const u = x / S, v = (y - base) / S, gx = cx0 + u, gy = cy0 + v;
-      const hl = x > 0 ? H[i - 1] : h, hr = x < W - 1 ? H[i + 1] : h, hu = y > 0 ? H[i - W] : h, hd = y < Hh - 1 ? H[i + W] : h;
-      const nx = (hl - hr) * S * 1.0, ny = (hu - hd) * S * 1.0;
-      const nlen = Math.hypot(nx, ny, 1);
-      const lit = Math.max(0, (nx * -0.56 + ny * -0.62 + 0.55) / nlen);   // ниско слънце от северозапад: остри сенки
-      const slope = Math.hypot(nx, ny);
-      const rel = Math.min(1, h / 1.05);
-      const strata = pnoise(367, gx, gy * 4, 4, 12);
-      const grain = pnoise(373, gx, gy, 4, 260);
-      let col = [rock[0], rock[1], rock[2]];
-      const st = 0.78 + strata * 0.4;
-      col = [col[0] * st, col[1] * st, col[2] * st];
-      if (rel < 0.3) { const w = 1 - rel / 0.3; col = [col[0] * (1 - w) + talus[0] * w, col[1] * (1 - w) + talus[1] * w, col[2] * (1 - w) + talus[2] * w]; }
-      const up = 0.8 + rel * 0.45; col = [col[0] * up, col[1] * up, col[2] * up];   // високото е по-светло (по-сухо, по-огряно)
-      if (terrain !== 7) {
-        const sn = smooth((rel - 0.55) / 0.14) * Math.max(0, 1 - slope * 0.14);
-        if (sn > 0) col = [col[0] + (242 - col[0]) * sn, col[1] + (246 - col[1]) * sn, col[2] + (252 - col[2]) * sn];
-      } else if (rel > 0.72) { const w = smooth((rel - 0.72) / 0.15); col = [col[0] + (235 - col[0]) * w, col[1] + (120 - col[1]) * w, col[2] * (1 - w) + 30 * w]; }
-      let f = (0.34 + lit * 1.0) * (0.88 + grain * 0.24);
-      const a = smooth((h - 0.025) / 0.05);
-      d[i * 4] = d[i * 4] * (1 - a) + Math.min(255, col[0] * f) * a; d[i * 4 + 1] = d[i * 4 + 1] * (1 - a) + Math.min(255, col[1] * f) * a; d[i * 4 + 2] = d[i * 4 + 2] * (1 - a) + Math.min(255, col[2] * f) * a;
-      d[i * 4 + 3] = Math.max(d[i * 4 + 3], a * 255);
+    g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = Math.max(1, w * 0.025); g.beginPath(); g.moveTo(apex[0], apex[1]); g.quadraticCurveTo(apex[0] + w * 0.12, baseY - h * 0.5, ridgeBase[0], baseY); g.stroke();
+    if (lava) {
+      // кратер и потоци лава
+      g.fillStyle = rgrad(g, apex[0], apex[1] + h * 0.06, w * 0.35, 'rgba(255,140,30,0.9)', 'rgba(255,90,20,0)'); g.fillRect(apex[0] - w * 0.4, apex[1] - h * 0.1, w * 0.8, h * 0.4);
+      ell(g, apex[0], apex[1] + h * 0.05, w * 0.14, w * 0.05, '#ff7a1a');
+      g.strokeStyle = '#ff9a2a'; g.lineWidth = Math.max(1, w * 0.04); for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(apex[0] + (k - 1) * w * 0.08, apex[1] + h * 0.08); g.quadraticCurveTo(apex[0] + (k - 1) * w * 0.35, baseY - h * 0.5, apex[0] + (k - 1) * w * 0.55 + w * 0.1, baseY - h * (0.1 + hashN(seed, k, 11) * 0.2)); g.stroke(); }
+      g.strokeStyle = 'rgba(255,220,120,0.7)'; g.lineWidth = Math.max(1, w * 0.012); for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(apex[0] + (k - 1) * w * 0.08, apex[1] + h * 0.1); g.quadraticCurveTo(apex[0] + (k - 1) * w * 0.35, baseY - h * 0.5, apex[0] + (k - 1) * w * 0.55 + w * 0.1, baseY - h * (0.12 + hashN(seed, k, 11) * 0.2)); g.stroke(); }
+    } else if (snowK > 0) {
+      // снежна шапка с назъбен долен ръб
+      const sh = h * snowK;
+      const cap = [apex];
+      for (let i = 1; i <= 4; i++) { const t = i / 4; cap.push([apex[0] + w * t * 0.62, apex[1] + sh * (0.55 + 0.45 * t) + (hashN(seed, i, 21) - 0.5) * sh * 0.5]); }
+      cap.push([apex[0] + w * 0.1, apex[1] + sh * 0.7]);
+      for (let i = 4; i >= 1; i--) { const t = i / 4; cap.push([apex[0] - w * t * 0.6, apex[1] + sh * (0.55 + 0.45 * t) + (hashN(seed, i, 23) - 0.5) * sh * 0.5]); }
+      g.save(); g.beginPath(); poly(g, [apex, ...L, footL, footR, ...R.slice().reverse()], null); g.clip();
+      poly(g, cap, lgrad(g, apex[0] - w * 0.5, 0, apex[0] + w * 0.5, 0, [[0, '#ffffff'], [0.5, '#eef4fb'], [1, '#b9cbe0']]));
+      g.restore();
     }
-    g.putImageData(img, 0, 0);
-    // сянка върху терена от югоизточните свободни склонове
-    g.globalCompositeOperation = 'destination-over';
-    if (!nS) shadow(g, S * 0.52, base + S * 0.98, S * 0.46, S * 0.11, 0.3);
-    if (!nE) shadow(g, S * 0.99, base + S * 0.55, S * 0.1, S * 0.42, 0.3);
-    g.globalCompositeOperation = 'source-over';
+  }
+  // Планински масив за една плочка: 2–4 върха с подножие; съседи на изток/запад продължават веригата
+  function mountainRange(g, S, terrain, variant, mask) {
+    const r = (i) => hashN(i, variant, 2);
+    const nE = mask & 2, nW = mask & 8;
+    const pal = terrain === 7 ? ['#5a3030', '#2a1414', 0] : terrain === 4 ? ['#9fb0c8', '#4e6080', 0.62] : terrain === 8 ? ['#6a5a78', '#2a2232', 0] : terrain === 9 ? ['#8c7a90', '#4a3e52', 0.28] : terrain === 5 ? ['#6f7a5a', '#3a4030', 0] : terrain === 2 || terrain === 3 ? ['#a88a68', '#5a4432', 0.22] : ['#8f8878', '#4a4640', 0.34];
+    const [rockL, rockR, snowK] = pal;
+    const baseY = S * 1.48;
+    // подножие: тъмен склон, сливащ се с терена
+    g.fillStyle = lgrad(g, 0, S * 1.2, 0, S * 1.6, [[0, shade(rockR, 1.1)], [0.7, rgba(shade(rockR, 0.9), 0.85)], [1, rgba(rockR, 0)]]);
+    g.beginPath(); g.moveTo(nW ? -S * 0.1 : S * 0.06, S * 1.5); g.quadraticCurveTo(S * 0.5, S * 1.15, nE ? S * 1.1 : S * 0.94, S * 1.5); g.lineTo(S * 1.1, S * 1.6); g.lineTo(-S * 0.1, S * 1.6); g.fill();
+    shadow(g, S * 0.58, S * 1.52, S * 0.5, S * 0.09, 0.3);
+    const peaks = [];
+    peaks.push([nW ? -S * 0.05 + r(1) * S * 0.15 : S * (0.2 + r(1) * 0.1), baseY - S * 0.12, S * (0.62 + r(2) * 0.2), S * 0.42, 3]);
+    peaks.push([nE ? S * 1.02 + r(3) * S * 0.08 : S * (0.74 + r(3) * 0.1), baseY - S * 0.1, S * (0.55 + r(4) * 0.22), S * 0.4, 5]);
+    if (r(9) > 0.4) peaks.push([S * (0.35 + r(10) * 0.3), baseY - S * 0.2, S * (0.5 + r(11) * 0.15), S * 0.34, 7]);
+    peaks.push([S * (0.44 + r(5) * 0.12), baseY, S * (0.92 + r(6) * 0.18), S * 0.52, 1]);
+    peaks.sort((a, b) => a[1] - b[1]);
+    peaks.forEach(([px, py, h, w, sd]) => peak(g, px, py, h, w, rockL, rockR, snowK, variant * 31 + sd, terrain === 7));
+    // няколко дръвчета в подножието
+    if (terrain === 1 || terrain === 4 || terrain === 6) for (let k = 0; k < 3; k++) { const tx = S * (0.12 + r(20 + k) * 0.76), ty = S * (1.44 + r(30 + k) * 0.12); conifer(g, tx, ty, S * 0.2, terrain === 4 ? '#2f5a44' : '#2d5c2c', terrain === 4, variant * 7 + k); }
   }
   function decor(kind, variant, S, terrain, mask) {
     mask = mask || 0;
-    return sprite('d' + kind + '_' + variant + '_' + S + '_' + terrain + '_' + mask, S, S * 1.25, (g) => {
+    return sprite('d' + kind + '_' + variant + '_' + S + '_' + terrain + '_' + mask, S, S * DECOR_H, (g) => {
       const r = (i) => hashN(i, variant, kind);
-      const base = S * 0.25;
-      const W = Math.ceil(S), Hh = Math.ceil(S * 1.25);
       if (kind === 1 || kind === 4) {
-        const dead = kind === 4;
-        const conifer = terrain === 4 || terrain === 6 || terrain === 9 || (terrain === 1 && r(30) > 0.55);
-        const col = dead ? '#6a5a44' : terrain === 4 ? '#2f5a44' : terrain === 5 ? '#587a2c' : terrain === 8 ? '#5a4a7a' : conifer ? '#2d5c2c' : '#3d7a30';
-        if (dead) {
-          const n = 3 + Math.floor(r(1) * 3);
-          for (let i = 0; i < n; i++) {
-            const x = S * (0.2 + r(i) * 0.6), y = base + S * (0.2 + r(i + 5) * 0.6), k = 0.55 + r(i + 9) * 0.6;
-            shadow(g, x + S * 0.04, y + S * 0.03, S * 0.1 * k, S * 0.06 * k, 0.3);
-            g.strokeStyle = '#4e4034'; g.lineWidth = S * 0.022; g.lineCap = 'round';
-            for (let b = 0; b < 6; b++) { const aa = b / 6 * TAU + r(b + i); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(aa) * S * 0.08 * k, y + Math.sin(aa) * S * 0.08 * k, x + Math.cos(aa + 0.4) * S * 0.17 * k, y + Math.sin(aa + 0.4) * S * 0.17 * k); g.stroke(); g.lineWidth = S * 0.012; g.beginPath(); g.moveTo(x + Math.cos(aa) * S * 0.08 * k, y + Math.sin(aa) * S * 0.08 * k); g.lineTo(x + Math.cos(aa - 0.5) * S * 0.14 * k, y + Math.sin(aa - 0.5) * S * 0.14 * k); g.stroke(); g.lineWidth = S * 0.022; }
-            circ(g, x, y, S * 0.02 * k, '#3a2e24');
-          }
-          return;
-        }
-        const n = 4 + Math.floor(r(1) * 4);
-        const crowns = [];
-        const C = parse(col);
+        const dead = kind === 4 || terrain === 7;
+        const n = 4 + Math.floor(r(1) * 3);
+        const trees = [];
         for (let i = 0; i < n; i++) {
-          const rad = S * (conifer ? 0.1 + r(i + 9) * 0.09 : 0.12 + r(i + 9) * 0.1);
-          const hue = 0.82 + r(i + 20) * 0.36, yel = (r(i + 40) - 0.5) * 30;
-          crowns.push({ x: S * (0.16 + r(i) * 0.68), y: base + S * (0.14 + r(i + 5) * 0.72), r: rad, col: [Math.max(0, C[0] * hue + yel), C[1] * hue + yel * 0.4, Math.max(0, C[2] * hue - yel * 0.3)] });
+          const x = S * (0.1 + r(i) * 0.8), y = S * (0.78 + r(i + 5) * 0.76);
+          const coniferK = terrain === 4 || terrain === 6 || terrain === 9 ? 1 : terrain === 5 ? (r(i + 30) > 0.7 ? 1 : 0) : terrain === 1 ? (r(i + 30) > 0.55 ? 1 : 0) : 0;
+          trees.push([x, y, S * (coniferK ? 0.62 + r(i + 9) * 0.4 : 0.5 + r(i + 9) * 0.32), coniferK]);
         }
-        forest(g, S, W, Hh, crowns, conifer, col, variant * 13 + kind);
+        trees.sort((a, b) => a[1] - b[1]);
+        trees.forEach(([x, y, h, cf], i) => {
+          if (dead) return deadTree(g, x, y, h * 0.8, variant * 13 + i);
+          if (cf) return conifer(g, x, y, h, terrain === 4 ? '#2f5a44' : terrain === 9 ? '#4a5a48' : terrain === 5 ? '#4e6a34' : '#2d5c2c', terrain === 4, variant * 13 + i);
+          const col = terrain === 2 ? ['#b8742a', '#c89a2a', '#8a5a22'][i % 3] : terrain === 3 ? '#6a8a3a' : terrain === 5 ? '#5c7a2e' : terrain === 8 ? '#5a4a7a' : ['#3d7a30', '#4a8a34', '#356a2a'][i % 3];
+          leafTree(g, x, y, h, col, variant * 13 + i);
+        });
       } else if (kind === 2) {
-        mountain(g, S, W, Hh, base, terrain, variant, mask);
+        mountainRange(g, S, terrain, variant, mask);
       } else if (kind === 3) {
-        for (let i = 0; i < 5; i++) {
-          const x = S * (0.15 + r(i) * 0.7), y = base + S * (0.2 + r(i + 4) * 0.6), rad = S * (0.08 + r(i + 8) * 0.12);
-          shadow(g, x + rad * 0.45, y + rad * 0.4, rad * 1.1, rad * 0.9, 0.35);
-          const col = shade('#a08c74', 0.8 + r(i + 12) * 0.4);
-          g.fillStyle = rgrad(g, x, y, rad, shade(col, 1.35), shade(col, 0.55), -rad * 0.4, -rad * 0.4);
-          g.beginPath(); for (let s = 0; s < 8; s++) { const aa = s / 8 * TAU; const rq = rad * (0.8 + hashN(s, i, variant) * 0.35); g.lineTo(x + Math.cos(aa) * rq, y + Math.sin(aa) * rq); } g.closePath(); g.fill();
-        }
+        const rocks = [];
+        for (let i = 0; i < 4; i++) rocks.push([S * (0.15 + r(i) * 0.7), S * (0.85 + r(i + 4) * 0.65), S * (0.09 + r(i + 8) * 0.13)]);
+        rocks.sort((a, b) => a[1] - b[1]).forEach(([x, y, rad], i) => {
+          shadow(g, x + rad * 0.4, y + rad * 0.15, rad * 1.2, rad * 0.4, 0.35);
+          const col = terrain === 4 ? '#8a94a8' : terrain === 7 ? '#5a3a3a' : '#9a8a74';
+          const pts = []; for (let s = 0; s < 7; s++) { const aa = Math.PI + s / 6 * Math.PI; const rq = rad * (0.85 + hashN(s, i, variant) * 0.3); pts.push([x + Math.cos(aa) * rq * 1.2, y + Math.sin(aa) * rq]); }
+          pts.push([x + rad * 1.1, y + rad * 0.15]); pts.push([x - rad * 1.1, y + rad * 0.15]);
+          poly(g, pts, lgrad(g, x - rad, y - rad, x + rad, y + rad * 0.2, [[0, shade(col, 1.45)], [0.55, col], [1, shade(col, 0.5)]]), 'rgba(0,0,0,0.3)', 1);
+          g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x - rad * 0.2, y - rad * 0.9); g.lineTo(x + rad * 0.2, y - rad * 0.2); g.stroke();
+        });
       } else if (kind === 5) {
-        g.fillStyle = '#231c20'; g.fillRect(0, base, S, S);
-        for (let i = 0; i < 9; i++) { const x = r(i) * S, y = base + r(i + 6) * S, rad = S * (0.1 + r(i + 12) * 0.18); const col = shade('#3a3038', 0.8 + r(i + 3) * 0.5); g.fillStyle = rgrad(g, x, y, rad, shade(col, 1.5), shade(col, 0.5), -rad * 0.4, -rad * 0.4); g.beginPath(); for (let s = 0; s < 7; s++) { const aa = s / 7 * TAU; const rq = rad * (0.7 + hashN(s, i, variant) * 0.4); g.lineTo(x + Math.cos(aa) * rq, y + Math.sin(aa) * rq); } g.closePath(); g.fill(); }
-        if (r(20) > 0.65) { const x = S * 0.5, y = base + S * 0.55; g.fillStyle = rgrad(g, x, y, S * 0.25, 'rgba(170,120,255,0.45)', 'rgba(170,120,255,0)'); g.fillRect(x - S * 0.25, y - S * 0.25, S * 0.5, S * 0.5); poly(g, [[x, y - S * 0.22], [x + S * 0.07, y], [x, y + S * 0.08], [x - S * 0.07, y]], lgrad(g, x - S * 0.07, y - S * 0.2, x + S * 0.07, y, [[0, '#e0c8ff'], [1, '#8050d0']])); }
+        // пещерна стена: тъмна скална фасада със светъл горен ръб и кристали
+        g.fillStyle = lgrad(g, 0, S * 0.7, 0, S * 1.6, [[0, '#4a3e48'], [0.15, '#2a2028'], [1, '#161014']]); g.beginPath(); g.moveTo(0, S * 0.8 + r(1) * S * 0.1); for (let k = 1; k <= 4; k++) g.lineTo(S * k / 4, S * 0.72 + r(k + 1) * S * 0.14); g.lineTo(S, S * 1.6); g.lineTo(0, S * 1.6); g.fill();
+        g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = Math.max(1, S * 0.015); for (let k = 0; k < 5; k++) { const x = S * (0.1 + r(k + 10) * 0.8); g.beginPath(); g.moveTo(x, S * 0.85); g.quadraticCurveTo(x + (r(k) - 0.5) * S * 0.2, S * 1.2, x + (r(k + 3) - 0.5) * S * 0.1, S * 1.55); g.stroke(); }
+        g.strokeStyle = 'rgba(255,255,255,0.12)'; for (let k = 0; k < 3; k++) { const x = S * (0.15 + r(k + 20) * 0.7); g.beginPath(); g.moveTo(x, S * 0.9); g.lineTo(x + S * 0.03, S * 1.3); g.stroke(); }
+        if (r(30) > 0.5) { const x = S * (0.3 + r(31) * 0.4), y = S * 1.45; g.fillStyle = rgrad(g, x, y - S * 0.1, S * 0.3, 'rgba(170,120,255,0.5)', 'rgba(170,120,255,0)'); g.fillRect(x - S * 0.3, y - S * 0.4, S * 0.6, S * 0.6); for (let k = -1; k <= 1; k++) poly(g, [[x + k * S * 0.08, y - S * (0.18 + (k ? 0.04 : 0.12))], [x + k * S * 0.08 + S * 0.05, y - S * 0.02], [x + k * S * 0.08 - S * 0.05, y - S * 0.02]], lgrad(g, x - S * 0.05, y - S * 0.3, x + S * 0.05, y, [[0, '#e8d8ff'], [1, '#7a48c8']])); }
       }
     });
   }
@@ -411,10 +406,16 @@
   // ---------------------------------------------------------------- обекти
   const RES_ICON = { gold: '●', wood: '≡', ore: '▲', mercury: '◉', sulfur: '✶', crystal: '◆', gems: '❖' };
   function house(g, x, y, w, h, wall, roof, roofK, windows) {
-    // тяло
+    // тяло с каменна основа и греди
     g.fillStyle = lgrad(g, x - w / 2, y, x + w / 2, y, [[0, shade(wall, 1.15)], [1, shade(wall, 0.7)]]); g.fillRect(x - w / 2, y - h, w, h);
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x - w / 2, y - h * 0.3, w, h * 0.3); stoneTex(g, x - w / 2, y - h * 0.3, w, h * 0.3, 3);
+    g.strokeStyle = 'rgba(60,40,20,0.45)'; g.lineWidth = Math.max(0.6, w * 0.02); g.beginPath(); g.moveTo(x - w / 2, y - h * 0.3); g.lineTo(x + w / 2, y - h * 0.3); g.moveTo(x - w * 0.25, y - h); g.lineTo(x - w * 0.25, y - h * 0.3); g.moveTo(x + w * 0.25, y - h); g.lineTo(x + w * 0.25, y - h * 0.3); g.stroke();
     // покрив
-    poly(g, [[x - w * 0.6, y - h], [x, y - h - w * (roofK || 0.55)], [x + w * 0.6, y - h]], lgrad(g, x - w * 0.6, y - h - w * 0.5, x + w * 0.6, y - h, [[0, shade(roof, 1.3)], [1, shade(roof, 0.6)]]), 'rgba(0,0,0,0.35)', 1);
+    poly(g, [[x - w * 0.62, y - h], [x, y - h - w * (roofK || 0.55)], [x + w * 0.62, y - h]], lgrad(g, x - w * 0.6, y - h - w * 0.5, x + w * 0.6, y - h, [[0, shade(roof, 1.3)], [1, shade(roof, 0.6)]]), 'rgba(0,0,0,0.35)', 1);
+    g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = Math.max(0.5, w * 0.015); for (let k = 1; k < 4; k++) { const t = k / 4; g.beginPath(); g.moveTo(x - w * 0.62 * (1 - t), y - h - w * (roofK || 0.55) * t); g.lineTo(x + w * 0.62 * (1 - t), y - h - w * (roofK || 0.55) * t); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = Math.max(0.6, w * 0.025); g.beginPath(); g.moveTo(x - w * 0.55, y - h - w * 0.03); g.lineTo(x - w * 0.02, y - h - w * (roofK || 0.55) * 0.95); g.stroke();
+    // комин
+    g.fillStyle = shade(wall, 0.7); g.fillRect(x + w * 0.28, y - h - w * (roofK || 0.55) * 0.55, w * 0.1, w * 0.3);
     // прозорци
     for (let i = 0; i < (windows || 0); i++) { const wx = x - w * 0.3 + (w * 0.6 / Math.max(1, windows - 1)) * i; g.fillStyle = 'rgba(255,220,120,0.95)'; g.fillRect(wx - w * 0.06, y - h * 0.65, w * 0.12, h * 0.22); g.fillStyle = 'rgba(255,240,180,0.35)'; g.fillRect(wx - w * 0.12, y - h * 0.72, w * 0.24, h * 0.34); }
     // врата
@@ -427,6 +428,90 @@
     else { g.fillStyle = shade(wall, 1.1); for (let i = -1; i <= 1; i++) g.fillRect(x + i * w * 0.36 - w * 0.14, y - h - w * 0.2, w * 0.28, w * 0.22); }
     g.fillStyle = '#1a1410'; g.fillRect(x - w * 0.12, y - h * 0.62, w * 0.24, w * 0.3);
     g.fillStyle = 'rgba(255,220,120,0.9)'; g.fillRect(x - w * 0.08, y - h * 0.6, w * 0.16, w * 0.2);
+  }
+
+  // ---------- рисувани градове: каменна текстура, кули с покриви, светещи прозорци, порта
+  function stoneTex(g, x, y, w, h, seed) {
+    const rows = Math.max(3, Math.round(h / (w * 0.11)));
+    const rh = h / rows;
+    g.strokeStyle = 'rgba(0,0,0,0.2)'; g.lineWidth = Math.max(0.6, w * 0.012);
+    for (let i = 1; i < rows; i++) { g.beginPath(); g.moveTo(x, y + i * rh); g.lineTo(x + w, y + i * rh); g.stroke(); }
+    for (let i = 0; i < rows; i++) { const n = 2 + (i & 1); for (let k = 0; k < n; k++) { const bx = x + w * ((k + 0.5 + (i & 1) * 0.5 + hashN(seed, i, k) * 0.2) / n); if (bx > x + 1 && bx < x + w - 1) { g.beginPath(); g.moveTo(bx, y + i * rh); g.lineTo(bx, y + (i + 1) * rh); g.stroke(); } } }
+    g.fillStyle = 'rgba(255,255,255,0.09)'; for (let i = 0; i < rows; i++) g.fillRect(x, y + i * rh, w, rh * 0.2);
+  }
+  function ptower(g, x, y, w, h, wall, roof, kind, seed) {
+    g.fillStyle = lgrad(g, x - w / 2, 0, x + w / 2, 0, [[0, shade(wall, 1.28)], [0.45, wall], [1, shade(wall, 0.52)]]); g.fillRect(x - w / 2, y - h, w, h);
+    stoneTex(g, x - w / 2, y - h, w, h, seed);
+    g.fillStyle = shade(wall, 1.12); g.fillRect(x - w * 0.6, y - h - w * 0.07, w * 1.2, w * 0.13);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(x - w * 0.6, y - h + w * 0.06, w * 1.2, w * 0.06);
+    const top = y - h - w * 0.07;
+    if (kind === 'cone' || kind === 'spire' || kind === 'flame') {
+      const hh = w * (kind === 'spire' ? 2.7 : kind === 'flame' ? 1.9 : 1.55);
+      poly(g, [[x - w * 0.66, top], [x, top - hh], [x + w * 0.66, top]], lgrad(g, x - w * 0.6, 0, x + w * 0.6, 0, [[0, shade(roof, 1.4)], [0.5, roof], [1, shade(roof, 0.48)]]), 'rgba(0,0,0,0.3)', Math.max(0.6, w * 0.025));
+      g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = Math.max(0.6, w * 0.035); g.beginPath(); g.moveTo(x - w * 0.5, top - hh * 0.12); g.lineTo(x - w * 0.06, top - hh * 0.88); g.stroke();
+      if (kind === 'flame') {
+        g.fillStyle = rgrad(g, x, top - hh, w * 0.8, 'rgba(255,150,40,0.85)', 'rgba(255,90,20,0)'); g.fillRect(x - w * 0.8, top - hh - w * 0.8, w * 1.6, w * 1.6);
+        poly(g, [[x - w * 0.22, top - hh + w * 0.25], [x - w * 0.12, top - hh - w * 0.4], [x - w * 0.02, top - hh - w * 0.1], [x + w * 0.1, top - hh - w * 0.75], [x + w * 0.22, top - hh + w * 0.25]], lgrad(g, 0, top - hh - w * 0.75, 0, top - hh + w * 0.25, [[0, '#fff0a0'], [0.5, '#ff9a2a'], [1, '#e04010']]));
+      } else circ(g, x, top - hh, w * 0.06, '#e8c040');
+    } else if (kind === 'onion' || kind === 'dome') {
+      const rr = w * 0.64;
+      g.fillStyle = rgrad(g, x, top - rr * 0.7, rr * 1.2, shade(roof, 1.45), shade(roof, 0.5), -rr * 0.35, -rr * 0.4);
+      g.beginPath();
+      if (kind === 'onion') { g.moveTo(x - rr, top); g.bezierCurveTo(x - rr * 1.25, top - rr * 1.3, x - rr * 0.1, top - rr * 1.35, x, top - rr * 2.15); g.bezierCurveTo(x + rr * 0.1, top - rr * 1.35, x + rr * 1.25, top - rr * 1.3, x + rr, top); }
+      else g.arc(x, top, rr, Math.PI, 0);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = Math.max(0.6, w * 0.035); g.beginPath(); g.arc(x, top, rr * 0.8, Math.PI * 1.1, Math.PI * 1.5); g.stroke();
+      circ(g, x, top - (kind === 'onion' ? rr * 2.2 : rr * 1.04), w * 0.06, '#e8c040');
+    } else {
+      g.fillStyle = shade(wall, 1.15); for (let i = -1; i <= 1; i++) g.fillRect(x + i * w * 0.38 - w * 0.14, top - w * 0.26, w * 0.28, w * 0.26);
+    }
+    const nW = Math.max(1, Math.floor(h / (w * 1.0)));
+    for (let i = 0; i < nW; i++) {
+      const wy = y - h + w * 0.45 + i * (h - w * 0.75) / nW;
+      g.fillStyle = 'rgba(255,220,120,0.22)'; g.beginPath(); g.ellipse(x, wy + w * 0.15, w * 0.34, w * 0.34, 0, 0, TAU); g.fill();
+      g.fillStyle = lgrad(g, 0, wy, 0, wy + w * 0.32, [[0, '#fff4c0'], [1, '#e8a040']]); g.beginPath(); g.roundRect(x - w * 0.12, wy, w * 0.24, w * 0.32, [w * 0.12, w * 0.12, 0, 0]); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = Math.max(0.5, w * 0.02); g.stroke();
+    }
+  }
+  function wallSeg(g, x0, x1, y, h, wall, seed) {
+    g.fillStyle = lgrad(g, 0, y - h, 0, y, [[0, shade(wall, 1.12)], [1, shade(wall, 0.58)]]); g.fillRect(x0, y - h, x1 - x0, h);
+    stoneTex(g, x0, y - h, x1 - x0, h, seed);
+    const n = Math.floor((x1 - x0) / (h * 0.3));
+    g.fillStyle = shade(wall, 1.18); for (let i = 0; i < n; i++) g.fillRect(x0 + i * (x1 - x0) / n + (x1 - x0) / n * 0.2, y - h - h * 0.17, (x1 - x0) / n * 0.5, h * 0.19);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x0, y - h + h * 0.02, x1 - x0, h * 0.05);
+  }
+  function gateArch(g, x, y, w, h) {
+    g.fillStyle = lgrad(g, 0, y - h, 0, y, [[0, '#1a1008'], [1, '#3a2a18']]); g.beginPath(); g.roundRect(x - w / 2, y - h, w, h, [w / 2, w / 2, 0, 0]); g.fill();
+    g.strokeStyle = '#8a6a3a'; g.lineWidth = Math.max(0.6, w * 0.06); g.beginPath(); g.moveTo(x, y - h * 0.95); g.lineTo(x, y); g.moveTo(x - w * 0.45, y - h * 0.5); g.lineTo(x + w * 0.45, y - h * 0.5); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.28)'; g.lineWidth = Math.max(0.6, w * 0.06); g.beginPath(); g.arc(x, y - h + w / 2, w / 2 + w * 0.06, Math.PI, 0); g.stroke();
+  }
+  const TOWN_KIND = { kingdom: 'cone', grove: 'cone', necropolis: 'spire', academy: 'onion', inferno: 'flame', dungeon: 'spire', horde: 'flat', marsh: 'cone', elements: 'dome', harbor: 'cone', workshop: 'flat' };
+  function townPainted(g, S, f, st, ownerCol) {
+    const cx = S / 2, gy = S * 1.4 - S * 0.12;
+    const kind = TOWN_KIND[f] || 'cone';
+    shadow(g, cx, gy + S * 0.02, S * 0.53, S * 0.15, 0.35);
+    g.fillStyle = lgrad(g, 0, gy - S * 0.2, 0, gy + S * 0.08, [[0, shade(st.ground, 1.28)], [1, shade(st.ground, 0.66)]]); g.beginPath(); g.ellipse(cx, gy - S * 0.02, S * 0.51, S * 0.17, 0, 0, TAU); g.fill();
+    if (f === 'inferno') { g.strokeStyle = '#ff7a1a'; g.lineWidth = Math.max(0.8, S * 0.012); for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(cx + (k - 1.5) * S * 0.2, gy + S * 0.02); g.lineTo(cx + (k - 1.5) * S * 0.28 + S * 0.05, gy + S * 0.1); g.stroke(); } g.fillStyle = rgrad(g, cx, gy - S * 0.55, S * 0.6, 'rgba(255,100,30,0.35)', 'rgba(255,100,30,0)'); g.fillRect(0, gy - S * 1.2, S, S * 1.2); }
+    if (f === 'necropolis' || f === 'dungeon') { g.fillStyle = rgrad(g, cx, gy - S * 0.4, S * 0.6, f === 'necropolis' ? 'rgba(80,220,120,0.22)' : 'rgba(160,90,255,0.25)', 'rgba(0,0,0,0)'); g.fillRect(0, gy - S * 1.1, S, S * 1.2); }
+    if (f === 'academy' || f === 'elements') { g.fillStyle = rgrad(g, cx, gy - S * 0.5, S * 0.6, 'rgba(160,200,255,0.3)', 'rgba(160,200,255,0)'); g.fillRect(0, gy - S * 1.2, S, S * 1.3); }
+    // задни кули
+    ptower(g, cx - S * 0.3, gy - S * 0.3, S * 0.13, S * 0.56, shade(st.wall, 0.9), st.roof, kind, 1);
+    ptower(g, cx + S * 0.3, gy - S * 0.3, S * 0.13, S * 0.5, shade(st.wall, 0.9), st.roof, kind, 2);
+    if (f === 'workshop') { g.fillStyle = '#3a3438'; g.fillRect(cx + S * 0.14, gy - S * 0.98, S * 0.07, S * 0.7); g.fillRect(cx + S * 0.34, gy - S * 0.88, S * 0.06, S * 0.6); g.fillStyle = 'rgba(200,200,210,0.35)'; [0.17, 0.37].forEach((dx, i) => { for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(cx + S * dx + k * S * 0.03, gy - S * (1.02 + i * -0.1) - k * S * 0.06, S * (0.03 + k * 0.012), 0, TAU); g.fill(); } }); }
+    if (f === 'harbor') { ptower(g, cx + S * 0.32, gy - S * 0.3, S * 0.11, S * 0.78, '#f0e8d8', '#d23c3c', 'cone', 9); g.fillStyle = '#d23c3c'; g.fillRect(cx + S * 0.265, gy - S * 0.75, S * 0.11, S * 0.08); g.fillRect(cx + S * 0.265, gy - S * 0.55, S * 0.11, S * 0.08); g.fillStyle = rgrad(g, cx + S * 0.32, gy - S * 1.1, S * 0.3, 'rgba(255,230,120,0.5)', 'rgba(255,230,120,0)'); g.fillRect(cx, gy - S * 1.4, S * 0.64, S * 0.6); }
+    // донжон
+    ptower(g, cx, gy - S * 0.34, S * 0.2, S * 0.74, st.wall, st.roof, kind, 3);
+    if (f === 'grove') { leafTree(g, cx - S * 0.42, gy - S * 0.02, S * 0.42, '#3d7a30', 21); leafTree(g, cx + S * 0.44, gy, S * 0.38, '#4a8a34', 22); }
+    // стена и ъглови кули
+    wallSeg(g, S * 0.13, S * 0.87, gy, S * 0.3, st.wall, 4);
+    ptower(g, S * 0.15, gy, S * 0.12, S * 0.42, st.wall, st.roof, kind === 'flat' ? 'flat' : kind === 'flame' ? 'flame' : 'cone', 5);
+    ptower(g, S * 0.85, gy, S * 0.12, S * 0.42, st.wall, st.roof, kind === 'flat' ? 'flat' : kind === 'flame' ? 'flame' : 'cone', 6);
+    if (f === 'academy') { g.fillStyle = '#ffffff'; g.fillRect(S * 0.13, gy - S * 0.36, S * 0.74, S * 0.04); for (let k = -1; k <= 1; k++) poly(g, [[cx + k * S * 0.3, gy - S * 0.02], [cx + k * S * 0.3 + S * 0.05, gy + S * 0.08], [cx + k * S * 0.3 - S * 0.05, gy + S * 0.08]], lgrad(g, 0, gy - S * 0.02, 0, gy + S * 0.08, [[0, '#e8f4ff'], [1, '#6aa8e8']])); }
+    if (f === 'dungeon' || f === 'elements') { for (let k = 0; k < 3; k++) { const x = S * (0.2 + k * 0.3), y = gy + S * 0.06; g.fillStyle = rgrad(g, x, y - S * 0.08, S * 0.12, 'rgba(180,120,255,0.5)', 'rgba(180,120,255,0)'); g.fillRect(x - S * 0.12, y - S * 0.2, S * 0.24, S * 0.24); poly(g, [[x, y - S * 0.14], [x + S * 0.035, y], [x - S * 0.035, y]], lgrad(g, x - S * 0.03, y - S * 0.14, x + S * 0.03, y, [[0, '#f0e0ff'], [1, '#8050d0']])); } }
+    if (f === 'necropolis') { for (let k = 0; k < 3; k++) { const x = S * (0.18 + k * 0.32), y = gy + S * 0.07; rrect(g, x - S * 0.03, y - S * 0.09, S * 0.06, S * 0.09, S * 0.02, '#8a8890'); } }
+    if (f === 'marsh' || f === 'horde') { g.strokeStyle = f === 'marsh' ? '#7a9a3a' : '#c8a060'; g.lineWidth = Math.max(0.6, S * 0.012); for (let k = 0; k < 8; k++) { const x = S * (0.08 + k * 0.12); g.beginPath(); g.moveTo(x, gy + S * 0.08); g.lineTo(x + S * 0.01, gy - S * 0.02); g.stroke(); } }
+    gateArch(g, cx, gy - S * 0.01, S * 0.17, S * 0.24);
+    if (ownerCol) flagShape(g, cx, gy - S * 1.16, S, ownerCol, 0);
   }
   const TOWN_STYLE = {
     kingdom: { wall: '#c8c0b0', roof: '#3f6fd0', ground: '#7a9a5a' }, grove: { wall: '#8a6a44', roof: '#4a9a44', ground: '#4e8a3a' }, necropolis: { wall: '#4a4056', roof: '#6a3f9a', ground: '#5a5058' },
@@ -450,23 +535,7 @@
       switch (o.type) {
         case 'town': {
           const st = TOWN_STYLE[o.faction] || TOWN_STYLE.kingdom;
-          shadow(g, cx, gy, S * 0.5, S * 0.14, 0.35);
-          ell(g, cx, gy - S * 0.02, S * 0.5, S * 0.16, st.ground);
-          // стена с зъбци
-          g.fillStyle = lgrad(g, 0, gy - S * 0.42, 0, gy, [[0, shade(st.wall, 1.05)], [1, shade(st.wall, 0.6)]]); g.fillRect(S * 0.1, gy - S * 0.4, S * 0.8, S * 0.38);
-          g.fillStyle = shade(st.wall, 1.15); for (let i = 0; i < 7; i++) g.fillRect(S * 0.11 + i * S * 0.115, gy - S * 0.46, S * 0.07, S * 0.08);
-          // сгради зад стената
-          if (o.faction === 'necropolis' || o.faction === 'dungeon') { tower(g, cx - S * 0.26, gy - S * 0.3, S * 0.16, S * 0.6, st.wall, st.roof, 2.2); tower(g, cx + S * 0.26, gy - S * 0.3, S * 0.16, S * 0.5, st.wall, st.roof, 2.4); tower(g, cx, gy - S * 0.3, S * 0.2, S * 0.75, st.wall, st.roof, 2.6); }
-          else if (o.faction === 'academy' || o.faction === 'elements') { tower(g, cx - S * 0.26, gy - S * 0.3, S * 0.16, S * 0.55, st.wall, st.roof, 0); sphere(g, cx - S * 0.26, gy - S * 0.9, S * 0.11, st.roof); tower(g, cx + S * 0.26, gy - S * 0.3, S * 0.16, S * 0.48, st.wall, st.roof, 0); sphere(g, cx + S * 0.26, gy - S * 0.82, S * 0.11, st.roof); tower(g, cx, gy - S * 0.3, S * 0.2, S * 0.7, st.wall, st.roof, 1.8); }
-          else if (o.faction === 'horde' || o.faction === 'marsh') { house(g, cx - S * 0.25, gy - S * 0.3, S * 0.26, S * 0.3, st.wall, st.roof, 0.7, 1); house(g, cx + S * 0.25, gy - S * 0.3, S * 0.24, S * 0.28, st.wall, st.roof, 0.7, 1); tower(g, cx, gy - S * 0.3, S * 0.22, S * 0.6, st.wall, st.roof, 0); }
-          else if (o.faction === 'workshop') { house(g, cx - S * 0.24, gy - S * 0.3, S * 0.28, S * 0.34, st.wall, st.roof, 0.3, 2); g.fillStyle = '#4a4040'; g.fillRect(cx + S * 0.18, gy - S * 0.95, S * 0.08, S * 0.65); g.fillRect(cx + S * 0.3, gy - S * 0.85, S * 0.06, S * 0.55); tower(g, cx, gy - S * 0.3, S * 0.2, S * 0.5, st.wall, st.roof, 0); }
-          else if (o.faction === 'inferno') { tower(g, cx - S * 0.26, gy - S * 0.3, S * 0.16, S * 0.5, st.wall, st.roof, 3); tower(g, cx + S * 0.26, gy - S * 0.3, S * 0.16, S * 0.55, st.wall, st.roof, 2.6); tower(g, cx, gy - S * 0.3, S * 0.22, S * 0.6, st.wall, st.roof, 3.2); g.fillStyle = rgrad(g, cx, gy - S * 0.5, S * 0.45, 'rgba(255,90,20,0.35)', 'rgba(255,90,20,0)'); g.fillRect(0, gy - S * 1.0, S, S * 0.7); }
-          else if (o.faction === 'harbor') { house(g, cx - S * 0.26, gy - S * 0.3, S * 0.24, S * 0.28, st.wall, st.roof, 0.5, 2); tower(g, cx + S * 0.28, gy - S * 0.3, S * 0.13, S * 0.75, '#e8e0d0', '#d23c3c', 0.6); g.fillStyle = '#d23c3c'; g.fillRect(cx + S * 0.215, gy - S * 0.75, S * 0.13, S * 0.08); tower(g, cx, gy - S * 0.3, S * 0.2, S * 0.55, st.wall, st.roof, 1.2); }
-          else { tower(g, cx - S * 0.27, gy - S * 0.3, S * 0.16, S * 0.5, st.wall, st.roof, 1.4); tower(g, cx + S * 0.27, gy - S * 0.3, S * 0.16, S * 0.56, st.wall, st.roof, 1.4); house(g, cx, gy - S * 0.36, S * 0.3, S * 0.3, st.wall, st.roof, 0.5, 2); tower(g, cx, gy - S * 0.3, S * 0.18, S * 0.78, st.wall, st.roof, 1.6); }
-          // порта
-          g.fillStyle = '#2a1a10'; g.beginPath(); g.roundRect(cx - S * 0.09, gy - S * 0.24, S * 0.18, S * 0.22, [S * 0.09, S * 0.09, 0, 0]); g.fill();
-          g.strokeStyle = '#8a6a3a'; g.lineWidth = Math.max(1, S * 0.01); g.beginPath(); g.moveTo(cx, gy - S * 0.24); g.lineTo(cx, gy - S * 0.02); g.stroke();
-          if (ownerCol) flagShape(g, cx, gy - S * 1.05, S, ownerCol, 0);
+          townPainted(g, S, o.faction || 'kingdom', st, ownerCol);
           break;
         }
         case 'mine': {

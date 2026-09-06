@@ -138,15 +138,14 @@
           if (!fog[i]) continue;
           const [sx, sy] = this.toScreen(x, y);
           if (m.block[i]) {
-            if (this.z && m.block[i] === 2) g.drawImage(G.decor(5, (x * 31 + y * 17) & 7, spriteS, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.25, TS, TS * 1.25);
+            if (this.z && m.block[i] === 2) g.drawImage(G.decor(5, (x * 31 + y * 17) & 7, spriteS, m.terrain[i]), Math.floor(sx), Math.floor(sy) - S * 0.6, TS, TS * 1.6);
             else {
               let mask = 0;
               if (m.block[i] === 2) { // съседни планини → слят масив
                 const isM = (xx, yy) => world.inb(xx, yy) && m.block[yy * m.w + xx] === 2;
                 mask = (isM(x, y - 1) ? 1 : 0) | (isM(x + 1, y) ? 2 : 0) | (isM(x, y + 1) ? 4 : 0) | (isM(x - 1, y) ? 8 : 0);
               }
-              // планините ползват световната клетка (4×4) като вариант, за да продължават релефа си
-              g.drawImage(G.decor(m.block[i], m.block[i] === 2 ? (x & 3) | ((y & 3) << 2) : (x * 31 + y * 17) & 7, spriteS, m.terrain[i], mask), Math.floor(sx), Math.floor(sy) - S * 0.25, TS, TS * 1.25);
+              g.drawImage(G.decor(m.block[i], (x * 31 + y * 17) & 7, spriteS, m.terrain[i], mask), Math.floor(sx), Math.floor(sy) - S * 0.6, TS, TS * 1.6);
             }
           }
           const oid = m.objAt[i];

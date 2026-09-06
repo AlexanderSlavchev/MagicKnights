@@ -44,10 +44,13 @@
       this.canvas.width = Math.floor(this.canvas.clientWidth * dpr);
       this.canvas.height = Math.floor(this.canvas.clientHeight * dpr);
       const barH = (this.bar.offsetHeight || 60) * dpr;
-      const availW = this.canvas.width - 20 * dpr, availH = this.canvas.height - barH - 30 * dpr;
+      // отгоре остава лента за рисувания хоризонт (небе и планини)
+      const band = Math.floor(this.canvas.height * 0.15);
+      const availW = this.canvas.width - 20 * dpr, availH = this.canvas.height - barH - 30 * dpr - band;
       this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / (1.5 * (Hex.H - 1) + 2)));
       this.ox = (this.canvas.width - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
-      this.oy = 26 * dpr + this.r;
+      this.oy = 26 * dpr + band + this.r;
+      this.band = band; this._bg = null;
       this.barH = barH;
     }
     hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y]; }
@@ -66,10 +69,41 @@
 
     // ------------------------------------------------------------ рисуване
     loopDraw() { if (!this.running) return; this.draw(); this.raf = requestAnimationFrame(() => this.loopDraw()); }
+    backdrop() {
+      if (this._bg && this._bg.width === this.canvas.width && this._bg.height === this.canvas.height) return this._bg;
+      const W = this.canvas.width, H = this.canvas.height, r = this.r, t = this.b.terrain;
+      const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+      const horizon = this.oy - r * 1.35;
+      g.fillStyle = this.groundPattern(); g.fillRect(0, 0, W, H);
+      // небе по терен
+      const SKY = { 7: ['#1a0608', '#7a1a12', '#ff7a2a'], 8: ['#050308', '#1e1230', '#4a3a70'], 4: ['#6f9fd8', '#c9def2', '#f6fbff'], 3: ['#5a8ac8', '#e8c890', '#fff0c8'], 9: ['#3a2e58', '#8a6a9a', '#e0b8b0'], 6: ['#586a86', '#a8b4c0', '#e8e0d0'], 5: ['#4a6a70', '#8aa89a', '#d8e8c8'] };
+      const sk = SKY[t] || ['#3f7fd0', '#9dc8f0', '#f4f0d8'];
+      const sky = g.createLinearGradient(0, 0, 0, horizon); sky.addColorStop(0, sk[0]); sky.addColorStop(0.65, sk[1]); sky.addColorStop(1, sk[2]);
+      g.fillStyle = sky; g.fillRect(0, 0, W, horizon);
+      if (t === 7) { g.fillStyle = g.createRadialGradient(W * 0.5, horizon, 0, W * 0.5, horizon, W * 0.5); g.fillStyle.addColorStop(0, 'rgba(255,120,40,0.55)'); g.fillStyle.addColorStop(1, 'rgba(255,120,40,0)'); g.fillRect(0, 0, W, horizon); }
+      // далечни планини (два реда, задният по-блед) и гори по хоризонта
+      const mS = r * 5.2;
+      for (let row = 0; row < 2; row++) {
+        const scale = row ? 1 : 0.75, alpha = row ? 1 : 0.55;
+        g.globalAlpha = alpha;
+        for (let x = -mS * 0.5 + row * mS * 0.5; x < W + mS; x += mS * scale * 0.72) {
+          const v = (Math.floor(x / 37) * 7 + row * 3) & 7;
+          g.drawImage(G.decor(2, v, 96, t, 10), x, horizon + r * 0.2 - mS * scale * 1.6, mS * scale, mS * scale * 1.6);
+        }
+      }
+      g.globalAlpha = 1;
+      if (t !== 8 && t !== 7 && t !== 3) { const tS = r * 2.2; for (let x = -tS * 0.3; x < W + tS; x += tS * 0.7) g.drawImage(G.decor(t === 7 ? 4 : 1, (Math.floor(x / 23) * 5) & 7, 96, t), x, horizon + r * 0.35 - tS * 1.6, tS, tS * 1.6); }
+      // мъгла на хоризонта и потъмняване към ръбовете
+      const haze = g.createLinearGradient(0, horizon - r * 1.2, 0, horizon + r * 1.2); haze.addColorStop(0, 'rgba(255,255,255,0)'); haze.addColorStop(0.5, 'rgba(230,236,240,0.25)'); haze.addColorStop(1, 'rgba(230,236,240,0)'); g.fillStyle = haze; g.fillRect(0, horizon - r * 1.2, W, r * 2.4);
+      const vig = g.createRadialGradient(W / 2, H * 0.55, H * 0.2, W / 2, H * 0.55, H * 0.85); vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.4)'); g.fillStyle = vig; g.fillRect(0, 0, W, H);
+      const light = g.createLinearGradient(0, horizon, 0, H); light.addColorStop(0, 'rgba(255,240,200,0.14)'); light.addColorStop(0.5, 'rgba(0,0,0,0)'); light.addColorStop(1, 'rgba(0,0,0,0.3)'); g.fillStyle = light; g.fillRect(0, horizon, W, H - horizon);
+      this._bg = c; return c;
+    }
     groundPattern() {
       if (this._pat && this._patT === this.b.terrain) return this._pat;
       const tile = G.terrainAtlas(this.b.terrain === 0 ? 3 : this.b.terrain, 96);
       this._pat = this.ctx.createPattern(tile, 'repeat'); this._patT = this.b.terrain;
+      try { if (this._pat.setTransform) this._pat.setTransform(new DOMMatrix().scale(Math.max(0.5, this.r / 30))); } catch (e) { /* стар браузър */ }
       return this._pat;
     }
     draw() {
@@ -77,9 +111,8 @@
       const W = this.canvas.width, H = this.canvas.height;
       const now = performance.now(), T = now / 1000;
       const Tcol = D.TERRAIN[b.terrain] || D.TERRAIN[1];
-      // земя: текстура + светлина
-      g.save(); g.fillStyle = this.groundPattern(); g.fillRect(0, 0, W, H); g.restore();
-      const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, 'rgba(255,240,210,0.18)'); sky.addColorStop(0.5, 'rgba(0,0,0,0)'); sky.addColorStop(1, 'rgba(0,0,0,0.35)'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      // рисуван фон: земя, небе с хоризонт, планини и гори в далечината (кеширан)
+      g.drawImage(this.backdrop(), 0, 0);
       const cur = b.current;
       const input = this.state === 'input' && cur;
       const tactics = this.state === 'tactics';
@@ -99,18 +132,18 @@
           continue;
         }
         if (b.rubble.has(i)) { g.fillStyle = 'rgba(60,54,48,0.7)'; g.fill(); for (let k = 0; k < 5; k++) { const rr = G.hashN(i, k, 1); g.fillStyle = MK.shade('#8a8070', 0.7 + rr * 0.6); g.beginPath(); g.ellipse(cx + (rr - 0.5) * r, cy + (G.hashN(i, k, 2) - 0.5) * r, r * 0.22, r * 0.14, rr * 3, 0, Math.PI * 2); g.fill(); } continue; }
-        if (b.obstacles.has(i)) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fill(); g.drawImage(G.decor(b.terrain === 6 || b.terrain === 4 || b.terrain === 7 || b.terrain === 9 ? 2 : b.terrain === 3 ? 3 : b.terrain === 8 ? 5 : 1, (x * 3 + y) & 7, 96, b.terrain), cx - r, cy - r * 1.35, r * 2, r * 2.5); continue; }
-        g.fillStyle = (x + y) & 1 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.05)'; g.fill();
+        if (b.obstacles.has(i)) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fill(); g.drawImage(G.decor(b.terrain === 6 || b.terrain === 4 || b.terrain === 7 || b.terrain === 9 ? 2 : b.terrain === 3 ? 3 : b.terrain === 8 ? 5 : 1, (x * 3 + y) & 7, 96, b.terrain), cx - r * 1.05, cy + r * 0.95 - r * 3.36, r * 2.1, r * 3.36); continue; }
+        g.fillStyle = (x + y) & 1 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'; g.fill();
         if (b.moat.has(i)) { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
-        if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { g.fillStyle = 'rgba(255,255,255,0.14)'; g.fill(); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1; g.stroke(); }
+        if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { const rg = g.createRadialGradient(cx, cy, r * 0.2, cx, cy, r); rg.addColorStop(0, 'rgba(120,255,80,0.08)'); rg.addColorStop(1, 'rgba(60,200,40,0.24)'); g.fillStyle = rg; g.fill(); g.strokeStyle = 'rgba(150,255,100,0.6)'; g.lineWidth = Math.max(1, r * 0.045); g.stroke(); }
         if (tactics && this.tacticsStack && b.tacticsAllowed(this.tacticsStack.side, x) && b.canStand(this.tacticsStack, x, y)) { g.fillStyle = 'rgba(255,216,112,0.18)'; g.fill(); }
-        g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 1; g.stroke();
+        g.strokeStyle = 'rgba(190,255,120,0.28)'; g.lineWidth = 1; g.stroke();
       }
       b.towers.forEach((t) => { const [cx, cy] = this.hexCenter(t.x, t.y); const tg = g.createLinearGradient(cx - r * 0.4, 0, cx + r * 0.4, 0); tg.addColorStop(0, '#b0a898'); tg.addColorStop(1, '#5a5448'); g.fillStyle = tg; g.fillRect(cx - r * 0.38, cy - r * 1.2, r * 0.76, r * 1.6); g.fillStyle = '#7a7268'; for (let k = -1; k <= 1; k++) g.fillRect(cx + k * r * 0.28 - r * 0.1, cy - r * 1.4, r * 0.2, r * 0.25); g.fillStyle = '#1a1410'; g.fillRect(cx - r * 0.1, cy - r * 0.9, r * 0.2, r * 0.3); });
       if (b.siege && b.alive(0).length) { const [cx, cy] = this.hexCenter(0, 10); g.fillStyle = '#5a4a2a'; g.fillRect(cx - r * 0.55, cy + r * 0.2, r * 1.1, r * 0.28); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(cx - r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.arc(cx + r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#6a4a2a'; g.lineWidth = r * 0.12; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - r * 0.2, cy + r * 0.2); g.lineTo(cx + r * 0.35, cy - r * 0.7); g.stroke(); g.fillStyle = '#7a7068'; g.beginPath(); g.arc(cx + r * 0.4, cy - r * 0.78, r * 0.14, 0, Math.PI * 2); g.fill(); }
       const hi = tactics ? this.tacticsStack : (cur && cur.alive ? cur : null);
       if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
-      if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); this.hexPath(g, cx, cy, r - 2); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.9)' : 'rgba(255,96,96,0.9)'; g.lineWidth = 2.5; g.stroke(); }); });
+      if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
       if (this.castSpell) { g.fillStyle = 'rgba(140,120,255,0.12)'; g.fillRect(0, 0, W, H - this.barH); }
       // стекове (сенки, спрайтове, ефекти, брой)
       const stacks = b.stacks.filter((s) => s.alive || this.fading[s.id]).sort((a, c) => a.y - c.y);
@@ -119,7 +152,7 @@
         const lunge = this.lunge[s.id] || [0, 0], shake = this.shake[s.id] ? (Math.random() - 0.5) * r * 0.25 : 0;
         const p = [base[0] + lunge[0] + shake, base[1] + lunge[1]];
         const bob = s.alive ? Math.sin(T * 2.2 + s.id * 1.7) * r * 0.03 : 0;
-        const size = r * (s.wide ? 2.7 : 2.0);
+        const size = r * (s.wide ? 3.0 : 2.3);
         const flip = s.side === 1;
         const col = this.sideColor(s.side);
         const fade = this.fading[s.id] !== undefined ? this.fading[s.id] : 1;
