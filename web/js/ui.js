@@ -349,11 +349,13 @@
     /* Списък на видимите сгради: {slot, id, name, img, pane} */
     const builtList = () => {
       const list = [];
-      const push = (slot, id, pane, extra) => { const bf = D.buildingFor(t.faction, id); list.push(Object.assign({ slot, id, name: bf ? bf.name : id, pane, img: 'buildings/common_' + id }, extra)); };
+      // Картинка на сградата в стила на фракцията; общите (common_*) са в стил Кралство и важат само за него
+      const imgFor = (id) => MK.Img.has('buildings/' + t.faction + '_' + id) ? 'buildings/' + t.faction + '_' + id : t.faction === 'kingdom' ? 'buildings/common_' + id : null;
+      const push = (slot, id, pane, extra) => { const bf = D.buildingFor(t.faction, id); list.push(Object.assign({ slot, id, name: bf ? bf.name : id, pane, img: imgFor(id) }, extra)); };
       const top = (ids) => ids.filter((x) => t.buildings[x]).pop();
       const hall = top(['hall1', 'hall2', 'hall3', 'hall4']); if (hall) push('hall', hall, 'build');
       const fort = top(['fort1', 'fort2', 'fort3']); if (fort) push('fort', fort, 'build');
-      const mage = top(['mage1', 'mage2', 'mage3', 'mage4']); if (mage) push('mage', mage, 'mage', { img: 'buildings/common_mage1' });
+      const mage = top(['mage1', 'mage2', 'mage3', 'mage4']); if (mage) push('mage', mage, 'mage', { img: imgFor('mage1') });
       ['tavern', 'market', 'silo', 'well', 'shipyard'].forEach((id) => { if (t.buildings[id]) push(id, id, id === 'tavern' ? 'tavern' : id === 'market' ? 'market' : 'build'); });
       for (let i = 1; i <= 7; i++) if (t.buildings['dw' + i]) { const c = D.creatureOf(t.faction + i + (t.buildings['dw' + i + 'u'] ? 'u' : '')); push('dw' + i, 'dw' + i + (t.buildings['dw' + i + 'u'] ? 'u' : ''), 'recruit', { img: 'buildings/' + t.faction + '_dwelling' + i, name: (D.buildingFor(t.faction, 'dw' + i) || {}).name || c.name, tier: i }); }
       return list;
@@ -368,7 +370,7 @@
       const items = builtList().sort((a, b) => (LAYOUT[a.slot] || [0, 0])[1] - (LAYOUT[b.slot] || [0, 0])[1]);
       items.forEach((it) => {
         const L = LAYOUT[it.slot]; if (!L) return;
-        const url = MK.Img.url(it.img);
+        const url = it.img ? MK.Img.url(it.img) : null;
         const b = el('div', { class: 'town-b', style: 'left:' + L[0] + '%;bottom:' + (100 - L[1]) + '%;width:' + L[2] + '%', title: it.name, onclick: () => openPane(it.pane, it) });
         if (url) b.appendChild(el('img', { src: url, alt: it.name, draggable: 'false' }));
         else b.appendChild(el('div', { class: 'town-b-box' }, it.name));
