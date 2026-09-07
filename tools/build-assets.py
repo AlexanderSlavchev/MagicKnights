@@ -66,6 +66,32 @@ def process(rel):
     im.save(dst, 'WEBP', quality=q, method=4)
     return im.width, im.height
 
+def make_seamless(im):
+    """Прави текстура безшевна: измества с половин размер (шевовете отиват в средата) и
+    налага оригинала с мека маска, която е плътна в центъра и изчезва към ръбовете."""
+    import numpy as np
+    w, h = im.size
+    im = im.convert('RGB')
+    shifted = Image.new('RGB', (w, h))
+    shifted.paste(im.crop((w // 2, 0, w, h)), (0, 0)); shifted.paste(im.crop((0, 0, w // 2, h)), (w // 2, 0))
+    tmp = shifted.copy(); shifted.paste(tmp.crop((0, h // 2, w, h)), (0, 0)); shifted.paste(tmp.crop((0, 0, w, h // 2)), (0, h // 2))
+    yy, xx = np.mgrid[0:h, 0:w]
+    fx = np.minimum(xx, w - 1 - xx) / (w * 0.5); fy = np.minimum(yy, h - 1 - yy) / (h * 0.5)
+    m = np.clip(np.minimum(fx, fy) * 2.2, 0, 1); m = m * m * (3 - 2 * m)
+    a = np.asarray(im).astype(np.float32); b = np.asarray(shifted).astype(np.float32)
+    out = b * (1 - m[..., None]) + a * m[..., None]
+    return Image.fromarray(out.astype(np.uint8), 'RGB')
+
+def build_water():
+    """terrain/water.webp — безшевна водна плочка от първия кадър на water_frames."""
+    src = os.path.join(SRC, 'terrain', 'water_frames.png'); dst = os.path.join(DST, 'terrain', 'water.webp')
+    if not os.path.exists(src): return None
+    im = Image.open(src).convert('RGB'); fw = im.width // 4
+    frame = im.crop((0, 0, fw, im.height)).resize((512, 512), Image.LANCZOS)
+    tile = make_seamless(frame)
+    os.makedirs(os.path.dirname(dst), exist_ok=True); tile.save(dst, 'WEBP', quality=88, method=4)
+    return tile.size
+
 def main():
     manifest = {}
     old = {}
@@ -87,6 +113,8 @@ def main():
                 manifest[rel] = {'w': w, 'h': h, 'sig': sig}
                 print('  ', rel, w, h)
             total += os.path.getsize(dst)
+    wsz = build_water()
+    if wsz: manifest['terrain/water'] = {'w': wsz[0], 'h': wsz[1], 'sig': 'derived'}
     json.dump({'files': manifest}, open(mpath, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print('%d файла, %.1f MB' % (len(manifest), total / 1e6))
 

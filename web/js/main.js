@@ -46,11 +46,12 @@
     }
 
     // ------------------------------------------------------------ игра
-    newGame(opts) {
+    async newGame(opts) {
       UI.closeScreens();
       this.campaign = opts.campaign || null;
       this.world = MK.World.create(opts);
       this.human = this.world.players.findIndex((p) => p.human);
+      await this.preload();
       this.start();
       if (this.campaign) UI.dialog({ title: this.campaign.title, text: this.campaign.text, buttons: [{ label: 'Напред!', value: true, cls: 'primary' }] });
     }
@@ -78,6 +79,12 @@
       }
       return false;
     }
+    /* Зарежда рисуваните графики за текущия свят преди първото показване, за да не се мяркат старите */
+    async preload() {
+      const ov = UI.loading('Зареждане на света…');
+      try { await MK.Img.load(MK.Img.listForWorld(this.world), 12000); } catch (e) { /* продължаваме и без всичко */ }
+      ov.remove();
+    }
     start() {
       document.getElementById('hud').hidden = false;
       this._turnSnap = null; setTimeout(() => { if (this.world) this._turnSnap = this.turnSnapshot(); }, 0);
@@ -95,12 +102,13 @@
       if (!this.world) return;
       try { localStorage.setItem('mk_save', JSON.stringify({ human: this.human, campaign: this.campaign, world: this.world.toJSON() })); } catch (e) { UI.toast('Сейвът не успя: ' + e.message); }
     }
-    load() {
+    async load() {
       try {
         const j = JSON.parse(localStorage.getItem('mk_save'));
         if (!j) return;
         UI.closeScreens();
         this.world = MK.World.fromJSON(j.world); this.human = j.human || 0; this.campaign = j.campaign || null;
+        await this.preload();
         this.start();
         UI.toast('Играта е заредена.');
       } catch (e) { UI.toast('Сейвът не може да се зареди: ' + e.message); }
@@ -347,6 +355,7 @@
       if (humans.includes(0) && !humans.includes(1)) await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
       else await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
       MK.Audio.battle(!!ctx.town);
+      try { await MK.Img.load(MK.Img.listForBattle(ctx), 6000); } catch (e) { /* без изчакване */ }
       const b = new MK.Battle(ctx);
       const res = await MK.BattleUI.run(b, humans, this);
       w.resolveBattle(ctx, res);

@@ -144,15 +144,16 @@
         if (b.obstacles.has(i)) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fill(); g.drawImage(G.decor(b.terrain === 6 || b.terrain === 4 || b.terrain === 7 || b.terrain === 9 ? 2 : b.terrain === 3 ? 3 : b.terrain === 8 ? 5 : 1, (x * 3 + y) & 7, 96, b.terrain), cx - r * 1.05, cy + r * 0.95 - r * 3.36, r * 2.1, r * 3.36); continue; }
         g.fillStyle = (x + y) & 1 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'; g.fill();
         if (b.moat.has(i)) { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
-        if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { const rg = g.createRadialGradient(cx, cy, r * 0.2, cx, cy, r); rg.addColorStop(0, 'rgba(120,255,80,0.08)'); rg.addColorStop(1, 'rgba(60,200,40,0.24)'); g.fillStyle = rg; g.fill(); g.strokeStyle = 'rgba(150,255,100,0.6)'; g.lineWidth = Math.max(1, r * 0.045); g.stroke(); }
+        if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y) && MK.Img.get('ui/hex_move')) { g.globalAlpha = 0.55; g.drawImage(MK.Img.get('ui/hex_move'), cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; }
+        else if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { const rg = g.createRadialGradient(cx, cy, r * 0.2, cx, cy, r); rg.addColorStop(0, 'rgba(120,255,80,0.08)'); rg.addColorStop(1, 'rgba(60,200,40,0.24)'); g.fillStyle = rg; g.fill(); g.strokeStyle = 'rgba(150,255,100,0.6)'; g.lineWidth = Math.max(1, r * 0.045); g.stroke(); }
         if (tactics && this.tacticsStack && b.tacticsAllowed(this.tacticsStack.side, x) && b.canStand(this.tacticsStack, x, y)) { g.fillStyle = 'rgba(255,216,112,0.18)'; g.fill(); }
         g.strokeStyle = 'rgba(190,255,120,0.28)'; g.lineWidth = 1; g.stroke();
       }
       b.towers.forEach((t) => { const [cx, cy] = this.hexCenter(t.x, t.y); const tg = g.createLinearGradient(cx - r * 0.4, 0, cx + r * 0.4, 0); tg.addColorStop(0, '#b0a898'); tg.addColorStop(1, '#5a5448'); g.fillStyle = tg; g.fillRect(cx - r * 0.38, cy - r * 1.2, r * 0.76, r * 1.6); g.fillStyle = '#7a7268'; for (let k = -1; k <= 1; k++) g.fillRect(cx + k * r * 0.28 - r * 0.1, cy - r * 1.4, r * 0.2, r * 0.25); g.fillStyle = '#1a1410'; g.fillRect(cx - r * 0.1, cy - r * 0.9, r * 0.2, r * 0.3); });
       if (b.siege && b.alive(0).length) { const [cx, cy] = this.hexCenter(0, 10); g.fillStyle = '#5a4a2a'; g.fillRect(cx - r * 0.55, cy + r * 0.2, r * 1.1, r * 0.28); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(cx - r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.arc(cx + r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#6a4a2a'; g.lineWidth = r * 0.12; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - r * 0.2, cy + r * 0.2); g.lineTo(cx + r * 0.35, cy - r * 0.7); g.stroke(); g.fillStyle = '#7a7068'; g.beginPath(); g.arc(cx + r * 0.4, cy - r * 0.78, r * 0.14, 0, Math.PI * 2); g.fill(); }
       const hi = tactics ? this.tacticsStack : (cur && cur.alive ? cur : null);
-      if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
-      if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
+      if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); const hv = MK.Img.get('ui/hex_hover'); if (hv) { g.globalAlpha = pulse; g.drawImage(hv, p[0] - r * 1.02, p[1] - r * 1.02, r * 2.04, r * 2.04); g.globalAlpha = 1; return; } this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
+      if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); const ha = MK.Img.get('ui/hex_attack'); if (ha && !o.ranged) { g.globalAlpha = 0.6; g.drawImage(ha, cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; return; } this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
       if (this.castSpell) { g.fillStyle = 'rgba(140,120,255,0.12)'; g.fillRect(0, 0, W, H - this.barH); }
       // стекове (сенки, спрайтове, ефекти, брой)
       const stacks = b.stacks.filter((s) => s.alive || this.fading[s.id]).sort((a, c) => a.y - c.y);
@@ -180,9 +181,9 @@
           const txt = String(s.count);
           g.font = 'bold ' + Math.max(10, r * 0.4) + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
           const tw = g.measureText(txt).width + r * 0.45;
-          const bg = g.createLinearGradient(0, p[1] + r * 0.42, 0, p[1] + r * 0.95); bg.addColorStop(0, MK.shade(col, 1.2)); bg.addColorStop(1, MK.shade(col, 0.65));
-          g.fillStyle = bg; g.beginPath(); g.roundRect(p[0] - tw / 2, p[1] + r * 0.45, tw, r * 0.5, r * 0.12); g.fill();
-          g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1; g.stroke();
+          const badge = MK.Img.get(s.side === 0 ? 'ui/badge_hp_blue' : 'ui/badge_hp');
+          if (badge) { const bw = Math.max(tw * 1.25, r * 0.9), bh = r * 0.6; g.drawImage(badge, p[0] - bw / 2, p[1] + r * 0.4, bw, bh); }
+          else { const bg = g.createLinearGradient(0, p[1] + r * 0.42, 0, p[1] + r * 0.95); bg.addColorStop(0, MK.shade(col, 1.2)); bg.addColorStop(1, MK.shade(col, 0.65)); g.fillStyle = bg; g.beginPath(); g.roundRect(p[0] - tw / 2, p[1] + r * 0.45, tw, r * 0.5, r * 0.12); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1; g.stroke(); }
           g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 2; g.fillText(txt, p[0], p[1] + r * 0.71); g.shadowBlur = 0;
         }
         g.globalAlpha = 1;
@@ -299,7 +300,8 @@
       const cur = b.current;
       const log = UI.el('div', { class: 'log' }, ...this.logLines.map((l) => UI.el('div', null, l)));
       bar.appendChild(log);
-      const mk = (label, fn, dis, cls) => bar.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, label));
+      const ico = (name, txt) => { const u = MK.Img.url('ui/' + name); return u ? [UI.el('img', { src: u, class: 'btn-ico', alt: '' }), ' ' + txt] : [txt]; };
+      const mk = (label, fn, dis, cls) => bar.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
       if (this.state === 'tactics') {
         bar.appendChild(UI.el('div', { class: 'tiny' }, 'Докосни свой стек, после хекс в осветената зона.'));
         mk('✔ Готово', () => this.resolveTactics(), false, 'primary');
@@ -308,9 +310,9 @@
       const canAct = this.state === 'input' && cur && this.isHuman(cur.side) && !this.auto;
       const side = cur ? cur.side : this.humans[0];
       if (cur && canAct) bar.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
-      mk('⏳ Чакай', () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
-      mk('🛡 Защита', () => this.act(() => b.doDefend(cur)), !canAct);
-      mk('📖 Магия', () => this.openSpellbook(side), !canAct || !b.canCast(side));
+      mk(ico('icon_wait', 'Чакай'), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
+      mk(ico('icon_defend', 'Защита'), () => this.act(() => b.doDefend(cur)), !canAct);
+      mk(ico('icon_spellbook', 'Магия'), () => this.openSpellbook(side), !canAct || !b.canCast(side));
       mk(this.auto ? '⏸ Ръчно' : '⚡ Авто', () => { this.auto = !this.auto; if (this.auto && this.state === 'input' && cur) this.resolveInput({ auto: true }); this.renderBar(); }, !this.humans.length);
       mk('🏳 Бягство', () => this.retreat(side), !canAct || !b.canRetreat(side), 'danger');
       mk('💰 Предаване', () => this.surrender(side), !canAct || !b.canSurrender(side), 'danger');

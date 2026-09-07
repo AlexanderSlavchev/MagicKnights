@@ -28,6 +28,53 @@
     return null;
   }
   function url(rel) { return has(rel) ? BASE + rel + '.webp' : null; }
+  /* Зарежда списък от картинки; изпълнява се при готовност или след таймаут */
+  function load(list, timeout) {
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const tick = () => {
+        let pending = 0;
+        list.forEach((rel) => { if (has(rel) && !get(rel)) pending++; });
+        if (!pending || (ready && performance.now() - start > (timeout || 8000))) resolve();
+        else setTimeout(tick, 40);
+      };
+      if (!ready) { const wait = () => (ready ? tick() : (performance.now() - start > 3000 ? resolve() : setTimeout(wait, 40))); wait(); } else tick();
+    });
+  }
+  /* Всичко, което текущият свят ще покаже: терени, декор, обекти, същества, герои, градове, UI */
+  function listForWorld(w) {
+    const D = MK.data, set = new Set();
+    Object.keys(files).forEach((k) => { if (/^(terrain|decor|ui)\//.test(k)) set.add(k); });
+    const cre = (id) => { if (id) set.add('creatures/' + id); };
+    const army = (a) => (a || []).forEach((s) => s && cre(s.c));
+    w.map.objects.forEach((o) => {
+      set.add(objectName(o, w));
+      if (o.type === 'monster') cre(o.creature);
+      if (o.guard) (o.guard.stacks || [o.guard]).forEach((g) => cre(g.creature));
+      if (o.type === 'dwelling') cre(o.creature);
+    });
+    for (const id in w.heroes) { const h = w.heroes[id]; set.add('heroes/' + h.cls + '_mounted'); set.add('heroes/' + h.cls + '_portrait'); army(h.army); }
+    set.add('objects/boat');
+    const factions = new Set(w.players.map((p) => p.faction));
+    for (const id in w.towns) { const t = w.towns[id]; factions.add(t.faction); army(t.garrison); }
+    factions.forEach((f) => {
+      set.add('towns/' + f + '_map'); set.add('towns/' + f + '_map_fort'); set.add('towns/' + f + '_screen'); set.add('objects/dwelling_' + f);
+      for (let i = 1; i <= 7; i++) { set.add('buildings/' + f + '_dwelling' + i); cre(f + i); cre(f + i + 'u'); }
+      Object.keys(files).forEach((k) => { if (k.startsWith('buildings/' + f + '_') || (f === 'kingdom' && k.startsWith('buildings/common_'))) set.add(k); });
+      (D.CLASSES ? Object.keys(D.CLASSES) : []).forEach((c) => { if (D.CLASSES[c].faction === f) { set.add('heroes/' + c + '_mounted'); set.add('heroes/' + c + '_portrait'); } });
+    });
+    D.TERRAIN.forEach((t) => set.add('battle/bg_' + t.key));
+    ['battle/siege_wall', 'battle/catapult', 'battle/obstacles', 'creatures/dungeon7u'].forEach((k) => set.add(k));
+    return [...set].filter(has);
+  }
+  function listForBattle(ctx) {
+    const set = new Set();
+    [ctx.attacker.army, ctx.defender.army, ctx.defender.garrison].forEach((a) => (a || []).forEach((s) => s && set.add('creatures/' + s.c)));
+    [ctx.attacker.hero, ctx.defender.hero].forEach((h) => { if (h) { set.add('heroes/' + h.cls + '_mounted'); set.add('heroes/' + h.cls + '_portrait'); } });
+    const D = MK.data; if (ctx.terrain !== undefined && D.TERRAIN[ctx.terrain]) set.add('battle/bg_' + D.TERRAIN[ctx.terrain === 0 ? 3 : ctx.terrain].key);
+    Object.keys(files).forEach((k) => { if (/^(ui|battle)\//.test(k)) set.add(k); });
+    return [...set].filter(has);
+  }
   function preload() {
     Object.keys(files).filter((k) => /^(terrain|decor|ui)\//.test(k)).forEach(get);
   }
@@ -57,44 +104,54 @@
   ['creatureSprite', 'heroSprite', 'objectSprite', 'portrait', 'terrainTile', 'edgeBlend', 'waterTile', 'decor'].forEach((k) => { orig[k] = G[k]; });
 
   // ---------------------------------------------------------------- терен
-  const GRID = 4; // безшевната текстура се разстила върху 4×4 плочки
+  // Безшевната текстура се разстила върху GRID×GRID плочки. Правим едно голямо платно с
+  // 1px обвивка от отсрещния край (за да няма шевове при мащабиране) и режем плочките от него.
+  const GRID = 4;
+  function bigTex(key, im, S, gx, gy) {
+    const W = S * gx, H = S * gy;
+    return spr('B' + key + '_' + S, W + 2, H + 2, (g) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) g.drawImage(im, 1 + dx * W, 1 + dy * H, W, H);
+    });
+  }
+  function cutTile(key, big, S, vx, vy) {
+    return spr(key, S + 2, S + 2, (g) => { g.drawImage(big, vx * S, vy * S, S + 2, S + 2, 0, 0, S + 2, S + 2); });
+  }
   G.terrainTile = function (t, variant, S) {
     const im = get('terrain/' + tkey(t));
     if (!im) return orig.terrainTile(t, variant, S);
-    return spr('T' + t + '_' + (variant & 15) + '_' + S, S + 2, S + 2, (g) => {
-      const cell = im.width / GRID, k = S / cell, vx = variant & 3, vy = (variant >> 2) & 3;
-      const p = g.createPattern(im, 'repeat'); p.setTransform(new DOMMatrix().translate(1 - vx * cell * k, 1 - vy * cell * k).scale(k));
-      g.fillStyle = p; g.fillRect(0, 0, S + 2, S + 2);
-    });
+    const big = bigTex('t' + t, im, S, GRID, GRID);
+    return cutTile('T' + t + '_' + (variant & 15) + '_' + S, big, S, variant & 3, (variant >> 2) & 3);
   };
+  // Ред на преливане (както в класиките): по-„силният“ терен навлиза в по-слабия
+  const PRIO = { sand: 0, grass: 1, dirt: 2, subterranean: 3, wasteland: 4, rough: 5, swamp: 6, snow: 7, lava: 8, water: -1 };
+  G.blendPriority = (t) => PRIO[tkey(t)] || 0;
   G.edgeBlend = function (nt, variant, dir, S) {
     if (!get('terrain/' + tkey(nt))) return orig.edgeBlend(nt, variant, dir, S);
     return spr('E' + nt + '_' + (variant & 15) + '_' + dir + '_' + S, S + 2, S + 2, (g) => {
       g.drawImage(G.terrainTile(nt, variant, S), 0, 0);
       const img = g.getImageData(0, 0, S + 2, S + 2), d = img.data, [dx, dy] = MK.DIRS[dir];
+      const diag = dx && dy;
       for (let y = 0; y < S + 2; y++) for (let x = 0; x < S + 2; x++) {
-        const px = x - 1, py = y - 1;
-        const e = dx ? (dx > 0 ? S - 1 - px : px) : (dy > 0 ? S - 1 - py : py);
-        const along = dx ? py : px;
-        const n = smoothN(77 + nt, along, S / 5) * 0.7 + smoothN(79 + nt, along, S / 13) * 0.3;
-        const w = e / S + (n - 0.5) * 0.34;
-        let a = 1 - w / 0.5; a = Math.max(0, Math.min(1, a)); a = a * a * (3 - 2 * a) * 0.92;
+        const px = (x - 1) / S, py = (y - 1) / S;
+        let e; // разстояние от ръба/ъгъла, откъдето идва съседът (0 = на ръба)
+        if (diag) { const cx = dx > 0 ? 1 - px : px, cy = dy > 0 ? 1 - py : py; e = Math.hypot(cx, cy); }
+        else e = dx ? (dx > 0 ? 1 - px : px) : (dy > 0 ? 1 - py : py);
+        const along = dx && !dy ? y : x;
+        const n = (smoothN(77 + nt, along, S / 4) - 0.5) * 0.16 + (smoothN(79 + nt, along, S / 9) - 0.5) * 0.06;
+        const w = diag ? 0.32 : 0.42; // дълбочина на навлизане
+        let a = 1 - (e + n) / w; a = Math.max(0, Math.min(1, a)); a = a * a * (3 - 2 * a);
         d[(y * (S + 2) + x) * 4 + 3] = Math.round(255 * a);
       }
       g.putImageData(img, 0, 0);
     });
   };
-  const WSEQ = [0, 1, 2, 3, 3, 2, 1, 0];
+  // Водата: безшевна плочка (terrain/water, правена от build-assets) върху 4×4 плочки;
+  // движението идва от леко „дишане“ на светлината в рендера, не от смяна на кадри.
   G.waterTile = function (frame, variant, S) {
-    const im = get('terrain/water_frames');
+    const im = get('terrain/water');
     if (!im) return orig.waterTile(frame, variant, S);
-    const f = WSEQ[frame & 7], fw = im.width / 4;
-    const frameC = spr('WF' + f, fw, im.height, (g) => g.drawImage(im, -f * fw, 0));
-    return spr('W' + f + '_' + (variant & 3) + '_' + S, S + 2, S + 2, (g) => {
-      const cell = fw / 2, k = S / cell, vx = variant & 1, vy = (variant >> 1) & 1;
-      const p = g.createPattern(frameC, 'repeat'); p.setTransform(new DOMMatrix().translate(1 - vx * cell * k, 1 - vy * cell * k).scale(k));
-      g.fillStyle = p; g.fillRect(0, 0, S + 2, S + 2);
-    });
+    const big = bigTex('water', im, S, GRID, GRID);
+    return cutTile('W' + (variant & 15) + '_' + S, big, S, variant & 3, (variant >> 2) & 3);
   };
 
   // ---------------------------------------------------------------- декор
@@ -182,5 +239,5 @@
     });
   };
 
-  MK.Img = { has, get, url, files, procedural: orig };
+  MK.Img = { has, get, url, load, listForWorld, listForBattle, files, procedural: orig };
 })();

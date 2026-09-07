@@ -22,13 +22,18 @@
   const overlay = () => document.getElementById('overlay');
   function costHtml(cost, res) {
     const c = el('span', { class: 'cost' });
-    for (const k in cost) { if (!cost[k]) continue; const lack = res && (res[k] || 0) < cost[k]; c.appendChild(el('span', { class: lack ? 'lack' : '' }, el('i', { style: 'background:' + D.RES_COLOR[k] }), String(cost[k]))); }
+    for (const k in cost) { if (!cost[k]) continue; const lack = res && (res[k] || 0) < cost[k]; const u = MK.Img.url('ui/icon_' + k); c.appendChild(el('span', { class: lack ? 'lack' : '' }, u ? el('img', { src: u, class: 'res-ico', alt: '' }) : el('i', { style: 'background:' + D.RES_COLOR[k] }), String(cost[k]))); }
     return c;
   }
   function spriteCanvas(src, w, h) {
     const c = el('canvas', { width: w, height: h }); const g = c.getContext('2d');
     const k = Math.min(w / src.width, h / src.height); const dw = src.width * k, dh = src.height * k;
     g.drawImage(src, (w - dw) / 2, h - dh, dw, dh); return c;
+  }
+  /* Прозорец за зареждане; връща елемент с .remove() */
+  function loading(text) {
+    const wrap = el('div', { class: 'modal-wrap loading' }, el('div', { class: 'modal', style: 'text-align:center;max-width:320px' }, el('div', { class: 'spinner' }), el('p', null, text)));
+    overlay().appendChild(wrap); return wrap;
   }
   function toast(text) { const t = el('div', { class: 'toast' }, text); document.getElementById('toasts').appendChild(t); setTimeout(() => t.remove(), 4000); }
 
@@ -54,7 +59,9 @@
     MK.Audio.menu();
     const s = screen('menu');
     const hasSave = !!localStorage.getItem('mk_save');
-    s.appendChild(el('div', { class: 'title' }, 'MagicKnights'));
+    const logo = MK.Img.url('ui/logo');
+    if (logo) s.appendChild(el('img', { src: logo, class: 'logo', alt: 'MagicKnights' }));
+    s.appendChild(el('div', { class: 'title' + (logo ? ' with-logo' : '') }, 'MagicKnights'));
     s.appendChild(el('div', { class: 'subtitle' }, 'Герои, замъци и битки на хексове — класическата стратегия наново, за телефона ти.'));
     s.appendChild(el('div', { class: 'stack' },
       el('button', { class: 'primary', onclick: () => showSetup(game) }, 'Нова игра'),
@@ -180,7 +187,7 @@
     const w = game.world, p = w.players[game.human];
     const rb = document.getElementById('resbar');
     rb.innerHTML = '';
-    D.RES.forEach((r) => rb.appendChild(el('span', { class: 'res', title: D.RES_NAME[r] }, el('i', { style: 'background:' + D.RES_COLOR[r] }), String(p.res[r]))));
+    D.RES.forEach((r) => { const u = MK.Img.url('ui/icon_' + r); rb.appendChild(el('span', { class: 'res', title: D.RES_NAME[r] }, u ? el('img', { src: u, class: 'res-ico', alt: '' }) : el('i', { style: 'background:' + D.RES_COLOR[r] }), String(p.res[r]))); });
     rb.appendChild(el('span', { class: 'date' }, w.dateText()));
     const hl = document.getElementById('hero-list'); hl.innerHTML = '';
     p.heroes.forEach((id) => {
@@ -571,5 +578,5 @@
     });
   }
 
-  MK.UI = { el, dialog, toast, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { el, dialog, toast, loading, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();
