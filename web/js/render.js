@@ -171,6 +171,7 @@
               const bob = o.type === 'boat' ? Math.sin(T * 2 + x) * S * 0.03 : 0;
               const scale = o.type === 'town' ? 1.45 : o.type === 'mine' || o.type === 'dwelling' || o.type === 'lighthouse' ? 1.15 : 1;
               g.drawImage(G.objectSprite(o, spriteS, world), Math.floor(sx - S * (scale - 1) / 2), Math.floor(sy) - S * 0.4 * scale - S * (scale - 1) * 0.72 + bob, TS * scale, TS * 1.4 * scale);
+              if (o.guard) this.drawGuard(o, sx, sy, S, T);
               // анимирано знаме
               if (o.type === 'town' && o.owner >= 0) this.drawFlag(sx + S / 2, sy - S * 0.22, S * 1.3, world.players[o.owner].color, T + x);
               if (o.type === 'town' && S >= 30) {
@@ -276,6 +277,22 @@
         g.fillStyle = 'rgba(20,10,10,0.8)'; g.beginPath(); g.roundRect(sx + S - w - S * 0.02, sy + S * 0.74, w, S * 0.26, S * 0.05); g.fill();
         g.strokeStyle = 'rgba(255,216,112,0.6)'; g.lineWidth = 1; g.stroke();
         g.fillStyle = '#ffd870'; g.fillText(txt, sx + S - w / 2 - S * 0.02, sy + S * 0.87);
+      }
+    }
+    /* Пазач, закачен за обект: по-малък спрайт пред и вдясно от обекта, с брояч */
+    drawGuard(o, sx, sy, S, T) {
+      const g = this.ctx, gd = o.guard;
+      const c = D.creatureOf(gd.creature); if (!c) return;
+      const k = 0.72, GS = S * k, bob = Math.sin(T * 2 + o.id) * S * 0.015;
+      const gx = sx + S * 0.45, gy = sy + S * 0.15 - bob;
+      g.drawImage(G.creatureSprite(c, S > 60 ? 128 : 96, false), Math.floor(gx), Math.floor(gy) - GS * 0.4, Math.ceil(GS) + 1, (Math.ceil(GS) + 1) * 1.4);
+      if (S >= 26) {
+        const txt = String(gd.count);
+        g.font = 'bold ' + Math.max(8, S * 0.2) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const w = g.measureText(txt).width + S * 0.16;
+        g.fillStyle = 'rgba(60,10,10,0.85)'; g.beginPath(); g.roundRect(sx + S - w + S * 0.12, sy + S * 0.8, w, S * 0.24, S * 0.05); g.fill();
+        g.strokeStyle = 'rgba(255,120,90,0.7)'; g.lineWidth = 1; g.stroke();
+        g.fillStyle = '#ffb090'; g.fillText(txt, sx + S - w / 2 + S * 0.12, sy + S * 0.92);
       }
     }
     // ---------------------------------------------------------------- частици

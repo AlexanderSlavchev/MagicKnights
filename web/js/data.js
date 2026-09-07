@@ -138,6 +138,22 @@
   D.upgradeOf = (c) => c.upg || c.faction === 'neutral' ? null : D.creatureById[c.faction + c.tier + 'u'];
   D.avgDmg = (c) => (c.dmin + c.dmax) / 2;
   // Бойна стойност на едно същество — за оценка на силата на армиите.
+  /* Стойност на обект на картата (мащаб на класическите генератори) — определя силата на пазачите */
+  D.treasureValue = (o) => {
+    switch (o.type) {
+      case 'resource': return o.res === 'gold' ? 750 : o.res === 'wood' || o.res === 'ore' ? 1400 : 2000;
+      case 'chest': return 1500;
+      case 'artifact': { const a = o.art && D.artById[o.art]; return a ? [0, 2000, 5000, 12000][a.cls] || 2000 : 2000; }
+      case 'mine': return o.res === 'gold' ? 7000 : o.res === 'wood' || o.res === 'ore' ? 1500 : 3500;
+      case 'dwelling': { const c = D.creatureOf(o.creature); return c ? [0, 750, 1500, 2500, 4000, 6000, 10000, 15000][c.tier] : 0; }
+      case 'learning': return 1500; case 'shrine1': return 500; case 'shrine2': return 2000; case 'shrine3': return 3000;
+      case 'tree_knowledge': return 2500; case 'windmill': return 1500; case 'watermill': return 750; case 'campfire': return 2000;
+      case 'wagon': return 500; case 'garden': return 1500; case 'idol': return 1000; case 'library': return 2000;
+      case 'mercenary': return 3000; case 'tower_def': return 3000; case 'star_axis': return 1000; case 'school_war': case 'school_magic': return 1000;
+      case 'rally': return 750; case 'magic_well': return 250; case 'fountain': return 500; case 'sea_chest': return 1500;
+      default: return 0;
+    }
+  };
   D.fightValue = (c) => {
     const off = D.avgDmg(c) * (1 + c.att * 0.05);
     const def = c.hp * (1 + c.def * 0.05);

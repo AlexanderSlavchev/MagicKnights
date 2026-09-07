@@ -179,6 +179,7 @@
         }
       }
       if (v <= 0) return;
+      if (o.guard) { const str = o.guard.count * D.fightValue(D.creatureOf(o.guard.creature)); if (my > str * 1.5 / bonus) { v += str * 0.3; kind = 'fight'; } else return; }
       cands.push({ x: o.x, y: o.y, v, kind, obj: o });
     });
     // Вражески герои

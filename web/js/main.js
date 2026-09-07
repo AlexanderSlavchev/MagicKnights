@@ -181,14 +181,15 @@
       this.updateHUD();
     }
     objName(o) {
-      if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : ', неутрален') + ')'; }
-      if (o.type === 'mine') return D.MINES.find((m) => m.res === o.res).name + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '');
+      const guard = o.guard ? ' — пазят го ' + o.guard.count + ' × ' + D.creatureOf(o.guard.creature).name : '';
+      if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : ', неутрален') + ')' + guard; }
+      if (o.type === 'mine') return D.MINES.find((m) => m.res === o.res).name + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
       if (o.type === 'monster') return o.count + ' × ' + D.creatureOf(o.creature).name;
-      if (o.type === 'resource') return D.RES_NAME[o.res];
-      if (o.type === 'dwelling') return 'Жилище: ' + D.creatureOf(o.creature).name + ' (налични ' + o.available + ')';
-      if (o.type === 'artifact') return 'Артефакт';
-      if (o.type === 'boat') return 'Кораб' + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '');
-      return (D.OBJECTS[o.type] || {}).name || o.type;
+      if (o.type === 'resource') return D.RES_NAME[o.res] + guard;
+      if (o.type === 'dwelling') return 'Жилище: ' + D.creatureOf(o.creature).name + ' (налични ' + o.available + ')' + guard;
+      if (o.type === 'artifact') return 'Артефакт' + guard;
+      if (o.type === 'boat') return 'Кораб' + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
+      return (D.OBJECTS[o.type] || {}).name || o.type + guard;
     }
     describe(o) { this.hint = this.objName(o) + ((D.OBJECTS[o.type] || {}).desc ? ' — ' + D.OBJECTS[o.type].desc : ''); this.updateHUD(); }
 

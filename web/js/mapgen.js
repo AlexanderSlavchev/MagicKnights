@@ -126,6 +126,15 @@
       const n = Math.max(1, Math.round(budget / D.fightValue(c)));
       return place({ type: 'monster', x, y, z, creature: c.id, count: n, growth: true, disposition: rng.int(1, 10) });
     }
+    /* Пазач за дадена стойност на съкровище (стойността е в мащаба на класиките; бойната ни стойност е ~1/14 от нея) */
+    function guardFor(value, z) {
+      const budget = value / 14;
+      let cands = guardPool.filter((c) => { const n = budget / D.fightValue(c); return n >= 3 && n <= 50; });
+      if (z) cands = cands.filter((c) => c.faction !== 'harbor' && c.faction !== 'elements');
+      if (!cands.length) cands = guardPool.slice().sort((a, b) => Math.abs(budget / D.fightValue(a) - 12) - Math.abs(budget / D.fightValue(b) - 12)).slice(0, 4);
+      const c = rng.pick(cands);
+      return { creature: c.id, count: Math.max(1, Math.round(budget / D.fightValue(c))), disposition: rng.int(1, 10) };
+    }
     const budgetAt = (x, y, z) => {
       const d = distToStart(x, y) / N;
       return Math.round((40 + d * d * 2800 + d * 300) * (0.7 + rng.next() * 0.6) * (T.monsterMult || 1) * (opts.monsterMult || 1) * (z ? 1.4 : 1));
@@ -242,20 +251,18 @@
     // --- 8. Подземие
     if (hasUnder) generateUnderground(map, rng, N, T, starts, { place, free, anySpot, makeGuard, budgetAt, takeArt, distToStart, townNames });
 
-    // --- 9. Пазачи на маркираните обекти
+    // --- 9. Пазачи по стойност (както в класическите генератори): всеки ценен обект
+    // има „стойност“, а пазачите му са с обща бойна стойност, пропорционална на нея.
+    // Евтините неща стоят свободни, скъпите почти винаги са пазени, а ~20% от
+    // ценните са оставени без пазач — за късмет. Пазачът е закачен за обекта.
     map.objects.slice().forEach((o) => {
-      if (!o.guard) return;
       delete o.guard;
-      const cand = [];
-      for (let d = 0; d < 8; d++) { const nx = o.x + MK.DIRS[d][0], ny = o.y + MK.DIRS[d][1]; if (free(nx, ny, o.z)) cand.push([nx, ny]); }
-      if (!cand.length) return;
-      const [gx, gy] = rng.pick(cand);
-      let budget = budgetAt(gx, gy, o.z);
-      if (o.type === 'artifact' && o.art) budget *= D.artById[o.art].cls === 3 ? 2.2 : D.artById[o.art].cls === 2 ? 1.5 : 1;
-      if (o.type === 'mine' && o.res === 'gold') budget *= 1.3;
-      makeGuard(gx, gy, budget, o.z);
+      const v = D.treasureValue(o);
+      if (v <= 0) return;
+      const chance = v < 1000 ? 0 : v < 2000 ? 0.4 : 0.8;
+      if (!rng.chance(chance)) return;
+      o.guard = guardFor(v * (0.8 + rng.next() * 0.5) * (T.monsterMult || 1) * (opts.monsterMult || 1), o.z);
     });
-
     // --- 10. Свързаност (по нива); на острови водата се брои за проходима
     ensureConnected(map, 0, N, towns, T.islands);
     if (hasUnder) { const gates = map.objects.filter((o) => o.type === 'gate' && o.z === 1); if (gates.length) ensureConnected(map, 1, N, gates, false); }

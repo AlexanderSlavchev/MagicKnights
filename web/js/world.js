@@ -495,6 +495,7 @@
         this.map.objects.forEach((o) => {
           if (o.type === 'dwelling') o.available += D.creatureOf(o.creature).growth;
           if (o.type === 'monster' && o.growth) o.count += Math.max(1, Math.floor(o.count * 0.1));
+          if (o.guard) o.guard.count += Math.max(1, Math.floor(o.guard.count * 0.1));
         });
         this.weekName = this.rollWeekName();
         this.log('Нова седмица: ' + this.weekName, 'week');
@@ -555,6 +556,11 @@
           const ev = target ? this.visit(h, target) : null;
           return { event: ev || { type: 'visit', obj: null, text: h.name + ' слиза на сушата.', kind: 'boat' } };
         }
+      }
+      if (target && target.guard && !h.boat) {
+        // Обектът е пазен: първо битка с пазачите; при победа обектът остава и се посещава с нов ход
+        h.movement -= cost;
+        return { event: this.startBattle(h, { type: 'monster', obj: target, guardOf: true }) };
       }
       if (target && target.type === 'monster') {
         h.movement -= cost;
@@ -700,8 +706,9 @@
     startBattle(attHero, def) {
       const ctx = { type: 'battle', kind: def.type, attacker: { hero: attHero, army: attHero.army, owner: attHero.owner }, defender: null };
       if (def.type === 'monster') {
-        const o = def.obj;
-        const army = Army.empty(); Army.add(army, o.creature, o.count);
+        const o = def.obj, g = def.guardOf ? o.guard : o;
+        const army = Army.empty(); Army.add(army, g.creature, g.count);
+        ctx.guardOf = !!def.guardOf;
         ctx.defender = { hero: null, army, owner: -1, obj: o };
       } else if (def.type === 'hero') {
         ctx.defender = { hero: def.hero, army: def.hero.army, owner: def.hero.owner };
@@ -741,7 +748,7 @@
       const loserHero = attWon ? defHero : attHero, winnerHero = attWon ? attHero : defHero;
       const loserSide = attWon ? 1 : 0;
       if (attWon) {
-        if (ctx.kind === 'monster') this.removeObject(d.obj);
+        if (ctx.kind === 'monster') { if (ctx.guardOf) delete d.obj.guard; else this.removeObject(d.obj); }
         if (ctx.town) { if (d.garrison) d.garrison.forEach((s, i) => { d.garrison[i] = null; }); }
       }
       if (loserHero) {
@@ -759,7 +766,7 @@
         }
       }
       if (attWon && ctx.town) { this.captureTown(ctx.town, attHero); events.push({ type: 'enterTown', town: ctx.town, hero: attHero, captured: true, learned: this.learnTownSpells(attHero, ctx.town) }); }
-      if (!attWon && ctx.kind === 'monster' && d.obj) { d.obj.count = Army.count(d.army); if (d.obj.count <= 0) this.removeObject(d.obj); }
+      if (!attWon && ctx.kind === 'monster' && d.obj) { const g = ctx.guardOf ? d.obj.guard : d.obj; g.count = Army.count(d.army); if (g.count <= 0) { if (ctx.guardOf) delete d.obj.guard; else this.removeObject(d.obj); } }
       if (attHero && this.heroes[attHero.id]) this.revealAround(attHero.owner, attHero.x, attHero.y, attHero.z, this.sightRadius(attHero));
       this.events.push(...events);
       const v = this.checkVictory();
