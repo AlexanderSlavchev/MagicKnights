@@ -7,6 +7,23 @@
   const UI = MK.UI;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  const svgCur = (body, hx, hy) => 'url("data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">' + body + '</svg>') + '") ' + hx + ' ' + hy + ', pointer';
+  const OUT = 'stroke="#000" stroke-width="1.2" stroke-linejoin="round"';
+  const CURSORS = {
+    move: svgCur('<path d="M6 21 L8 12 L14 8 L20 10 L18 15 L16 13 L12 16 L12 21 Z" fill="#ffe08a" ' + OUT + '/><circle cx="19" cy="9" r="2.3" fill="#ffe08a" ' + OUT + '/>', 6, 21),
+    attack: svgCur('<path d="M5 23 L17 11 L15 9 L3 21 Z" fill="#d9d9d9" ' + OUT + '/><path d="M17 11 L25 3 L26 7 L19 13 Z" fill="#ffffff" ' + OUT + '/><path d="M12 8 L20 16" stroke="#c9a23e" stroke-width="3"/>', 4, 23),
+    guard: svgCur('<path d="M5 23 L17 11 L15 9 L3 21 Z" fill="#d9d9d9" ' + OUT + '/><path d="M17 11 L25 3 L26 7 L19 13 Z" fill="#ffffff" ' + OUT + '/><path d="M12 8 L20 16" stroke="#c9a23e" stroke-width="3"/><circle cx="21" cy="21" r="5" fill="#d23c3c" ' + OUT + '/>', 4, 23),
+    pickup: svgCur('<path d="M8 4 L8 14 L5 14 L5 20 L20 20 L20 8 L12 8 L12 4 Z" fill="#f2c9a0" ' + OUT + '/><path d="M12 8 L12 14 M16 8 L16 14" stroke="#000" stroke-width="1"/>', 8, 4),
+    flag: svgCur('<path d="M8 3 L8 25" stroke="#000" stroke-width="2.4"/><path d="M9 4 L22 8 L9 12 Z" fill="#d23c3c" ' + OUT + '/>', 8, 3),
+    enter: svgCur('<path d="M4 24 L4 12 L14 5 L24 12 L24 24 Z" fill="#c8b48a" ' + OUT + '/><path d="M11 24 L11 16 L17 16 L17 24" fill="#5a3a1a" ' + OUT + '/>', 14, 14),
+    board: svgCur('<path d="M4 18 L24 18 L20 24 L8 24 Z" fill="#8a5a2a" ' + OUT + '/><path d="M14 4 L14 18 M14 5 L22 14 L14 14" fill="#fff" ' + OUT + '/>', 14, 20),
+    visit: svgCur('<path d="M8 4 L8 14 L5 14 L5 20 L20 20 L20 8 L12 8 L12 4 Z" fill="#f2c9a0" ' + OUT + '/>', 8, 4),
+    hero: svgCur('<circle cx="14" cy="9" r="5" fill="#e8c46a" ' + OUT + '/><path d="M4 26 C4 17 24 17 24 26 Z" fill="#3c6cd2" ' + OUT + '/>', 14, 14),
+    noPath: svgCur('<circle cx="14" cy="14" r="9" fill="none" stroke="#d23c3c" stroke-width="3"/><path d="M8 8 L20 20" stroke="#d23c3c" stroke-width="3"/>', 14, 14),
+    fog: svgCur('<circle cx="14" cy="14" r="9" fill="none" stroke="#999" stroke-width="3"/><path d="M14 9 L14 15 M14 18 L14 20" stroke="#999" stroke-width="3"/>', 14, 14),
+    info: 'help', none: 'default'
+  };
+  const ICONS = { move: '🐎', attack: '⚔️', guard: '⚔️', pickup: '💰', flag: '🚩', enter: '🏰', board: '⛵', visit: '👋', hero: '🛡️', noPath: '⛔', fog: '❔', info: 'ℹ️', none: '' };
   class Game {
     constructor() {
       this.canvas = document.getElementById('map');
@@ -63,6 +80,7 @@
     }
     start() {
       document.getElementById('hud').hidden = false;
+      this._turnSnap = null; setTimeout(() => { if (this.world) this._turnSnap = this.turnSnapshot(); }, 0);
       // подгряване на текстурите на терените от картата на фон
       try { const ts = new Set(); this.world.map.levels.forEach((L) => L.terrain.forEach((t) => ts.add(t))); MK.Gfx.warm([...ts], [96, 128]); } catch (e) { /* без подгряване */ }
       const p = this.world.players[this.human];
@@ -98,6 +116,7 @@
     updateHUD() { UI.updateHUD(this); }
     afterScreen() { MK.Audio.resumeMap(); this.updateHUD(); if (this.selected) this.refreshReach(); this.drainEvents(); }
     selectHero(h, center) {
+      this._hoverX = null;
       this.selected = h;
       this.renderer.selected = h;
       this.renderer.pathPreview = null;
@@ -127,7 +146,8 @@
       let moved = false, pinchDist = 0, downPos = null;
       c.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); downPos = { x: e.clientX, y: e.clientY }; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinchDist = Math.hypot(a.x - b.x, a.y - b.y); } });
       c.addEventListener('pointermove', (e) => {
-        const p = pts.get(e.pointerId); if (!p) return;
+        const p = pts.get(e.pointerId);
+        if (!p) { if (e.pointerType === 'mouse') { const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onHover(tx, ty); } return; }
         const dx = e.clientX - p.x, dy = e.clientY - p.y;
         if (pts.size === 1) {
           if (!moved && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 8) moved = true;
@@ -150,6 +170,38 @@
         if (e.key === 'u' || e.key === 'U') this.toggleLevel();
         if (e.key === ' ' && this.renderer.pathPreview) { e.preventDefault(); this.moveSelected(this.renderer.pathPreview); }
       });
+    }
+    /* Какво ще стане при докосване на плочката: { kind, label, days } — kind: move|attack|guard|pickup|enter|board|visit|hero|none|noPath|fog */
+    intent(tx, ty) {
+      const w = this.world; if (!w || !w.inb(tx, ty)) return { kind: 'none' };
+      const z = this.renderer.z, p = w.players[this.human];
+      if (!p.fog[z][w.idx(tx, ty)]) return { kind: 'fog', label: 'Неизследвана земя' };
+      const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z), sel = this.selected;
+      if (hero && hero.owner === this.human) return { kind: 'hero', label: hero === sel ? (hero.inTown ? 'Влез в града' : 'Отвори героя') : 'Избери ' + hero.name };
+      if (!sel || (sel.z || 0) !== z) return obj ? { kind: 'info', label: this.objName(obj) } : { kind: 'none' };
+      if (sel.x === tx && sel.y === ty) return { kind: 'hero', label: 'Отвори героя' };
+      const path = MK.Path.findPath(w, sel, tx, ty);
+      if (!path) return { kind: 'noPath', label: obj ? this.objName(obj) + ' — няма път' : w.isWater(tx, ty, z) && !sel.boat ? 'Вода — трябва ти кораб' : 'Няма път дотам' };
+      const days = Math.ceil(path.total / Math.max(1, sel.maxMovement));
+      const r = { path, days, label: '' };
+      if (hero) { r.kind = 'attack'; r.label = 'Нападни ' + hero.name + ' (ниво ' + hero.level + ')'; }
+      else if (obj && obj.guard) { r.kind = 'guard'; r.label = this.objName(obj); }
+      else if (obj && obj.type === 'monster') { r.kind = 'attack'; r.label = 'Нападни ' + this.objName(obj); }
+      else if (obj && obj.type === 'town') { r.kind = w.towns[obj.townId].owner === this.human ? 'enter' : 'attack'; r.label = (r.kind === 'enter' ? 'Влез в ' : 'Обсади ') + w.towns[obj.townId].name; }
+      else if (obj && obj.type === 'boat' && !sel.boat) { r.kind = 'board'; r.label = 'Качи се на кораба'; }
+      else if (obj && (obj.type === 'resource' || obj.type === 'chest' || obj.type === 'artifact' || obj.type === 'sea_chest')) { r.kind = 'pickup'; r.label = 'Вземи: ' + this.objName(obj); }
+      else if (obj && obj.type === 'mine' && obj.owner !== this.human) { r.kind = 'flag'; r.label = 'Завладей: ' + this.objName(obj); }
+      else if (obj) { r.kind = 'visit'; r.label = this.objName(obj); }
+      else { r.kind = 'move'; r.label = sel.boat ? 'Плавай' : 'Придвижи се'; }
+      return r;
+    }
+    onHover(tx, ty) {
+      if (!this.world || this.busy || this.world.curPlayer !== this.human) return;
+      if (this._hoverX === tx && this._hoverY === ty) return;
+      this._hoverX = tx; this._hoverY = ty;
+      const it = this.intent(tx, ty);
+      this.renderer.canvas.style.cursor = CURSORS[it.kind] || 'default';
+      if (!this.renderer.pathPreview) { this.hint = it.label ? ICONS[it.kind] + ' ' + it.label + (it.days > 1 ? ' · ' + it.days + ' дни' : '') : ''; this.updateHUD(); }
     }
     onTap(tx, ty) {
       const w = this.world;
@@ -177,7 +229,8 @@
       if (!path) { this.renderer.pathPreview = null; this.hint = obj ? this.objName(obj) + ' — няма път.' : w.isWater(tx, ty, z) && !this.selected.boat ? 'Вода — трябва ти кораб.' : 'Няма път дотам.'; this.updateHUD(); return; }
       this.renderer.pathPreview = path;
       const days = Math.ceil(path.total / Math.max(1, this.selected.maxMovement));
-      this.hint = (obj ? this.objName(obj) + ' · ' : hero ? (hero.owner === this.human ? hero.name : 'Вражески герой ' + hero.name + ', ниво ' + hero.level) + ' · ' : '') + (path.total <= this.selected.movement ? 'Докосни отново, за да тръгнеш.' : 'Пътят е ' + days + ' дни. Докосни отново, за да тръгнеш.');
+      const it = this.intent(tx, ty);
+      this.hint = ICONS[it.kind] + ' ' + it.label + ' · ' + (path.total <= this.selected.movement ? 'Докосни отново, за да ' + (it.kind === 'attack' || it.kind === 'guard' ? 'нападнеш.' : 'тръгнеш.') : 'Пътят е ' + days + ' дни. Докосни отново, за да тръгнеш.');
       this.updateHUD();
     }
     objName(o) {
@@ -271,7 +324,7 @@
       if (w.players[ctx.attacker.owner] && w.players[ctx.attacker.owner].human) humans.push(0);
       if (ctx.defender.owner >= 0 && w.players[ctx.defender.owner] && w.players[ctx.defender.owner].human) humans.push(1);
       const d = ctx.defender;
-      const desc = d.hero ? d.hero.name + ' (ниво ' + d.hero.level + ')' : ctx.town ? 'гарнизона на ' + ctx.town.name : d.obj ? d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name : 'противник';
+      const desc = d.hero ? d.hero.name + ' (ниво ' + d.hero.level + ')' : ctx.town ? 'гарнизона на ' + ctx.town.name : d.obj ? (ctx.guardOf ? 'пазачите на ' + this.objName(d.obj).split(' — ')[0].toLowerCase() : d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name) : 'противник';
       const army = (a) => a.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ') || 'няма';
       const content = UI.el('div', null, UI.el('p', { class: 'tiny' }, 'Армия на противника: ' + army(d.army) + (d.garrison ? ' + гарнизон: ' + army(d.garrison) : '')), UI.el('p', { class: 'tiny' }, 'Армия на нападателя: ' + army(ctx.attacker.army)), ctx.town ? UI.el('p', { class: 'tiny' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
       if (humans.includes(0) && !humans.includes(1)) await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
@@ -304,9 +357,22 @@
     }
 
     // ------------------------------------------------------------ ход
+    /* Снимка на състоянието в началото на хода — за да разберем дали играчът е направил нещо */
+    turnSnapshot() {
+      const w = this.world, p = w.players[this.human];
+      return JSON.stringify({ d: w.day, g: p.res.gold, mv: p.heroes.map((id) => w.heroes[id].movement), t: p.towns.map((id) => Object.keys(w.towns[id].buildings).length + ':' + w.towns[id].garrison.filter(Boolean).length) });
+    }
     async endTurn() {
       const w = this.world;
       if (!w || this.busy || w.curPlayer !== this.human) return;
+      const p0 = w.players[this.human];
+      if (this._turnSnap && this._turnSnap === this.turnSnapshot()) {
+        const ok = await UI.dialog({ title: 'Край на деня?', text: 'Не си направил нищо през този ден — никой герой не се е местил, нищо не е построено или купено. Сигурен ли си, че искаш да приключиш деня?', buttons: [{ label: 'Да, нов ден', value: true, cls: 'primary' }, { label: 'Назад', value: false }] });
+        if (!ok) return;
+      } else if (p0.heroes.some((id) => { const h = w.heroes[id]; return !h.sleeping && h.movement >= h.maxMovement * 0.5 && h.maxMovement > 0; }) && this._turnSnap) {
+        const ok = await UI.dialog({ title: 'Край на деня?', text: 'Един или повече герои все още могат да се движат. Да приключим ли деня?', buttons: [{ label: 'Да, нов ден', value: true, cls: 'primary' }, { label: 'Назад', value: false }] });
+        if (!ok) return;
+      }
       this.busy = true;
       this.renderer.pathPreview = null; this.renderer.reach = null;
       const humansCount = w.players.filter((p) => p.human && p.alive).length;
@@ -335,6 +401,8 @@
       // Hot-seat: подаваме устройството
       if (humansCount > 1 || me.id !== this.human) { this.human = me.id; this.selected = null; this.renderer.selected = null; this.updateHUD(); await UI.passDevice(this, me); }
       if (w.dayOfWeek() === 1) MK.Audio.sfx('new_week');
+      UI.toast((w.dayOfWeek() === 1 ? '🌅 Нова седмица! ' : '🌅 ') + 'Ден ' + w.day + ' · седмица ' + w.week() + ', ден ' + w.dayOfWeek());
+      this._turnSnap = null; setTimeout(() => { if (this.world === w) this._turnSnap = this.turnSnapshot(); }, 0);
       me.heroes.forEach((id) => { const h = w.heroes[id]; if (h.sleeping && h.movement < h.maxMovement) h.sleeping = false; });
       const first = me.heroes.map((id) => w.heroes[id]).find((h) => !h.sleeping) || (me.heroes.length ? w.heroes[me.heroes[0]] : null);
       this.selectHero(first, !!first);
