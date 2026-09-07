@@ -144,13 +144,17 @@
       const c = this.canvas;
       const pts = new Map();
       let moved = false, pinchDist = 0, downPos = null;
-      c.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); downPos = { x: e.clientX, y: e.clientY }; moved = false; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinchDist = Math.hypot(a.x - b.x, a.y - b.y); } });
+      let pressTimer = null, longPressed = false;
+      const clearPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+      c.addEventListener('contextmenu', (e) => { e.preventDefault(); const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onLongPress(tx, ty); });
+      c.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); downPos = { x: e.clientX, y: e.clientY }; moved = false; longPressed = false;
+        clearPress(); if (e.button === 0 || e.pointerType !== 'mouse') pressTimer = setTimeout(() => { pressTimer = null; if (!moved && pts.size === 1) { longPressed = true; const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onLongPress(tx, ty); } }, 450); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinchDist = Math.hypot(a.x - b.x, a.y - b.y); } });
       c.addEventListener('pointermove', (e) => {
         const p = pts.get(e.pointerId);
         if (!p) { if (e.pointerType === 'mouse') { const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onHover(tx, ty); } return; }
         const dx = e.clientX - p.x, dy = e.clientY - p.y;
         if (pts.size === 1) {
-          if (!moved && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 8) moved = true;
+          if (!moved && Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 8) { moved = true; clearPress(); }
           if (moved) this.renderer.pan(dx, dy);
         }
         p.x = e.clientX; p.y = e.clientY;
@@ -160,7 +164,7 @@
           pinchDist = d; moved = true;
         }
       });
-      const up = (e) => { const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (had && !moved && pts.size === 0 && e.type === 'pointerup') { const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onTap(tx, ty); } if (pts.size < 2) pinchDist = 0; };
+      const up = (e) => { clearPress(); const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (longPressed) { longPressed = pts.size > 0; return; } if (had && !moved && pts.size === 0 && e.type === 'pointerup') { const [tx, ty] = this.renderer.toTile(e.clientX, e.clientY); this.onTap(tx, ty); } if (pts.size < 2) pinchDist = 0; };
       c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up); c.addEventListener('pointerleave', (e) => { pts.delete(e.pointerId); });
       c.addEventListener('wheel', (e) => { e.preventDefault(); this.renderer.zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
       window.addEventListener('keydown', (e) => {
@@ -202,6 +206,19 @@
       const it = this.intent(tx, ty);
       this.renderer.canvas.style.cursor = CURSORS[it.kind] || 'default';
       if (!this.renderer.pathPreview) { this.hint = it.label ? ICONS[it.kind] + ' ' + it.label + (it.days > 1 ? ' · ' + it.days + ' дни' : '') : ''; this.updateHUD(); }
+    }
+    /* Задържане / десен бутон: бърза информация за това, което е на плочката (както в HotA) */
+    onLongPress(tx, ty) {
+      const w = this.world; if (!w || !w.inb(tx, ty)) return;
+      const z = this.renderer.z, p = w.players[this.human];
+      if (!p.fog[z][w.idx(tx, ty)]) { UI.toast('Неизследвана земя.'); return; }
+      const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z);
+      if (hero && !(obj && obj.type === 'town')) { UI.heroQuickInfo(this, hero); return; }
+      if (!obj) { UI.toast(D.TERRAIN[w.terrainAt(tx, ty, z)].name); return; }
+      if (obj.type === 'monster') { UI.creatureInfo(D.creatureOf(obj.creature), UI.stackInfo(obj.count, obj.disposition)); return; }
+      if (obj.guard) { UI.guardInfo(this, obj); return; }
+      if (obj.type === 'town') { UI.townQuickInfo(this, w.towns[obj.townId]); return; }
+      UI.dialog({ title: this.objName(obj), text: (D.OBJECTS[obj.type] || {}).desc || '' });
     }
     onTap(tx, ty) {
       const w = this.world;
