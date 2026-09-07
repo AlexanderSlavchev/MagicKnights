@@ -577,10 +577,7 @@
       }
       h.movement -= cost; h.x = x; h.y = y;
       this.revealAround(h.owner, x, y, z, this.sightRadius(h));
-      for (let d = 0; d < 8; d++) {
-        const o = this.objectAt(x + MK.DIRS[d][0], y + MK.DIRS[d][1], z);
-        if (o && o.type === 'monster' && !h.boat) return { event: this.startBattle(h, { type: 'monster', obj: o, ambush: true }) };
-      }
+      // Съществата на картата не нападат сами — битка има само ако героят ги атакува.
       if (target) { const ev = this.visit(h, target); if (ev) return { event: ev }; }
       return { ok: true };
     }
@@ -706,7 +703,6 @@
         const o = def.obj;
         const army = Army.empty(); Army.add(army, o.creature, o.count);
         ctx.defender = { hero: null, army, owner: -1, obj: o };
-        ctx.ambush = !!def.ambush;
       } else if (def.type === 'hero') {
         ctx.defender = { hero: def.hero, army: def.hero.army, owner: def.hero.owner };
         const t = this.townOfHero(def.hero);
