@@ -159,3 +159,18 @@ input[type=range] { accent-color: var(--gold); }
 
 .screen.town { background-size: cover; background-position: center top; }
 .menu.has-logo .title { text-indent: -9999px; overflow: hidden; height: 120px; width: 320px; background: url(img/ui/logo.webp) center/contain no-repeat; }
+
+/* Екран на града в стил Heroes: панорама с кликаеми сгради */
+.screen.town { background-image: none !important; }
+.town-view { position: relative; flex: 1; min-height: 0; background: #0a0a12 center / cover no-repeat; overflow: hidden; }
+.town-b { position: absolute; transform: translateX(-50%); cursor: pointer; transition: filter 0.15s, transform 0.15s; }
+.town-b img { width: 100%; display: block; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.6)); pointer-events: none; }
+.town-b:hover, .town-b:active { filter: brightness(1.25) drop-shadow(0 0 10px rgba(255, 216, 112, 0.8)); transform: translateX(-50%) scale(1.04); z-index: 5; }
+.town-b-label { position: absolute; left: 50%; bottom: -4px; transform: translate(-50%, 100%); white-space: nowrap; font-size: 11px; color: #ffe9a8; background: rgba(10, 8, 4, 0.75); padding: 1px 6px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+.town-b:hover .town-b-label, .town-b:active .town-b-label { opacity: 1; }
+.town-b-box { background: rgba(40, 30, 16, 0.85); border: 1px solid var(--line); border-radius: 6px; color: #ffe9a8; font-size: 11px; padding: 6px 4px; text-align: center; }
+.town-bottom { flex: none; padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(180deg, rgba(26, 20, 10, 0.85), rgba(12, 10, 6, 0.98)); border-top: 1px solid var(--line); }
+.town-armies { padding: 6px 8px; }
+.town-tabs { justify-content: center; }
+.town-modal { max-width: 620px; }
+@media (orientation: portrait) { .town-view { flex: none; height: 46vh; } }

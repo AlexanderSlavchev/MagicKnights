@@ -337,40 +337,80 @@
     const p = w.players[t.owner];
     const s = screen('town');
     const bgUrl = MK.Img.url('towns/' + t.faction + '_screen');
-    if (bgUrl) s.style.backgroundImage = 'linear-gradient(rgba(8,8,16,0.55), rgba(8,8,16,0.8)), url(' + bgUrl + ')';
-    const state = { tab: 'build', sel: null };
+    const state = { tab: 'build', sel: null, open: null };
     const visitor = () => (t.visitor ? w.heroes[t.visitor] : null);
+    // Разположение на сградите върху панорамата: [x%, y% на основата, ширина%], ред на рисуване по y
+    const LAYOUT = {
+      fort: [50, 44, 40], hall: [50, 66, 24], mage: [82, 50, 20], tavern: [17, 84, 18], market: [80, 88, 20], silo: [93, 70, 13], well: [38, 92, 9], shipyard: [7, 62, 16],
+      dw1: [12, 46, 14], dw2: [30, 56, 15], dw3: [70, 64, 15], dw4: [90, 30, 14], dw5: [30, 76, 17], dw6: [62, 82, 17], dw7: [50, 100, 24]
+    };
+    const PANES = { build: 'Строеж', recruit: 'Набор', mage: 'Гилдия', tavern: 'Таверна', market: 'Пазар' };
+    const paneAvailable = (id) => !((id === 'mage' && !w.mageLevel(t)) || (id === 'tavern' && !t.buildings.tavern) || (id === 'market' && !t.buildings.market));
+    /* Списък на видимите сгради: {slot, id, name, img, pane} */
+    const builtList = () => {
+      const list = [];
+      const push = (slot, id, pane, extra) => { const bf = D.buildingFor(t.faction, id); list.push(Object.assign({ slot, id, name: bf ? bf.name : id, pane, img: 'buildings/common_' + id }, extra)); };
+      const top = (ids) => ids.filter((x) => t.buildings[x]).pop();
+      const hall = top(['hall1', 'hall2', 'hall3', 'hall4']); if (hall) push('hall', hall, 'build');
+      const fort = top(['fort1', 'fort2', 'fort3']); if (fort) push('fort', fort, 'build');
+      const mage = top(['mage1', 'mage2', 'mage3', 'mage4']); if (mage) push('mage', mage, 'mage', { img: 'buildings/common_mage1' });
+      ['tavern', 'market', 'silo', 'well', 'shipyard'].forEach((id) => { if (t.buildings[id]) push(id, id, id === 'tavern' ? 'tavern' : id === 'market' ? 'market' : 'build'); });
+      for (let i = 1; i <= 7; i++) if (t.buildings['dw' + i]) { const c = D.creatureOf(t.faction + i + (t.buildings['dw' + i + 'u'] ? 'u' : '')); push('dw' + i, 'dw' + i + (t.buildings['dw' + i + 'u'] ? 'u' : ''), 'recruit', { img: 'buildings/' + t.faction + '_dwelling' + i, name: (D.buildingFor(t.faction, 'dw' + i) || {}).name || c.name, tier: i }); }
+      return list;
+    };
     const render = () => {
       s.innerHTML = '';
       const f = D.factionById(t.faction);
-      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? ' · строено днес' : '')), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
-      const body = el('div', { class: 'body' });
-      // армии
-      const ap = el('div', { class: 'panel' });
-      ap.appendChild(el('h3', null, 'Гарнизон'));
-      ap.appendChild(armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game)));
-      const v = visitor();
-      if (v) {
-        ap.appendChild(el('div', { class: 'row', style: 'margin-top:6px' }, spriteCanvas(G.portrait(v, 96, p.color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, v.name + ', ниво ' + v.level), el('div', { class: 'sub' }, 'Посетил герой · движение ' + v.movement)), el('button', { class: 'small', onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, 'Герой')));
-        ap.appendChild(armyRow(game, v.army, state.sel, (a, i) => armyPick(state, a, i, render, game)));
-      }
-      body.appendChild(ap);
-      // табове
-      const tabs = el('div', { class: 'tabs' });
-      [['build', 'Строеж'], ['recruit', 'Набор'], ['mage', 'Гилдия'], ['tavern', 'Таверна'], ['market', 'Пазар']].forEach(([id, l]) => {
-        const disabled = (id === 'mage' && !w.mageLevel(t)) || (id === 'tavern' && !t.buildings.tavern) || (id === 'market' && !t.buildings.market);
-        tabs.appendChild(el('button', { class: state.tab === id ? 'sel' : '', disabled: disabled ? 'disabled' : null, onclick: () => { state.tab = id; render(); } }, l));
+      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? ' · строено днес' : '')), el('div', { class: 'tiny', style: 'margin-left:auto' }, 'Доход ' + w.townIncome(t) + '/ден'), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
+      // Панорама с кликаеми сгради
+      const view = el('div', { class: 'town-view' });
+      if (bgUrl) view.style.backgroundImage = 'url(' + bgUrl + ')';
+      const items = builtList().sort((a, b) => (LAYOUT[a.slot] || [0, 0])[1] - (LAYOUT[b.slot] || [0, 0])[1]);
+      items.forEach((it) => {
+        const L = LAYOUT[it.slot]; if (!L) return;
+        const url = MK.Img.url(it.img);
+        const b = el('div', { class: 'town-b', style: 'left:' + L[0] + '%;bottom:' + (100 - L[1]) + '%;width:' + L[2] + '%', title: it.name, onclick: () => openPane(it.pane, it) });
+        if (url) b.appendChild(el('img', { src: url, alt: it.name, draggable: 'false' }));
+        else b.appendChild(el('div', { class: 'town-b-box' }, it.name));
+        b.appendChild(el('span', { class: 'town-b-label' }, it.name));
+        view.appendChild(b);
       });
-      body.appendChild(tabs);
-      const pane = el('div', { class: 'panel' });
-      if (state.tab === 'build') renderBuild(pane);
-      if (state.tab === 'recruit') renderRecruit(pane);
-      if (state.tab === 'mage') renderMage(pane);
-      if (state.tab === 'tavern') renderTavern(pane);
-      if (state.tab === 'market') renderMarket(pane);
-      body.appendChild(pane);
-      s.appendChild(body);
+      s.appendChild(view);
+      // Долен панел: армии и бързи бутони
+      const bottom = el('div', { class: 'town-bottom' });
+      const ap = el('div', { class: 'panel town-armies' });
+      ap.appendChild(el('div', { class: 'row' }, el('div', { class: 'tiny', style: 'min-width:64px' }, 'Гарнизон'), armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game))));
+      const v = visitor();
+      if (v) ap.appendChild(el('div', { class: 'row' }, el('div', { style: 'cursor:pointer', title: v.name + ', ниво ' + v.level, onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, spriteCanvas(G.portrait(v, 96, p.color), 40, 40)), armyRow(game, v.army, state.sel, (a, i) => armyPick(state, a, i, render, game))));
+      bottom.appendChild(ap);
+      const tabs = el('div', { class: 'tabs town-tabs' });
+      Object.keys(PANES).forEach((id) => tabs.appendChild(el('button', { class: 'small', disabled: paneAvailable(id) ? null : 'disabled', onclick: () => openPane(id) }, PANES[id])));
+      bottom.appendChild(tabs);
+      s.appendChild(bottom);
+      if (state.open) state.open.refresh();
       updateHUD(game);
+    };
+    /* Отваря меню на сграда като прозорец върху панорамата; при промяна се опреснява */
+    const openPane = (id, it) => {
+      if (!paneAvailable(id)) { toast(id === 'mage' ? 'Няма магьосническа гилдия.' : id === 'tavern' ? 'Няма таверна.' : 'Няма пазар.'); return; }
+      if (state.open) { state.open.close(); }
+      const pane = el('div', { class: 'panel', style: 'max-height:60vh;overflow-y:auto' });
+      const wrap = el('div', { class: 'modal-wrap' });
+      const m = el('div', { class: 'modal town-modal' });
+      const close = () => { wrap.remove(); if (state.open && state.open.wrap === wrap) state.open = null; };
+      m.appendChild(el('div', { class: 'row' }, el('h2', { style: 'flex:1;margin:0' }, it ? it.name : PANES[id]), el('button', { class: 'small', onclick: close }, '✕')));
+      m.appendChild(pane);
+      const refresh = () => {
+        pane.innerHTML = '';
+        if (id === 'build') renderBuild(pane);
+        if (id === 'recruit') renderRecruit(pane, it && it.tier);
+        if (id === 'mage') renderMage(pane);
+        if (id === 'tavern') renderTavern(pane);
+        if (id === 'market') renderMarket(pane);
+      };
+      state.open = { wrap, refresh, close };
+      refresh();
+      wrap.appendChild(m); overlay().appendChild(wrap);
     };
     const renderBuild = (pane) => {
       pane.appendChild(el('h3', null, 'Построено: ' + Object.keys(t.buildings).map((id) => D.buildingFor(t.faction, id).name).join(', ')));
@@ -386,10 +426,10 @@
         pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, bf.name), el('div', { class: 'sub' }, bf.desc || ''), costHtml(bf.cost, p.res), !chk.ok ? el('div', { class: 'sub', style: 'color:#f0a080' }, chk.why) : null), el('button', { class: 'small' + (chk.ok ? ' primary' : ''), disabled: chk.ok ? null : 'disabled', onclick: () => { const r = w.build(t, b.id); if (r.ok) toast(bf.name + ' е построено.'); else toast(r.why); render(); } }, 'Строй')));
       });
     };
-    const renderRecruit = (pane) => {
+    const renderRecruit = (pane, onlyTier) => {
       let any = false;
       for (let tier = 1; tier <= 7; tier++) {
-        if (!t.buildings['dw' + tier]) continue;
+        if (!t.buildings['dw' + tier] || (onlyTier && tier !== onlyTier)) continue;
         any = true;
         const upg = !!t.buildings['dw' + tier + 'u'];
         [false, true].forEach((u) => {
