@@ -183,8 +183,10 @@ input[type=range] { accent-color: var(--gold); }
 .btn-ico { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 2px; }
 .menu .logo { width: min(46vw, 260px); max-height: 30vh; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.7)); margin-bottom: -6px; }
 .menu .title.with-logo { font-size: 34px; letter-spacing: 3px; }
-button.primary, .menu .stack > button { border-image: url(img/ui/button.webp) 44 fill / 22px stretch; border-width: 22px 30px; border-style: solid; background: none; color: #fff8e6; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; padding: 0 6px; min-height: 48px; text-shadow: 0 0 3px #3a2000, 0 0 3px #3a2000, 0 1px 2px #000, 0 -1px 2px #000, 1px 0 2px #000, -1px 0 2px #000, 0 0 10px rgba(0,0,0,0.9); }
-button.primary > span.lbl, .menu .stack > button > span.lbl { background: rgba(40, 24, 4, 0.55); border-radius: 8px; padding: 2px 10px; }
+button.primary, .menu .stack > button { background: url(img/ui/button.webp) center / 100% 100% no-repeat; border: none; border-radius: 12px; color: #fff8e6; font-weight: 800; font-size: 16px; letter-spacing: 0.4px; padding: 0 34px; min-height: 48px; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0,0,0,0.8); box-shadow: none; }
+button.primary:hover, .menu .stack > button:hover { filter: brightness(1.12); }
+button.primary:active, .menu .stack > button:active { filter: brightness(0.92); transform: translateY(1px); }
+button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7) brightness(0.7); }
 button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7) brightness(0.7); }
 .modal { border-image: url(img/ui/frame_wood.webp) 70 fill / 26px stretch; border-width: 26px; border-style: solid; background: rgba(24, 19, 14, 0.96); border-radius: 0; }
 .modal-wrap.loading .modal { border-image: none; border: 1px solid var(--line); border-radius: 14px; }
