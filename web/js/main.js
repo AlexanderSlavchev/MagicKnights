@@ -37,11 +37,29 @@
       this.start();
       if (this.campaign) UI.dialog({ title: this.campaign.title, text: this.campaign.text, buttons: [{ label: 'Напред!', value: true, cls: 'primary' }] });
     }
-    startCampaign(i) {
-      const sc = MK.CAMPAIGN.scenarios[i]; if (!sc) return;
-      const prog = MK.Campaign.load();
+    async startCampaign(cid, i) {
+      const C = MK.campaignById(cid), sc = C.scenarios[i]; if (!sc) return;
+      const prog = MK.Campaign.load(cid);
+      // Избор на начален бонус, както в класическите кампании
+      let bonus = null;
+      if (sc.bonuses && sc.bonuses.length) {
+        bonus = await UI.dialog({ title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc) + ' Избери начален бонус:', buttons: sc.bonuses.map((b) => ({ label: b.label, value: b, cls: 'primary' })).concat([{ label: 'Назад', value: null }]) });
+        if (!bonus) return;
+      }
       const players = [{ faction: sc.playerFaction, human: true }].concat(sc.opponents.map((f) => ({ faction: f, human: false })));
-      this.newGame({ size: sc.size, difficulty: sc.difficulty, players, template: D.TEMPLATE(sc.template), seed: (Math.random() * 4294967295) >>> 0, carryHero: prog.hero ? { carry: prog.hero, faction: sc.playerFaction, cls: prog.hero.cls, name: prog.hero.name, portrait: prog.hero.portrait, spec: prog.hero.spec } : null, campaign: { index: i, title: sc.id + '. ' + sc.title, text: sc.text, win: sc.win } });
+      this.newGame({ size: sc.size, difficulty: sc.difficulty, players, template: D.TEMPLATE(sc.template), seed: (Math.random() * 4294967295) >>> 0, carryHero: prog.hero ? { carry: prog.hero, faction: sc.playerFaction, cls: prog.hero.cls, name: prog.hero.name, portrait: prog.hero.portrait, spec: prog.hero.spec } : null, campaign: { id: cid, index: i, title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc), win: sc.win, goal: sc.goal || null, days: sc.days || 0 } });
+      if (bonus) { MK.Campaign.applyBonus(this.world, this.human, bonus); this.updateHUD(); this.save(); }
+    }
+    /* Проверка на специална цел / срок на кампанийния сценарий след края на хода */
+    async checkCampaign() {
+      const c = this.campaign, w = this.world; if (!c || !w) return false;
+      if (c.goal && MK.Campaign.goalMet(w, this.human, { goal: c.goal })) { await this.victory(this.human); return true; }
+      if (c.days && w.day > c.days) {
+        MK.Audio.loseGame();
+        await UI.dialog({ title: 'Срокът изтече', text: 'Не успя да изпълниш целта до ' + c.days + '-ия ден. Сценарият може да се играе отново.' });
+        localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showCampaignScenarios(this, c.id); return true;
+      }
+      return false;
     }
     start() {
       document.getElementById('hud').hidden = false;
@@ -268,14 +286,15 @@
       const p = this.world.players[pid];
       if (p.human) MK.Audio.winGame(); else MK.Audio.loseGame();
       if (this.campaign && p.human) {
-        const prog = MK.Campaign.load();
+        const cid = this.campaign.id || 'crown', C = MK.campaignById(cid), prog = MK.Campaign.load(cid);
         const hero = this.world.heroes[p.heroes[0]] || null;
         if (this.campaign.index >= prog.done) prog.done = this.campaign.index + 1;
         if (hero) prog.hero = this.world.heroSnapshot(hero);
-        MK.Campaign.save(prog);
-        await UI.dialog({ title: 'Победа!', text: this.campaign.win + (hero ? ' ' + hero.name + ' продължава в следващия сценарий с ниво ' + hero.level + '.' : '') });
+        MK.Campaign.save(cid, prog);
+        const last = this.campaign.index >= C.scenarios.length - 1;
+        await UI.dialog({ title: last ? 'Кампанията е завършена!' : 'Победа!', text: this.campaign.win + (hero && !last ? ' ' + hero.name + ' продължава в следващия сценарий с ниво ' + hero.level + '.' : '') });
         localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true;
-        UI.showCampaign(this); return;
+        UI.showCampaignScenarios(this, cid); return;
       }
       await UI.dialog({ title: p.human ? 'Победа!' : 'Край на играта', text: p.human ? p.colorName + ' играч покори всички противници! Кралството е негово.' : D.PLAYER_COLORS[pid].name + ' играч печели играта.' });
       localStorage.removeItem('mk_save');
@@ -320,6 +339,7 @@
       this.selectHero(first, !!first);
       if (!first && me.towns.length) { const t = w.towns[me.towns[0]]; this.renderer.z = t.z || 0; this.renderer.center(t.x, t.y); }
       await this.drainEvents();
+      if (await this.checkCampaign()) return;
       this.updateHUD();
       this.save();
     }

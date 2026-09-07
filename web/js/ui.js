@@ -137,21 +137,37 @@
   function showCampaign(game) {
     MK.Audio.campaign();
     const s = screen('menu');
-    const C = MK.CAMPAIGN, prog = MK.Campaign.load();
+    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, 'Кампании'));
+    const body = el('div', { class: 'modal', style: 'max-width:640px' });
+    MK.CAMPAIGNS.forEach((C) => {
+      const prog = MK.Campaign.load(C.id), n = C.scenarios.length, done = Math.min(prog.done, n);
+      const row = el('div', { class: 'row', style: 'cursor:pointer', onclick: () => showCampaignScenarios(game, C.id) });
+      row.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: C.faction, owner: -1 }, 96, null), 56, 56));
+      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done >= n ? '✔ ' : '') + C.title), el('div', { class: 'sub' }, C.intro.split('. ')[0] + '.'), el('div', { class: 'tiny' }, D.factionById(C.faction).name + ' · ' + n + ' сценария · ' + C.difficulty + ' · завършени ' + done + '/' + n)));
+      row.appendChild(el('button', { class: 'small' + (done < n ? ' primary' : '') }, done >= n ? 'Отново' : done ? 'Продължи' : 'Играй'));
+      body.appendChild(row);
+    });
+    body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' }, el('button', { onclick: () => showMenu(game) }, 'Назад')));
+    s.appendChild(body);
+  }
+  function showCampaignScenarios(game, cid) {
+    MK.Audio.campaign();
+    const s = screen('menu');
+    const C = MK.campaignById(cid), prog = MK.Campaign.load(cid);
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, C.title));
-    const body = el('div', { class: 'modal', style: 'max-width:620px' });
+    const body = el('div', { class: 'modal', style: 'max-width:640px' });
     body.appendChild(el('p', null, C.intro));
     if (prog.hero) body.appendChild(el('p', { class: 'tiny' }, 'Пренасян герой: ' + prog.hero.name + ', ниво ' + prog.hero.level + ' (' + D.CLASSES[prog.hero.cls].name + ').'));
     C.scenarios.forEach((sc, i) => {
       const done = i < prog.done, avail = i === prog.done;
       const row = el('div', { class: 'row' });
-      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done ? '✔ ' : avail ? '▶ ' : '🔒 ') + sc.id + '. ' + sc.title), el('div', { class: 'sub' }, sc.text), el('div', { class: 'tiny' }, D.MAP_SIZES.find((m) => m.size === sc.size).name + ' карта · ' + D.TEMPLATE(sc.template).name + ' · ' + D.DIFFICULTY[sc.difficulty].name + ' · противници: ' + sc.opponents.map((f) => D.factionById(f).name).join(', '))));
-      row.appendChild(el('button', { class: 'small' + (avail ? ' primary' : ''), disabled: avail || done ? null : 'disabled', onclick: () => game.startCampaign(i) }, done ? 'Отново' : 'Играй'));
+      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done ? '✔ ' : avail ? '▶ ' : '🔒 ') + sc.id + '. ' + sc.title), el('div', { class: 'sub' }, sc.text), el('div', { class: 'tiny' }, MK.Campaign.goalText(sc) + ' · ' + D.MAP_SIZES.find((m) => m.size === sc.size).name + ' карта · ' + D.TEMPLATE(sc.template).name + ' · ' + D.DIFFICULTY[sc.difficulty].name + ' · ' + D.factionById(sc.playerFaction).name + ' срещу ' + sc.opponents.map((f) => D.factionById(f).name).join(', '))));
+      row.appendChild(el('button', { class: 'small' + (avail ? ' primary' : ''), disabled: avail || done ? null : 'disabled', onclick: () => game.startCampaign(cid, i) }, done ? 'Отново' : 'Играй'));
       body.appendChild(row);
     });
     body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' },
-      el('button', { onclick: () => showMenu(game) }, 'Назад'),
-      el('button', { class: 'danger', onclick: () => { MK.Campaign.reset(); showCampaign(game); } }, 'Изтрий напредъка')
+      el('button', { onclick: () => showCampaign(game) }, 'Назад'),
+      el('button', { class: 'danger', onclick: () => { MK.Campaign.reset(cid); showCampaignScenarios(game, cid); } }, 'Изтрий напредъка')
     ));
     s.appendChild(body);
   }
@@ -522,5 +538,5 @@
     });
   }
 
-  MK.UI = { el, dialog, toast, showMenu, showHelp, showCampaign, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { el, dialog, toast, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();
