@@ -32,11 +32,29 @@ def rule(rel):
         if fnmatch.fnmatch(rel, pat): return r
     return RULES[rel.split('/')[0]]
 
+def unkey_magenta(im):
+    """Ако фонът е запечен като плътно магента (#FF00FF), го превръща в прозрачност."""
+    rgb = im.convert('RGB')
+    corners = [rgb.getpixel(p) for p in [(2, 2), (im.width - 3, 2), (2, im.height - 3), (im.width - 3, im.height - 3)]]
+    if sum(1 for r, g, b in corners if r > 200 and g < 90 and b > 200) < 3: return im
+    import numpy as np
+    a = np.asarray(rgb).astype(np.float32)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    # разстояние до чисто магента; близо → прозрачно, с мека граница
+    dist = np.sqrt((255 - r) ** 2 + g ** 2 + (255 - b) ** 2)
+    alpha = np.clip((dist - 60) / 70.0, 0, 1)
+    # премахване на магента ореол по ръбовете: приближаваме червено/синьо към зеленото
+    fringe = (alpha < 1) & (alpha > 0)
+    r2 = np.where(fringe, np.minimum(r, g + 40), r); b2 = np.where(fringe, np.minimum(b, g + 40), b)
+    out = np.dstack([r2, g, b2, (alpha * 255)]).astype(np.uint8)
+    return Image.fromarray(out, 'RGBA')
+
 def process(rel):
     src = os.path.join(SRC, rel + '.png'); dst = os.path.join(DST, rel + '.webp')
     maxs, trim, q = rule(rel)
     im = Image.open(src)
     im = im.convert('RGBA') if im.mode != 'RGB' else im
+    im = unkey_magenta(im)
     if trim and im.mode == 'RGBA':
         bbox = im.getchannel('A').point(lambda a: 255 if a > 8 else 0).getbbox()
         if bbox:
