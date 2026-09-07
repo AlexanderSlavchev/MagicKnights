@@ -98,7 +98,8 @@
   }
   const tkey = (t) => (D.TERRAIN[t] ? D.TERRAIN[t].key : 'grass');
   const hn = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + (c || 0) * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  const smoothN = (seed, x, P) => { const i = Math.floor(x / P), f = x / P - i, a = hn(seed, i), b = hn(seed, i + 1), t = f * f * (3 - 2 * f); return a + (b - a) * t; };
+  /* Гладък шум по една ос; при зададен период N (в сегменти) се повтаря, за да е непрекъснат през 4×4 плочки */
+  const smoothN = (seed, x, P, N) => { let i = Math.floor(x / P); const f = x / P - i; if (N) i = ((i % N) + N) % N; const a = hn(seed, i), b = hn(seed, N ? (i + 1) % N : i + 1), t = f * f * (3 - 2 * f); return a + (b - a) * t; };
 
   const orig = {};
   ['creatureSprite', 'heroSprite', 'objectSprite', 'portrait', 'terrainTile', 'edgeBlend', 'waterTile', 'decor'].forEach((k) => { orig[k] = G[k]; });
@@ -125,9 +126,9 @@
   // Ред на преливане (както в класиките): по-„силният“ терен навлиза в по-слабия
   const PRIO = { sand: 0, grass: 1, dirt: 2, subterranean: 3, wasteland: 4, rough: 5, swamp: 6, snow: 7, lava: 8, water: -1 };
   G.blendPriority = (t) => PRIO[tkey(t)] || 0;
-  G.edgeBlend = function (nt, variant, dir, S) {
+  G.edgeBlend = function (nt, variant, dir, S, coast) {
     if (!get('terrain/' + tkey(nt))) return orig.edgeBlend(nt, variant, dir, S);
-    return spr('E' + nt + '_' + (variant & 15) + '_' + dir + '_' + S, S + 2, S + 2, (g) => {
+    return spr('E' + nt + '_' + (variant & 15) + '_' + dir + '_' + S + (coast ? 'c' + coast : ''), S + 2, S + 2, (g) => {
       g.drawImage(G.terrainTile(nt, variant, S), 0, 0);
       const img = g.getImageData(0, 0, S + 2, S + 2), d = img.data, [dx, dy] = MK.DIRS[dir];
       const diag = dx && dy;
@@ -136,11 +137,23 @@
         let e; // разстояние от ръба/ъгъла, откъдето идва съседът (0 = на ръба)
         if (diag) { const cx = dx > 0 ? 1 - px : px, cy = dy > 0 ? 1 - py : py; e = Math.hypot(cx, cy); }
         else e = dx ? (dx > 0 ? 1 - px : px) : (dy > 0 ? 1 - py : py);
-        const along = dx && !dy ? y : x;
-        const n = (smoothN(77 + nt, along, S / 4) - 0.5) * 0.16 + (smoothN(79 + nt, along, S / 9) - 0.5) * 0.06;
-        const w = diag ? 0.32 : 0.42; // дълбочина на навлизане
-        let a = 1 - (e + n) / w; a = Math.max(0, Math.min(1, a)); a = a * a * (3 - 2 * a);
-        d[(y * (S + 2) + x) * 4 + 3] = Math.round(255 * a);
+        // шумът върви по глобалната координата (плочка×S + пиксел), за да няма прекъсвания на границите
+        const along = dx && !dy ? ((variant >> 2) & 3) * S + y : (variant & 3) * S + x;
+        const n = (smoothN(77 + nt, along, S / 4, 16) - 0.5) * 0.16 + (smoothN(79 + nt, along, S / 8, 32) - 0.5) * 0.06;
+        const w = coast ? (diag ? 0.26 : 0.34) : (diag ? 0.32 : 0.42); // дълбочина на навлизане
+        let a = 1 - (e + n) / w; a = Math.max(0, Math.min(1, a));
+        const o = (y * (S + 2) + x) * 4;
+        if (coast) {
+          // бряг: рязък ръб на сушата, влажна тъмна ивица по него и бяла пяна във водата отвън
+          const edge = a; // 0 = вода, 1 = суша
+          const land = Math.max(0, Math.min(1, (edge - 0.45) * 6)); // почти твърд ръб
+          const wet = Math.exp(-Math.pow((edge - 0.5) / 0.09, 2)); // тъмна мокра линия
+          const foam = Math.exp(-Math.pow((edge - 0.30) / 0.10, 2)); // пяна пред брега
+          const fr = d[o], fg = d[o + 1], fb = d[o + 2];
+          d[o] = Math.round(fr * (1 - wet * 0.45)); d[o + 1] = Math.round(fg * (1 - wet * 0.4)); d[o + 2] = Math.round(fb * (1 - wet * 0.3));
+          if (coast === 2) { d[o] = 236; d[o + 1] = 246; d[o + 2] = 250; d[o + 3] = Math.round(255 * foam * 0.85 * (1 - land)); }
+          else d[o + 3] = Math.round(255 * land);
+        } else { a = a * a * (3 - 2 * a); d[o + 3] = Math.round(255 * a); }
       }
       g.putImageData(img, 0, 0);
     });

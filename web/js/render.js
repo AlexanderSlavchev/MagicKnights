@@ -81,8 +81,8 @@
           const wt = G.waterTile(waterFrame, (x & 3) | ((y & 3) << 2), drawnW ? texSize : 64);
           g.drawImage(wt, 1, 1, wt.width - 2, wt.height - 2, Math.floor(sx), Math.floor(sy), TS, TS);
           if (drawnW) { // бавно преминаващ отблясък по вълните
-            const k = 0.5 + 0.5 * Math.sin(T * 1.6 + x * 0.9 + y * 1.3);
-            g.fillStyle = 'rgba(200,235,255,' + (0.05 * k) + ')'; g.fillRect(Math.floor(sx), Math.floor(sy), TS, TS);
+            const k = 0.5 + 0.5 * Math.sin(T * 1.2 + x * 0.22 + y * 0.31);
+            g.fillStyle = 'rgba(200,235,255,' + (0.045 * k) + ')'; g.fillRect(Math.floor(sx), Math.floor(sy), TS, TS);
           }
         }
         else g.drawImage(G.terrainTile(t, (x & 3) | ((y & 3) << 2), texSize), 1, 1, texSize, texSize, Math.floor(sx), Math.floor(sy), TS, TS);
@@ -94,17 +94,19 @@
         const t = m.terrain[i];
         const [sx, sy] = this.toScreen(x, y);
         const drawn = MK.Img.has('terrain/grass'); // рисувани текстури: преливане с приоритет и ъгли
+        const coastDirs = [];
         for (let d = 0; d < (drawn ? 8 : 4); d++) {
           const nx = x + MK.DIRS[d][0], ny = y + MK.DIRS[d][1];
           if (!world.inb(nx, ny)) continue;
           const nt = m.terrain[ny * m.w + nx];
           if (nt === t) continue;
-          if (drawn && t !== 0 && nt !== 0) {
-            if (G.blendPriority(nt) <= G.blendPriority(t)) continue; // само по-силният терен навлиза
+          if (drawn) {
+            if (G.blendPriority(nt) <= G.blendPriority(t)) continue; // само по-силният терен навлиза (водата е най-слаба)
             if (d >= 4) { // ъгъл: само ако двата съседни ръба не са същия терен (иначе ръбовете вече го покриват)
               const ax = m.terrain[y * m.w + nx], ay = m.terrain[ny * m.w + x];
               if (ax === nt || ay === nt) continue;
             }
+            if (t === 0) { coastDirs.push([d, nt]); continue; } // бряг: рисува се на два слоя след цикъла
           } else if (d >= 4) continue;
           if (t === 0) { // бряг: пяна върху водата
             const foam = 0.4 + 0.2 * Math.sin(T * 2.2 + x * 1.7 + y * 2.3);
@@ -118,6 +120,13 @@
             gr.addColorStop(0, 'rgba(40,60,50,0.35)'); gr.addColorStop(1, 'rgba(40,60,50,0)');
             g.fillStyle = gr; g.fillRect(sx, sy, TS, TS);
           }
+        }
+        if (coastDirs.length) { // 1) сушата навлиза във водата (твърд ръб, мокра линия); 2) пяна пред целия бряг
+          const v = (x & 3) | ((y & 3) << 2);
+          coastDirs.forEach(([d, nt]) => g.drawImage(G.edgeBlend(nt, v, d, texSize, 1), 1, 1, texSize, texSize, Math.floor(sx), Math.floor(sy), TS, TS));
+          g.globalAlpha = 0.75 + 0.25 * Math.sin(T * 1.8 + x * 0.7 + y * 0.9);
+          coastDirs.forEach(([d, nt]) => g.drawImage(G.edgeBlend(nt, v, d, texSize, 2), 1, 1, texSize, texSize, Math.floor(sx), Math.floor(sy), TS, TS));
+          g.globalAlpha = 1;
         }
       }
       // --- пътища
