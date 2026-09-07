@@ -74,6 +74,15 @@
       const W = this.canvas.width, H = this.canvas.height, r = this.r, t = this.b.terrain;
       const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
       const horizon = this.oy - r * 1.35;
+      const bgImg = MK.Img.get('battle/bg_' + (D.TERRAIN[t === 0 ? 3 : t] || D.TERRAIN[1]).key);
+      if (bgImg) {
+        // Рисуван фон: хоризонтът на картината (~42% от височината) се подравнява с хоризонта на полето
+        const k = Math.max(W / bgImg.width, (H - horizon) / (bgImg.height * 0.58), horizon / (bgImg.height * 0.42));
+        const dw = bgImg.width * k, dh = bgImg.height * k;
+        g.drawImage(bgImg, (W - dw) / 2, horizon - dh * 0.42, dw, dh);
+        const light = g.createLinearGradient(0, horizon, 0, H); light.addColorStop(0, 'rgba(0,0,0,0)'); light.addColorStop(1, 'rgba(0,0,0,0.35)'); g.fillStyle = light; g.fillRect(0, horizon, W, H - horizon);
+        this._bg = c; return c;
+      }
       g.fillStyle = this.groundPattern(); g.fillRect(0, 0, W, H);
       // небе по терен
       const SKY = { 7: ['#1a0608', '#7a1a12', '#ff7a2a'], 8: ['#050308', '#1e1230', '#4a3a70'], 4: ['#6f9fd8', '#c9def2', '#f6fbff'], 3: ['#5a8ac8', '#e8c890', '#fff0c8'], 9: ['#3a2e58', '#8a6a9a', '#e0b8b0'], 6: ['#586a86', '#a8b4c0', '#e8e0d0'], 5: ['#4a6a70', '#8aa89a', '#d8e8c8'] };

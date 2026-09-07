@@ -335,7 +335,9 @@
     MK.Audio.town(t.faction);
     const w = game.world;
     const p = w.players[t.owner];
-    const s = screen('');
+    const s = screen('town');
+    const bgUrl = MK.Img.url('towns/' + t.faction + '_screen');
+    if (bgUrl) s.style.backgroundImage = 'linear-gradient(rgba(8,8,16,0.55), rgba(8,8,16,0.8)), url(' + bgUrl + ')';
     const state = { tab: 'build', sel: null };
     const visitor = () => (t.visitor ? w.heroes[t.visitor] : null);
     const render = () => {
