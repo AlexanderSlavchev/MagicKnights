@@ -70,19 +70,20 @@
       } catch (e) { UI.toast('Сейвът не може да се зареди: ' + e.message); }
     }
     gameMenu() {
-      UI.dialog({ title: 'Меню', buttons: [{ label: 'Запази', value: 'save' }, { label: 'Как се играе', value: 'help' }, { label: 'Главно меню', value: 'menu', cls: 'danger' }, { label: 'Назад', value: false }] }).then((v) => {
+      UI.dialog({ title: 'Меню', buttons: [{ label: 'Запази', value: 'save' }, { label: MK.Audio.settings.muted ? '🔇 Звук: изкл.' : '🔊 Звук: вкл.', value: 'sound' }, { label: 'Как се играе', value: 'help' }, { label: 'Главно меню', value: 'menu', cls: 'danger' }, { label: 'Назад', value: false }] }).then((v) => {
         if (v === 'save') { this.save(); UI.toast('Запазено.'); }
         if (v === 'help') UI.showHelp();
+        if (v === 'sound') { MK.Audio.toggleMuted(); UI.toast(MK.Audio.settings.muted ? 'Звукът е изключен.' : 'Звукът е включен.'); }
         if (v === 'menu') { this.save(); UI.showMenu(this); }
       });
     }
     updateHUD() { UI.updateHUD(this); }
-    afterScreen() { this.updateHUD(); if (this.selected) this.refreshReach(); this.drainEvents(); }
+    afterScreen() { MK.Audio.resumeMap(); this.updateHUD(); if (this.selected) this.refreshReach(); this.drainEvents(); }
     selectHero(h, center) {
       this.selected = h;
       this.renderer.selected = h;
       this.renderer.pathPreview = null;
-      if (h) { this.renderer.z = h.z || 0; if (center) this.renderer.center(h.x, h.y); this.refreshReach(); this.hint = h.name + ' · движение ' + h.movement + '/' + h.maxMovement + (h.boat ? ' · на кораб' : '') + (h.z ? ' · подземие' : ''); }
+      if (h) { MK.Audio.map(h.boat ? 'water' : D.TERRAIN[this.world.terrainAt(h.x, h.y, h.z || 0)].key); this.renderer.z = h.z || 0; if (center) this.renderer.center(h.x, h.y); this.refreshReach(); this.hint = h.name + ' · движение ' + h.movement + '/' + h.maxMovement + (h.boat ? ' · на кораб' : '') + (h.z ? ' · подземие' : ''); }
       this.updateHUD();
     }
     refreshReach() { const h = this.selected; this.renderer.reach = h ? MK.Path.reachable(this.world, h, h.movement) : null; }
@@ -213,10 +214,10 @@
     async handleEvent(ev) {
       const w = this.world;
       switch (ev.type) {
-        case 'visit': UI.toast(ev.text); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
-        case 'choice': { const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i })) }); ev.options[v].apply(); break; }
+        case 'visit': UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
+        case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i })) }); ev.options[v].apply(); break; }
         case 'dwelling': await UI.dwellingDialog(this, ev.hero, ev.obj); break;
-        case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + ' е превзет!'); if (ev.learned && ev.learned.length) UI.toast('Научени магии: ' + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
+        case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + ' е превзет!'); if (ev.learned && ev.learned.length) MK.Audio.sfx('spell_learn'); if (ev.learned && ev.learned.length) UI.toast('Научени магии: ' + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
         case 'meet': UI.showHero(this, ev.hero, ev.other); break;
         case 'battle': await this.fight(ev); break;
         case 'msg': UI.toast(ev.text); break;
@@ -231,6 +232,7 @@
     async processLevelUps(h) {
       while (h.pendingLevels > 0) {
         const roll = this.world.rollLevelUp(h);
+        MK.Audio.sfx('level_up');
         const skill = await UI.levelUpDialog(this, h, roll);
         this.world.applyLevelUp(h, roll, skill);
       }
@@ -255,13 +257,16 @@
       const content = UI.el('div', null, UI.el('p', { class: 'tiny' }, 'Армия на противника: ' + army(d.army) + (d.garrison ? ' + гарнизон: ' + army(d.garrison) : '')), UI.el('p', { class: 'tiny' }, 'Армия на нападателя: ' + army(ctx.attacker.army)), ctx.town ? UI.el('p', { class: 'tiny' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
       if (humans.includes(0) && !humans.includes(1)) await UI.dialog({ title: (ctx.ambush ? 'Засада! ' : 'Битка с ') + desc, content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
       else await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
+      MK.Audio.battle(!!ctx.town);
       const b = new MK.Battle(ctx);
       const res = await MK.BattleUI.run(b, humans, this);
       w.resolveBattle(ctx, res);
+      MK.Audio.resumeMap();
       return res;
     }
     async victory(pid) {
       const p = this.world.players[pid];
+      if (p.human) MK.Audio.winGame(); else MK.Audio.loseGame();
       if (this.campaign && p.human) {
         const prog = MK.Campaign.load();
         const hero = this.world.heroes[p.heroes[0]] || null;
@@ -305,10 +310,11 @@
       this.busy = false;
       if (!this.world) return;
       const me = w.players[w.curPlayer];
-      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); await UI.dialog({ title: 'Поражение', text: 'Кралството ти падна. Опитай отново!' }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
+      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); MK.Audio.loseGame(); await UI.dialog({ title: 'Поражение', text: 'Кралството ти падна. Опитай отново!' }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
       if (!me.human) { UI.toast('Грешка в реда на ходовете.'); return; }
       // Hot-seat: подаваме устройството
       if (humansCount > 1 || me.id !== this.human) { this.human = me.id; this.selected = null; this.renderer.selected = null; this.updateHUD(); await UI.passDevice(this, me); }
+      if (w.dayOfWeek() === 1) MK.Audio.sfx('new_week');
       me.heroes.forEach((id) => { const h = w.heroes[id]; if (h.sleeping && h.movement < h.maxMovement) h.sleeping = false; });
       const first = me.heroes.map((id) => w.heroes[id]).find((h) => !h.sleeping) || (me.heroes.length ? w.heroes[me.heroes[0]] : null);
       this.selectHero(first, !!first);

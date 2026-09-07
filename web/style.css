@@ -152,3 +152,7 @@ button.sel { outline: 2px solid var(--gold-2); outline-offset: -1px; box-shadow:
 input[type=range] { accent-color: var(--gold); }
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgba(232, 196, 106, 0.3); border-radius: 4px; } ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
 @media (max-width: 600px) { #side { width: 124px; } #minimap-wrap { width: 112px; height: 112px; } .list .item { width: 40px; height: 40px; } #hint { right: 134px; } #hint:not(:empty) { max-width: calc(100% - 144px); } .menu .title { font-size: 40px; } }
+
+.audio-panel { display: flex; gap: 14px; align-items: center; margin-top: 18px; flex-wrap: wrap; justify-content: center; }
+.audio-panel label { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.audio-panel input[type=range] { width: 120px; accent-color: var(--gold-2); }

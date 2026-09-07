@@ -413,6 +413,7 @@
       const b = this.b;
       const humanSide = this.humans.length === 1 ? this.humans[0] : -1;
       const humanWon = humanSide >= 0 && ((res.winner === 'att') === (humanSide === 0));
+      if (humanSide >= 0) MK.Audio.battleEnd(humanWon);
       const cas = (side) => b.stacks.filter((s) => s.side === side && s.origCount - s.count > 0).map((s) => (s.origCount - s.count) + ' ' + s.c.name).join(', ') || 'няма';
       const title = humanSide < 0 ? 'Битката приключи' : humanWon ? 'Победа!' : res.surrendered !== undefined ? 'Предаване' : res.retreated !== undefined ? 'Отстъпление' : 'Поражение';
       await UI.dialog({ title, content: UI.el('div', null, UI.el('p', null, (res.winner === 'att' ? 'Нападателите' : 'Защитниците') + ' печелят след ' + res.rounds + ' рунда.'), UI.el('p', { class: 'tiny' }, 'Загуби на нападателите: ' + cas(0)), UI.el('p', { class: 'tiny' }, 'Загуби на защитниците: ' + cas(1))) });
