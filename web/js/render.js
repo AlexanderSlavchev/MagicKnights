@@ -266,6 +266,7 @@
         });
         if (p.path.length) { const st = p.path[p.path.length - 1]; const days = Math.ceil(p.total / Math.max(1, this.selected.maxMovement)); const [sx, sy] = this.toScreen(st.x, st.y); if (p.total > mv) { g.font = 'bold ' + Math.max(10, S * 0.26) + 'px sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,0.6)'; g.beginPath(); g.roundRect(sx + S * 0.2, sy - S * 0.36, S * 0.6, S * 0.3, S * 0.06); g.fill(); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(days + ' д.', sx + S / 2, sy - S * 0.2); } }
       }
+      if (this.selected && (this.selected.z || 0) === this.z) this.drawTargetIcon(S, T);
       // --- светлина: топла винетка (повърхност) или студена (подземие)
       const vg = g.createRadialGradient(this.vw * 0.5, this.vh * 0.45, Math.min(this.vw, this.vh) * 0.35, this.vw * 0.5, this.vh * 0.5, Math.max(this.vw, this.vh) * 0.8);
       vg.addColorStop(0, this.z ? 'rgba(20,10,30,0)' : 'rgba(255,240,200,0.04)'); vg.addColorStop(1, this.z ? 'rgba(5,0,10,0.55)' : 'rgba(10,8,20,0.35)');
@@ -287,8 +288,8 @@
       const spriteS = S > 60 ? 128 : 96;
       g.drawImage(G.creatureSprite(c, spriteS, false), Math.floor(sx), Math.floor(sy) - S * 0.4 - bob, TS, TS * 1.4);
       if (S >= 26) {
-        const txt = String(o.count);
-        g.font = 'bold ' + Math.max(9, S * 0.22) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const txt = D.countRange(o.count).text;
+        g.font = 'bold ' + Math.max(9, S * 0.2) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         const w = g.measureText(txt).width + S * 0.18;
         g.fillStyle = 'rgba(20,10,10,0.8)'; g.beginPath(); g.roundRect(sx + S - w - S * 0.02, sy + S * 0.74, w, S * 0.26, S * 0.05); g.fill();
         g.strokeStyle = 'rgba(255,216,112,0.6)'; g.lineWidth = 1; g.stroke();
@@ -296,6 +297,18 @@
       }
     }
     /* Пазач, закачен за обект: по-малък спрайт пред и вдясно от обекта, с брояч */
+    /* Икона на действието върху целевата плочка (заместител на курсора при докосване) */
+    drawTargetIcon(S, T) {
+      const ti = this.targetIcon; if (!ti || !ti.icon) return;
+      const g = this.ctx, [sx, sy] = this.toScreen(ti.x, ti.y);
+      const bob = Math.sin(T * 4) * S * 0.04, cx = sx + S / 2, cy = sy - S * 0.85 + bob, R = S * 0.34;
+      g.save();
+      g.fillStyle = 'rgba(10,8,14,0.82)'; g.strokeStyle = ti.kind === 'attack' || ti.kind === 'guard' ? 'rgba(255,110,90,0.95)' : 'rgba(255,216,112,0.9)'; g.lineWidth = Math.max(1.5, S * 0.04);
+      g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(cx - R * 0.3, cy + R * 0.9); g.lineTo(cx, cy + R * 1.35); g.lineTo(cx + R * 0.3, cy + R * 0.9); g.fillStyle = g.strokeStyle; g.fill();
+      g.font = Math.round(R * 1.2) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(ti.icon, cx, cy + R * 0.08);
+      g.restore();
+    }
     drawGuard(o, sx, sy, S, T) {
       const g = this.ctx, gd = o.guard;
       const c = D.creatureOf(gd.creature); if (!c) return;
@@ -303,8 +316,8 @@
       const gx = sx + S * 0.45, gy = sy + S * 0.15 - bob;
       g.drawImage(G.creatureSprite(c, S > 60 ? 128 : 96, false), Math.floor(gx), Math.floor(gy) - GS * 0.4, Math.ceil(GS) + 1, (Math.ceil(GS) + 1) * 1.4);
       if (S >= 26) {
-        const txt = String(gd.count);
-        g.font = 'bold ' + Math.max(8, S * 0.2) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const txt = D.countRange(gd.count).text;
+        g.font = 'bold ' + Math.max(8, S * 0.18) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
         const w = g.measureText(txt).width + S * 0.16;
         g.fillStyle = 'rgba(60,10,10,0.85)'; g.beginPath(); g.roundRect(sx + S - w + S * 0.12, sy + S * 0.8, w, S * 0.24, S * 0.05); g.fill();
         g.strokeStyle = 'rgba(255,120,90,0.7)'; g.lineWidth = 1; g.stroke();

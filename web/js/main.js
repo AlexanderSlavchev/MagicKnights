@@ -125,6 +125,7 @@
     afterScreen() { MK.Audio.resumeMap(); this.updateHUD(); if (this.selected) this.refreshReach(); this.drainEvents(); }
     selectHero(h, center) {
       this._hoverX = null;
+      this.renderer.targetIcon = null;
       this.selected = h;
       this.renderer.selected = h;
       this.renderer.pathPreview = null;
@@ -255,14 +256,16 @@
       this.renderer.pathPreview = path;
       const days = Math.ceil(path.total / Math.max(1, this.selected.maxMovement));
       const it = this.intent(tx, ty);
+      this.renderer.targetIcon = { x: tx, y: ty, icon: ICONS[it.kind], kind: it.kind };
       this.hint = ICONS[it.kind] + ' ' + it.label + ' · ' + (path.total <= this.selected.movement ? 'Докосни отново, за да ' + (it.kind === 'attack' || it.kind === 'guard' ? 'нападнеш.' : 'тръгнеш.') : 'Пътят е ' + days + ' дни. Докосни отново, за да тръгнеш.');
       this.updateHUD();
     }
     objName(o) {
-      const guard = o.guard ? ' — пазят го ' + (o.guard.stacks ? o.guard.stacks.map((s) => s.count + ' × ' + D.creatureOf(s.creature).name).join(', ') : o.guard.count + ' × ' + D.creatureOf(o.guard.creature).name) : '';
+      const cnt = (n) => D.countRange(n).text + ' × ';
+      const guard = o.guard ? ' — пазят го ' + (o.guard.stacks ? o.guard.stacks.map((s) => cnt(s.count) + D.creatureOf(s.creature).name).join(', ') : cnt(o.guard.count) + D.creatureOf(o.guard.creature).name) : '';
       if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : ', неутрален') + ')' + guard; }
       if (o.type === 'mine') return D.MINES.find((m) => m.res === o.res).name + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
-      if (o.type === 'monster') return o.count + ' × ' + D.creatureOf(o.creature).name;
+      if (o.type === 'monster') return cnt(o.count) + D.creatureOf(o.creature).name;
       if (o.type === 'resource') return D.RES_NAME[o.res] + guard;
       if (o.type === 'dwelling') return 'Жилище: ' + D.creatureOf(o.creature).name + ' (налични ' + o.available + ')' + guard;
       if (o.type === 'artifact') return 'Артефакт' + guard;
@@ -276,7 +279,7 @@
       const h = this.selected, w = this.world;
       if (!h || this.busy) return;
       this.busy = true;
-      this.renderer.pathPreview = null; this.renderer.reach = null;
+      this.renderer.pathPreview = null; this.renderer.reach = null; this.renderer.targetIcon = null;
       let pending = null;
       for (const st of pp.path) {
         if (!w.heroes[h.id]) break;
@@ -350,8 +353,8 @@
       if (ctx.defender.owner >= 0 && w.players[ctx.defender.owner] && w.players[ctx.defender.owner].human) humans.push(1);
       const d = ctx.defender;
       const desc = d.hero ? d.hero.name + ' (ниво ' + d.hero.level + ')' : ctx.town ? 'гарнизона на ' + ctx.town.name : d.obj ? (ctx.guardOf ? 'пазачите на ' + this.objName(d.obj).split(' — ')[0].toLowerCase() : d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name) : 'противник';
-      const army = (a) => a.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ') || 'няма';
-      const content = UI.el('div', null, UI.el('p', { class: 'tiny' }, 'Армия на противника: ' + army(d.army) + (d.garrison ? ' + гарнизон: ' + army(d.garrison) : '')), UI.el('p', { class: 'tiny' }, 'Армия на нападателя: ' + army(ctx.attacker.army)), ctx.town ? UI.el('p', { class: 'tiny' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
+      const army = (a, mine) => a.filter(Boolean).map((s) => (mine ? s.n : D.countRange(s.n).text) + ' ' + D.creatureOf(s.c).name).join(', ') || 'няма';
+      const content = UI.el('div', null, UI.el('p', { class: 'tiny' }, 'Армия на противника: ' + army(d.army, false) + (d.garrison ? ' + гарнизон: ' + army(d.garrison, false) : '')), UI.el('p', { class: 'tiny' }, 'Армия на нападателя: ' + army(ctx.attacker.army, true)), ctx.town ? UI.el('p', { class: 'tiny' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
       if (humans.includes(0) && !humans.includes(1)) await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
       else await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
       MK.Audio.battle(!!ctx.town);

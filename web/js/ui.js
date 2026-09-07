@@ -264,7 +264,9 @@
   }
   /* Описание на числеността по класическата скала + точен брой */
   const countWord = (n) => (n < 5 ? 'няколко' : n < 10 ? 'малко' : n < 20 ? 'глутница' : n < 50 ? 'много' : n < 100 ? 'орда' : n < 250 ? 'множество' : n < 500 ? 'легион' : 'безброй');
-  function stackInfo(n, disposition) {
+  function stackInfo(n, disposition, exact) {
+    const rng = D.countRange(n);
+    if (!exact) return el('p', { class: 'sub' }, el('b', null, rng.word.charAt(0).toUpperCase() + rng.word.slice(1) + ' (' + rng.text + ')'), disposition === undefined ? '' : disposition <= 3 ? ' · страхливи (може да избягат или да се присъединят)' : disposition <= 7 ? ' · може да се присъединят срещу заплащане' : ' · враждебни (никога не се присъединяват)');
     const word = countWord(n);
     const mood = disposition === undefined ? '' : disposition <= 3 ? ' · страхливи (може да избягат или да се присъединят)' : disposition <= 7 ? ' · може да се присъединят срещу заплащане' : ' · враждебни (никога не се присъединяват)';
     return el('p', { class: 'sub' }, el('b', null, n + ' на брой'), ' (' + word + ')' + mood);
@@ -272,7 +274,7 @@
   function guardInfo(game, o) {
     const g = o.guard, stacks = g.stacks || [{ creature: g.creature, count: g.count }];
     const content = el('div', null, el('p', { class: 'sub' }, 'Пазачи: победи ги, за да вземеш ' + game.objName(o).split(' — ')[0].toLowerCase() + '.'));
-    stacks.forEach((s) => { const c = D.creatureOf(s.creature); content.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => creatureInfo(c, stackInfo(s.count)) }, spriteCanvas(G.creatureSprite(c, 128), 44, 52), el('div', { class: 'grow' }, el('div', { class: 'name' }, s.count + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier + ' · атака ' + c.att + ' · защита ' + c.def + ' · щети ' + c.dmin + '–' + c.dmax + ' · живот ' + c.hp)))); });
+    stacks.forEach((s) => { const c = D.creatureOf(s.creature); content.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => creatureInfo(c, stackInfo(s.count)) }, spriteCanvas(G.creatureSprite(c, 128), 44, 52), el('div', { class: 'grow' }, el('div', { class: 'name' }, D.countRange(s.count).text + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier + ' · атака ' + c.att + ' · защита ' + c.def + ' · щети ' + c.dmin + '–' + c.dmax + ' · живот ' + c.hp)))); });
     return dialog({ title: game.objName(o).split(' — ')[0], content });
   }
   function heroQuickInfo(game, h) {
@@ -281,7 +283,7 @@
     const content = el('div', null,
       el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.portrait(h, 96, w.players[h.owner].color), 56, 56), el('div', null, el('div', { class: 'sub' }, D.CLASSES[h.cls].name + ' · ниво ' + h.level + ' · ' + w.players[h.owner].colorName.toLowerCase() + ' играч'), el('div', { class: 'tiny' }, 'Атака ' + h.att + ' · Защита ' + h.def + ' · Сила ' + h.pow + ' · Знание ' + h.know))),
       el('p', { class: 'sub', style: 'margin-top:8px' }, 'Армия:'),
-      ...(army.length ? army.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : countWord(s.n)) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
+      ...(army.length ? army.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
     );
     return dialog({ title: h.name, content, buttons: mine ? [{ label: 'Отвори', value: 'open', cls: 'primary' }, { label: 'Затвори', value: false }] : undefined }).then((v) => { if (v === 'open') showHero(game, h); });
   }
@@ -291,7 +293,7 @@
       el('div', { class: 'sub' }, D.factionById(t.faction).name + ' · ' + (t.owner >= 0 ? w.players[t.owner].colorName.toLowerCase() + ' играч' : 'неутрален') + ' · ' + ['без укрепления', 'форт', 'цитадела', 'замък'][w.fortLevel(t)]),
       t.visitor && w.heroes[t.visitor] ? el('div', { class: 'row', style: 'cursor:pointer', onclick: () => heroQuickInfo(game, w.heroes[t.visitor]) }, spriteCanvas(G.portrait(w.heroes[t.visitor], 96, w.players[w.heroes[t.visitor].owner].color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Герой: ' + w.heroes[t.visitor].name), el('div', { class: 'tiny' }, 'ниво ' + w.heroes[t.visitor].level))) : null,
       el('p', { class: 'sub', style: 'margin-top:8px' }, 'Гарнизон:'),
-      ...(gar.length ? gar.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : countWord(s.n)) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
+      ...(gar.length ? gar.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
     );
     return dialog({ title: t.name, content, buttons: mine ? [{ label: 'Влез', value: 'open', cls: 'primary' }, { label: 'Затвори', value: false }] : undefined }).then((v) => { if (v === 'open') showTown(game, t); });
   }
