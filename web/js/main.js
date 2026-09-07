@@ -229,6 +229,32 @@
       if (obj.type === 'town') { UI.townQuickInfo(this, w.towns[obj.townId]); return; }
       UI.dialog({ title: this.objName(obj), text: (D.OBJECTS[obj.type] || {}).desc || '' });
     }
+    /* Показва награди „като в казино“ по текста/данните на събитието */
+    showGains(text, ev) {
+      const shown = [];
+      const resNames = { 'злато': 'gold', 'дърво': 'wood', 'руда': 'ore', 'живак': 'mercury', 'сяра': 'sulfur', 'кристал': 'crystal', 'скъпоценни камъни': 'gems' };
+      const re = /(?:^|[^\d])[+]?(\d+)\s*(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)|(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)\s*:\s*\+?(\d+)/gi; let m;
+      while ((m = re.exec(text))) {
+        const n = +(m[1] || m[4]), what = (m[2] || m[3]).toLowerCase();
+        if (what === 'опит') { UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: n, title: 'опит', cls: 'xp' }); shown.push('xp'); continue; }
+        const r = resNames[what]; if (!r) continue;
+        UI.reward({ icon: this.iconEl('ui/icon_' + r, '💰'), amount: n, title: D.RES_NAME[r], cls: 'res' }); shown.push(r);
+      }
+      const ra = /Намираш артефакт: ([^.]+)\./.exec(text) || /намираш ([^.]+)\./.exec(text) ;
+      if (ev && ev.kind === 'artifact') {
+        const names = ra ? ra[1].split(/,| и /).map((x) => x.trim()).filter(Boolean) : [];
+        names.forEach((nm) => { const a = D.ARTIFACTS.find((x) => x.name === nm || nm.includes(x.name)); if (a) { UI.reward({ icon: this.iconEl('artifacts/' + a.id, '🏺'), title: a.name, sub: a.desc, cls: 'art', ms: 2400 }); shown.push('art'); } });
+      }
+      const rs = /(?:Научаваш магията|Магията) „([^“]+)“/.exec(text);
+      if (rs && ev && ev.kind === 'spell') { const sp = D.SPELLS.find((x) => x.name === rs[1]); UI.reward({ icon: this.iconEl(sp ? 'spells/' + sp.id : null, '📖'), title: rs[1], sub: 'Нова магия', cls: 'spell' }); shown.push('spell'); }
+      const rst = /\+1 (атака|защита|сила|познание)/.exec(text);
+      if (rst) { UI.reward({ icon: this.iconEl('ui/icon_defend', '⚔️'), amount: 1, title: rst[1], cls: 'stat' }); shown.push('stat'); }
+      return shown.length > 0;
+    }
+    iconEl(rel, fallback) {
+      const u = rel ? MK.Img.url(rel) : null;
+      return u ? UI.el('img', { src: u, alt: '' }) : UI.el('span', { class: 'emoji' }, fallback || '✨');
+    }
     onTap(tx, ty) {
       const w = this.world;
       if (!w || this.busy || !w.inb(tx, ty)) return;
@@ -314,14 +340,14 @@
     async handleEvent(ev) {
       const w = this.world;
       switch (ev.type) {
-        case 'visit': UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
-        case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i })) }); ev.options[v].apply(); break; }
+        case 'visit': if (!this.showGains(ev.text, ev)) UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
+        case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i })) }); ev.options[v].apply(); this.showGains(ev.options[v].label, null); break; }
         case 'dwelling': await UI.dwellingDialog(this, ev.hero, ev.obj); break;
         case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + ' е превзет!'); if (ev.learned && ev.learned.length) MK.Audio.sfx('spell_learn'); if (ev.learned && ev.learned.length) UI.toast('Научени магии: ' + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
         case 'meet': UI.showHero(this, ev.hero, ev.other); break;
         case 'battle': await this.fight(ev); break;
         case 'msg': UI.toast(ev.text); break;
-        case 'battleResult': await UI.dialog({ title: ev.win ? 'Победа' : 'Загуба', text: ev.text }); break;
+        case 'battleResult': await UI.dialog({ title: ev.win ? 'Победа' : 'Загуба', text: ev.text }); if (ev.win && ev.xp) UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: ev.xp, title: 'опит', cls: 'xp' }); break;
         case 'eliminated': await UI.dialog({ title: 'Играч е победен', text: ev.text }); break;
         case 'victory': await this.victory(ev.player); break;
         default: break;
@@ -429,8 +455,8 @@
       if (!me.human) { UI.toast('Грешка в реда на ходовете.'); return; }
       // Hot-seat: подаваме устройството
       if (humansCount > 1 || me.id !== this.human) { this.human = me.id; this.selected = null; this.renderer.selected = null; this.updateHUD(); await UI.passDevice(this, me); }
-      if (w.dayOfWeek() === 1) MK.Audio.sfx('new_week');
-      UI.toast((w.dayOfWeek() === 1 ? '🌅 Нова седмица! ' : '🌅 ') + 'Ден ' + w.day + ' · седмица ' + w.week() + ', ден ' + w.dayOfWeek());
+      if (w.dayOfWeek() === 1) MK.Audio.sfx('new_week'); else MK.Audio.sfxClip('new_week', 2000, 700);
+      UI.dayBanner(w.day, w.week(), w.dayOfWeek(), w.dayOfWeek() === 1);
       this._turnSnap = null; setTimeout(() => { if (this.world === w) this._turnSnap = this.turnSnapshot(); }, 0);
       me.heroes.forEach((id) => { const h = w.heroes[id]; if (h.sleeping && h.movement < h.maxMovement) h.sleeping = false; });
       const first = me.heroes.map((id) => w.heroes[id]).find((h) => !h.sleeping) || (me.heroes.length ? w.heroes[me.heroes[0]] : null);

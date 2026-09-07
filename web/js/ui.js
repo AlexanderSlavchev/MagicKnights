@@ -30,6 +30,38 @@
     const k = Math.min(w / src.width, h / src.height); const dw = src.width * k, dh = src.height * k;
     g.drawImage(src, (w - dw) / 2, h - dh, dw, dh); return c;
   }
+  /* Награда „като в казино“: централна карта с икона, число с броене и искри; опашка за няколко поред */
+  const rewardQ = []; let rewardBusy = false;
+  function reward(r) { rewardQ.push(r); if (!rewardBusy) nextReward(); }
+  function nextReward() {
+    const r = rewardQ.shift(); if (!r) { rewardBusy = false; return; }
+    rewardBusy = true;
+    const card = el('div', { class: 'reward ' + (r.cls || '') });
+    const iconWrap = el('div', { class: 'reward-icon' });
+    if (r.icon) iconWrap.appendChild(r.icon);
+    const num = el('div', { class: 'reward-num' }, r.amount !== undefined ? '+0' : '');
+    card.appendChild(iconWrap);
+    if (r.amount !== undefined) card.appendChild(num);
+    card.appendChild(el('div', { class: 'reward-title' }, r.title));
+    if (r.sub) card.appendChild(el('div', { class: 'reward-sub' }, r.sub));
+    for (let i = 0; i < 14; i++) { const sp = el('i', { class: 'spark' }); sp.style.setProperty('--dx', (Math.random() * 2 - 1) * 160 + 'px'); sp.style.setProperty('--dy', (Math.random() * 2 - 1) * 120 - 40 + 'px'); sp.style.setProperty('--d', (Math.random() * 0.4) + 's'); card.appendChild(sp); }
+    const wrap = el('div', { class: 'reward-wrap' }, card);
+    document.body.appendChild(wrap);
+    if (r.amount !== undefined) { const t0 = performance.now(), dur = 700; const tick = () => { const k = Math.min(1, (performance.now() - t0) / dur); num.textContent = '+' + Math.round(r.amount * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
+    const done = () => { if (!wrap.parentNode) return; wrap.classList.add('out'); setTimeout(() => { wrap.remove(); nextReward(); }, 320); };
+    wrap.addEventListener('pointerdown', done);
+    setTimeout(done, r.ms || 1900);
+  }
+  /* Банер за нов ден / нова седмица през средата на екрана */
+  function dayBanner(day, week, dow, newWeek) {
+    const b = el('div', { class: 'day-banner' + (newWeek ? ' week' : '') },
+      el('div', { class: 'db-top' }, newWeek ? 'Нова седмица' : 'Нов ден'),
+      el('div', { class: 'db-main' }, newWeek ? 'Седмица ' + week : 'Ден ' + day),
+      el('div', { class: 'db-sub' }, newWeek ? 'Ден ' + day + ' · съществата в градовете са нараснали' : 'Седмица ' + week + ', ден ' + dow));
+    document.body.appendChild(b);
+    setTimeout(() => b.classList.add('out'), newWeek ? 2300 : 1700);
+    setTimeout(() => b.remove(), newWeek ? 2800 : 2200);
+  }
   /* Прозорец за зареждане; връща елемент с .remove() */
   function loading(text) {
     const wrap = el('div', { class: 'modal-wrap loading' }, el('div', { class: 'modal', style: 'text-align:center;max-width:320px' }, el('div', { class: 'spinner' }), el('p', null, text)));
@@ -580,5 +612,5 @@
     });
   }
 
-  MK.UI = { el, dialog, toast, loading, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { el, dialog, toast, loading, reward, dayBanner, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();

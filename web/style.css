@@ -190,3 +190,32 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7) brightness(0.7); }
 .modal { border-image: url(img/ui/frame_wood.webp) 70 fill / 26px stretch; border-width: 26px; border-style: solid; background: rgba(24, 19, 14, 0.96); border-radius: 0; }
 .modal-wrap.loading .modal { border-image: none; border: 1px solid var(--line); border-radius: 14px; }
+
+/* Награди „като в казино“ */
+.reward-wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 60; pointer-events: auto; background: radial-gradient(ellipse at center, rgba(0,0,0,0.35), rgba(0,0,0,0) 70%); animation: fadein 0.2s; }
+.reward-wrap.out { animation: fadeout 0.3s forwards; }
+.reward { position: relative; min-width: 220px; max-width: 78vw; padding: 18px 26px 16px; text-align: center; border-radius: 18px; background: linear-gradient(180deg, rgba(60,44,20,0.96), rgba(22,16,8,0.98)); border: 2px solid var(--gold); box-shadow: 0 0 0 4px rgba(0,0,0,0.5), 0 0 40px rgba(255,216,112,0.35), 0 20px 50px rgba(0,0,0,0.7); animation: rewardPop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.reward-icon { width: 84px; height: 84px; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; animation: rewardIcon 0.9s ease-out; }
+.reward-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(255,220,120,0.5)); }
+.reward-icon .emoji { font-size: 56px; }
+.reward-num { font-size: 40px; font-weight: 800; color: var(--gold-2); text-shadow: 0 2px 0 #4a3210, 0 0 18px rgba(255,216,112,0.8); line-height: 1; }
+.reward-title { font-size: 20px; font-weight: 700; color: var(--ink); margin-top: 4px; }
+.reward-sub { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+.reward.xp .reward-num { color: #9fd8ff; text-shadow: 0 2px 0 #123, 0 0 18px rgba(120,200,255,0.8); }
+.reward.art { border-color: #c98cff; box-shadow: 0 0 0 4px rgba(0,0,0,0.5), 0 0 40px rgba(200,140,255,0.45), 0 20px 50px rgba(0,0,0,0.7); }
+.reward .spark { position: absolute; left: 50%; top: 45%; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(#fff, var(--gold-2) 50%, rgba(255,216,112,0)); pointer-events: none; animation: spark 1s ease-out var(--d) both; }
+@keyframes rewardPop { 0% { transform: scale(0.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes rewardIcon { 0% { transform: translateY(20px) scale(0.6) rotate(-10deg); } 60% { transform: translateY(-8px) scale(1.1) rotate(4deg); } 100% { transform: none; } }
+@keyframes spark { 0% { transform: translate(0, 0) scale(0.4); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(1.4); opacity: 0; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeout { to { opacity: 0; } }
+/* Банер за нов ден / седмица */
+.day-banner { position: fixed; left: 0; right: 0; top: 30%; z-index: 55; text-align: center; pointer-events: none; padding: 14px 0; background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(20,14,6,0.9) 20%, rgba(20,14,6,0.9) 80%, rgba(0,0,0,0) 100%); border-top: 1px solid rgba(255,216,112,0.5); border-bottom: 1px solid rgba(255,216,112,0.5); animation: bannerIn 0.5s cubic-bezier(0.2, 1.2, 0.4, 1); }
+.day-banner.out { animation: bannerOut 0.5s forwards; }
+.db-top { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold-dim); }
+.db-main { font-size: 38px; font-weight: 800; color: var(--gold-2); text-shadow: 0 2px 0 #4a3210, 0 0 24px rgba(255,216,112,0.7); line-height: 1.15; }
+.db-sub { font-size: 14px; color: var(--ink-dim); }
+.day-banner.week .db-main { font-size: 44px; color: #fff3c4; }
+.day-banner.week { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(50,30,6,0.95) 20%, rgba(50,30,6,0.95) 80%, rgba(0,0,0,0) 100%); }
+@keyframes bannerIn { 0% { transform: translateX(-40px) scaleX(0.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes bannerOut { to { transform: translateX(40px); opacity: 0; } }

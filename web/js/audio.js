@@ -52,6 +52,12 @@
     try { a.currentTime = 0; a.volume = settings.sfx; a.play().catch(() => {}); } catch (e) { /* noop */ }
   }
 
+  /* Пуска звук само за ms милисекунди и го затихва плавно накрая */
+  function sfxClip(name, ms, fadeMs) {
+    if (settings.muted || !unlocked) return;
+    const a = mk(name, false); a.volume = settings.sfx; a.play().catch(() => {});
+    setTimeout(() => fadeTo(a, 0, fadeMs || 600, () => { try { a.pause(); } catch (e) { /* noop */ } }), Math.max(0, ms - (fadeMs || 600)));
+  }
   // Браузърите изискват първо докосване преди звук
   function unlock() {
     if (unlocked) return;
@@ -64,7 +70,7 @@
   const BATTLE = ['battle_1', 'battle_2', 'battle_3'];
   const A = (MK.Audio = {
     settings,
-    music, sfx,
+    music, sfx, sfxClip,
     menu() { mapTrack = null; music('main_theme'); },
     campaign() { mapTrack = null; music('campaign'); },
     /* Тема според терена под героя (или вода, ако е на кораб) */
