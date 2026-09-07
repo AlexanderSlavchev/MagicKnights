@@ -495,7 +495,7 @@
         this.map.objects.forEach((o) => {
           if (o.type === 'dwelling') o.available += D.creatureOf(o.creature).growth;
           if (o.type === 'monster' && o.growth) o.count += Math.max(1, Math.floor(o.count * 0.1));
-          if (o.guard) o.guard.count += Math.max(1, Math.floor(o.guard.count * 0.1));
+          if (o.guard && !o.guard.stacks) o.guard.count += Math.max(1, Math.floor(o.guard.count * 0.1));
         });
         this.weekName = this.rollWeekName();
         this.log('Нова седмица: ' + this.weekName, 'week');
@@ -629,6 +629,12 @@
           if (this.rng.chance(0.3)) { const a = this.rng.pick(D.ARTIFACTS.filter((a) => a.cls <= 2)); this.equipArtifact(h, a.id); return msg('Сред останките намираш ' + a.name + '. ' + a.desc, 'artifact'); }
           const g = this.rng.int(10, 20) * 100; p.res.gold += g; return msg('Сред останките намираш ' + g + ' злато.', 'pickup');
         }
+        case 'dragon_utopia': {
+          if (o.empty || !o.loot) return msg('Драконовата утопия е празна — съкровището вече е взето.', 'stat');
+          const L = o.loot; o.empty = true; p.res.gold += L.gold;
+          const names = L.arts.map((aid) => { this.equipArtifact(h, aid); return D.artById[aid].name; });
+          return msg('Драконите са победени! В леговището намираш ' + L.gold + ' злато' + (names.length ? ' и артефактите: ' + names.join(', ') : '') + '.', 'artifact');
+        }
         case 'artifact': { const a = D.artById[o.art]; this.removeObject(o); this.equipArtifact(h, o.art); return msg('Намираш артефакт: ' + a.name + '. ' + a.desc, 'artifact'); }
         case 'mine': { if (o.owner === h.owner) return null; o.owner = h.owner; const m = D.MINES.find((m) => m.res === o.res); return msg(m.name + ' е вече твоя: +' + m.amount + ' ' + D.RES_NAME[o.res].toLowerCase() + ' на ден.', 'flag'); }
         case 'lighthouse': { if (o.owner === h.owner) return null; o.owner = h.owner; p.heroes.forEach((id) => { const hh = this.heroes[id]; if (hh.boat) hh.maxMovement = this.computeMaxMovement(hh); }); return msg('Фарът е твой: +500 движение по вода за корабите ти.', 'flag'); }
@@ -707,7 +713,8 @@
       const ctx = { type: 'battle', kind: def.type, attacker: { hero: attHero, army: attHero.army, owner: attHero.owner }, defender: null };
       if (def.type === 'monster') {
         const o = def.obj, g = def.guardOf ? o.guard : o;
-        const army = Army.empty(); Army.add(army, g.creature, g.count);
+        const army = Army.empty();
+        if (g.stacks) g.stacks.forEach((s) => Army.add(army, s.creature, s.count)); else Army.add(army, g.creature, g.count);
         ctx.guardOf = !!def.guardOf;
         ctx.defender = { hero: null, army, owner: -1, obj: o };
       } else if (def.type === 'hero') {
@@ -766,7 +773,7 @@
         }
       }
       if (attWon && ctx.town) { this.captureTown(ctx.town, attHero); events.push({ type: 'enterTown', town: ctx.town, hero: attHero, captured: true, learned: this.learnTownSpells(attHero, ctx.town) }); }
-      if (!attWon && ctx.kind === 'monster' && d.obj) { const g = ctx.guardOf ? d.obj.guard : d.obj; g.count = Army.count(d.army); if (g.count <= 0) { if (ctx.guardOf) delete d.obj.guard; else this.removeObject(d.obj); } }
+      if (!attWon && ctx.kind === 'monster' && d.obj) { const g = ctx.guardOf ? d.obj.guard : d.obj; g.count = Army.count(d.army); if (g.stacks) { g.stacks = d.army.filter((s) => s && s.n > 0).map((s) => ({ creature: s.c, count: s.n })); if (g.stacks.length) { g.creature = g.stacks[0].creature; g.count = g.stacks[0].count; } } if (g.count <= 0) { if (ctx.guardOf) delete d.obj.guard; else this.removeObject(d.obj); } }
       if (attHero && this.heroes[attHero.id]) this.revealAround(attHero.owner, attHero.x, attHero.y, attHero.z, this.sightRadius(attHero));
       this.events.push(...events);
       const v = this.checkVictory();

@@ -148,6 +148,7 @@
         case 'resource': v = o.res === 'gold' ? o.amount : o.res === 'wood' || o.res === 'ore' ? o.amount * 60 : o.amount * 120; break;
         case 'chest': v = 1500; break;
         case 'artifact': v = 1800; break;
+        case 'dragon_utopia': v = o.empty ? 0 : 9000; break;
         case 'campfire': v = 900; break;
         case 'mine': if (o.owner !== h.owner) v = o.res === 'gold' ? 3500 : o.res === 'wood' || o.res === 'ore' ? 1600 : 1400; break;
         case 'dwelling': if (o.owner !== h.owner || o.available > 0) v = 700; break;

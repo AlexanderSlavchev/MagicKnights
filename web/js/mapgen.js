@@ -135,6 +135,20 @@
       const c = rng.pick(cands);
       return { creature: c.id, count: Math.max(1, Math.round(budget / D.fightValue(c))), disposition: rng.int(1, 10) };
     }
+    /* Стража на утопия: зелени, червени, златни и черни дракони (класическото 8/5/2/1, мащабирано) */
+    function dragonGuard(k) {
+      const st = [['grove7', 8], ['dungeon7', 5], ['grove7u', 2], ['dungeon7u', 1]].map(([c, n]) => ({ creature: c, count: Math.max(1, Math.round(n * k)) }));
+      return { creature: st[0].creature, count: st[0].count, stacks: st, disposition: 1 };
+    }
+    /* Награда: злато + артефакти; колкото по-голяма картата, толкова по-ценни */
+    function utopiaLoot(lvl) {
+      const arts = [];
+      const grab = (cls) => { const a = takeArt(cls); if (a) arts.push(a); };
+      if (lvl >= 3) { grab(3); grab(3); grab(2); }
+      else if (lvl === 2) { grab(3); grab(2); grab(2); }
+      else { grab(3); grab(2); }
+      return { gold: [0, 15000, 25000, 40000][lvl], arts };
+    }
     const budgetAt = (x, y, z) => {
       const d = distToStart(x, y) / N;
       return Math.round((40 + d * d * 2800 + d * 300) * (0.7 + rng.next() * 0.6) * (T.monsterMult || 1) * (opts.monsterMult || 1) * (z ? 1.4 : 1));
@@ -209,6 +223,16 @@
     const artN = Math.round(area / 260 * (T.resMult || 1)) + players.length;
     const artPool = rng.shuffle(D.ARTIFACTS.slice());
     const takeArt = (cls) => { let ai = artPool.findIndex((a) => a.cls === cls); if (ai < 0) ai = 0; return artPool.length ? artPool.splice(ai, 1)[0].id : null; };
+    // Драконови утопии: далеч от стартовете, пазени от дракони, с богата награда
+    const utopiaN = N >= 72 ? 3 : N >= 54 ? 2 : 1;
+    for (let k = 0; k < utopiaN; k++) {
+      const sp = anySpot((x, y) => distToStart(x, y) > N * 0.32);
+      if (!sp) continue;
+      clearAround(sp.x, sp.y, 0, 0);
+      const o = place({ type: 'dragon_utopia', x: sp.x, y: sp.y });
+      o.guard = dragonGuard(N >= 72 ? 1.3 : N >= 54 ? 1 : 0.7);
+      o.loot = utopiaLoot(N >= 72 ? 3 : N >= 54 ? 2 : 1);
+    }
     for (let k = 0; k < artN && artPool.length; k++) {
       const sp = anySpot((x, y) => distToStart(x, y) > 5);
       if (!sp) continue;
@@ -256,6 +280,7 @@
     // Евтините неща стоят свободни, скъпите почти винаги са пазени, а ~20% от
     // ценните са оставени без пазач — за късмет. Пазачът е закачен за обекта.
     map.objects.slice().forEach((o) => {
+      if (o.guard && o.guard.stacks) return; // собствена стража (драконова утопия)
       delete o.guard;
       const v = D.treasureValue(o);
       if (v <= 0) return;

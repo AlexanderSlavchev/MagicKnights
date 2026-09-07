@@ -181,7 +181,7 @@
       this.updateHUD();
     }
     objName(o) {
-      const guard = o.guard ? ' — пазят го ' + o.guard.count + ' × ' + D.creatureOf(o.guard.creature).name : '';
+      const guard = o.guard ? ' — пазят го ' + (o.guard.stacks ? o.guard.stacks.map((s) => s.count + ' × ' + D.creatureOf(s.creature).name).join(', ') : o.guard.count + ' × ' + D.creatureOf(o.guard.creature).name) : '';
       if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : ', неутрален') + ')' + guard; }
       if (o.type === 'mine') return D.MINES.find((m) => m.res === o.res).name + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
       if (o.type === 'monster') return o.count + ' × ' + D.creatureOf(o.creature).name;

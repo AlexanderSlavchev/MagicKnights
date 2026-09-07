@@ -127,6 +127,7 @@
       case 'resource': return 'objects/res_' + o.res;
       case 'monster': return 'creatures/' + o.creature;
       case 'dwelling': { const c = D.creatureOf(o.creature); return 'objects/dwelling_' + (c ? c.faction : 'kingdom'); }
+      case 'dragon_utopia': return has('objects/dragon_utopia') ? 'objects/dragon_utopia' : 'decor/mountain_lava';
       default: return 'objects/' + o.type;
     }
   }
@@ -143,6 +144,7 @@
       if (town) fit(g, im, -R * 0.1, R * 0.05, R * 1.2, gy - R * 0.05);
       else if (mons) fit(g, im, R * 0.12, R * 0.35, R * 0.76, gy - R * 0.35);
       else fit(g, im, R * 0.05, R * 0.2, R * 0.9, gy - R * 0.2);
+      if (o.type === 'dragon_utopia' && rel === 'decor/mountain_lava') { const dr = get('creatures/dungeon7u'); if (dr) fit(g, dr, R * 0.25, R * 0.55, R * 0.6, gy - R * 0.55); }
       if (col && (town || o.type === 'mine' || o.type === 'dwelling')) pennant(g, R * 0.06, R * 0.22, R * 0.28, col);
       if (o.empty) { g.globalAlpha = 0.45; g.fillStyle = '#000'; g.fillRect(0, 0, R, R * 1.4); }
     });
