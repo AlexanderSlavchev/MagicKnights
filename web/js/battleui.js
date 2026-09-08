@@ -69,7 +69,9 @@
       const fieldW = this.canvas.width - barW, fieldX = mode === 'left' ? barW : 0;
       const band = Math.floor((this.canvas.height - barH) * this.bandK);
       const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
-      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
+      // отстрани се пази място за героите (по ~1.8r от всяка страна), както в класиките
+      const heroes = (this.b.sides[0].hero ? 1.8 : 0) + (this.b.sides[1].hero ? 1.8 : 0);
+      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5) + heroes), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
       this.ox = fieldX + (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
       this.oy = 22 * dpr + band + this.r;
       this.fieldX = fieldX;
@@ -82,6 +84,35 @@
       let best = null, bd = Infinity;
       for (let y = 0; y < Hex.H; y++) for (let x = 0; x < Hex.W; x++) { const [cx, cy] = this.hexCenter(x, y); const d = (cx - px) ** 2 + (cy - py) ** 2; if (d < bd) { bd = d; best = [x, y]; } }
       return bd < this.r * this.r ? best : null;
+    }
+    /* Героите стоят на кон отляво и отдясно на полето, както в класиките */
+    heroRects() {
+      const r = this.r, sq = this.squash || 1, b = this.b, out = [];
+      const gridL = this.hexCenter(0, 0)[0] - Math.sqrt(3) * r / 2, gridR = this.hexCenter(Hex.W - 1, 1)[0] + Math.sqrt(3) * r / 2;
+      const fieldX = this.fieldX || 0, fieldW = this.fieldW || this.canvas.width;
+      const marginL = gridL - fieldX, marginR = fieldX + fieldW - gridR;
+      const gy = this.hexCenter(0, Hex.H - 1)[1] + r * sq * 0.9; // земята на последния ред
+      [0, 1].forEach((side) => {
+        const h = b.sides[side].hero; if (!h) return;
+        const margin = side === 0 ? marginL : marginR;
+        const w = Math.min(r * 2.6, Math.max(margin * 1.15, r * 1.2)), hgt = w * 1.4; // може леко да навлиза над крайната колона
+        if (margin < r * 0.5) return;
+        const x = side === 0 ? gridL - w + Math.max(0, w - margin) * 0.5 : gridR - Math.max(0, w - margin) * 0.5;
+        out.push({ side, hero: h, x, y: gy - hgt, w, h: hgt });
+      });
+      return out;
+    }
+    drawHeroes(T) {
+      const g = this.ctx;
+      this.heroRects().forEach((hr) => {
+        const bob = Math.sin(T * 1.5 + hr.side) * this.r * 0.03;
+        const spr = G.heroSprite(hr.hero, 160, this.sideColor(hr.side));
+        g.save();
+        if (hr.side === 1) { g.translate(hr.x + hr.w, 0); g.scale(-1, 1); g.drawImage(spr, 0, hr.y + bob, hr.w, hr.h); }
+        else g.drawImage(spr, hr.x, hr.y + bob, hr.w, hr.h);
+        g.restore();
+        if (this.b.current && this.b.current.side === hr.side && this.state === 'input') { g.strokeStyle = 'rgba(255,216,112,0.6)'; g.lineWidth = 2; g.beginPath(); g.ellipse(hr.x + hr.w / 2, hr.y + hr.h - this.r * 0.15, hr.w * 0.45, this.r * 0.25, 0, 0, Math.PI * 2); g.stroke(); }
+      });
     }
     hexPath(g, cx, cy, r) { const sq = this.squash || 1; g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a) * sq; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); }
     sideColor(side) {
@@ -146,6 +177,7 @@
       const Tcol = D.TERRAIN[b.terrain] || D.TERRAIN[1];
       // рисуван фон: земя, небе с хоризонт, планини и гори в далечината (кеширан)
       g.drawImage(this.backdrop(), 0, 0);
+      this.drawHeroes(T);
       const cur = b.current;
       const input = this.state === 'input' && cur;
       const tactics = this.state === 'tactics';
@@ -324,7 +356,10 @@
       const cur = b.current;
       const log = UI.el('div', { class: 'log' }, ...this.logLines.map((l) => UI.el('div', null, l)));
       const btns = UI.el('div', { class: 'btns' });
-      bar.appendChild(btns); bar.appendChild(log);
+      const pages = UI.el('div', { class: 'pages' }, UI.el('div', { class: 'page' }, btns), UI.el('div', { class: 'page' }, UI.el('div', { class: 'tiny', style: 'padding:2px 4px' }, 'История'), log));
+      bar.appendChild(pages);
+      bar.appendChild(UI.el('div', { class: 'dots' }, UI.el('i', { class: 'on' }), UI.el('i')));
+      pages.addEventListener('scroll', () => { const on = pages.scrollLeft > pages.clientWidth / 2; bar.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', (i === 1) === on)); }, { passive: true });
       requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); // най-новото е най-долу
       const ico = (name, txt) => { const u = MK.Img.url('ui/' + name); return u ? [UI.el('img', { src: u, class: 'btn-ico', alt: '' }), ' ' + txt] : [txt]; };
       const mk = (label, fn, dis, cls) => btns.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
@@ -359,7 +394,11 @@
       const rect = this.canvas.getBoundingClientRect();
       const px = (e.clientX - rect.left) * this.dpr, py = (e.clientY - rect.top) * this.dpr;
       const h = this.pixelToHex(px, py);
-      if (!h) return;
+      if (!h) {
+        const hr = this.heroRects().find((q) => px >= q.x && px <= q.x + q.w && py >= q.y && py <= q.y + q.h);
+        if (hr) { const side = hr.side; if (this.isHuman(side) && this.state === 'input' && this.b.current && this.b.current.side === side && this.b.canCast(side)) this.openSpellbook(side); else if (this.game) UI.heroQuickInfo(this.game, hr.hero); }
+        return;
+      }
       const b = this.b;
       const [x, y] = h;
       const target = b.occupant(x, y);

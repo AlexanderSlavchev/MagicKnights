@@ -243,3 +243,17 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .day-banner.week { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(50,30,6,0.95) 20%, rgba(50,30,6,0.95) 80%, rgba(0,0,0,0) 100%); }
 @keyframes bannerIn { 0% { transform: translateX(-40px) scaleX(0.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
 @keyframes bannerOut { to { transform: translateX(40px); opacity: 0; } }
+
+/* Бойна лента: страници (бутони / история) */
+#battlebar .pages { display: flex; flex: 1 1 auto; min-height: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#battlebar .pages::-webkit-scrollbar { display: none; }
+#battlebar .page { flex: 0 0 100%; min-width: 100%; scroll-snap-align: start; display: flex; flex-direction: column; min-height: 0; }
+#battlebar .dots { display: none; }
+#battlebar.lay-right .dots, #battlebar.lay-left .dots { display: flex; justify-content: center; gap: 6px; padding: 2px 0 0; flex: none; }
+#battlebar .dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(232,196,106,0.3); }
+#battlebar .dots i.on { background: var(--gold-2); }
+#battlebar.lay-bottom .pages, #battlebar.lay-overlay .pages { flex-direction: column; overflow: hidden; scroll-snap-type: none; }
+#battlebar.lay-bottom .page, #battlebar.lay-overlay .page { flex: none; min-width: 0; }
+#battlebar.lay-bottom .page .tiny, #battlebar.lay-overlay .page .tiny { display: none; }
+#battlebar.lay-right .btns, #battlebar.lay-left .btns { flex: 1 1 auto; }
+#battlebar.lay-right .log, #battlebar.lay-left .log { flex: 1 1 auto; min-height: 0; }
