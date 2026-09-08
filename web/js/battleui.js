@@ -173,7 +173,6 @@
       const Tcol = D.TERRAIN[b.terrain] || D.TERRAIN[1];
       // рисуван фон: земя, небе с хоризонт, планини и гори в далечината (кеширан)
       g.drawImage(this.backdrop(), 0, 0);
-      this.drawHeroes(T);
       const cur = b.current;
       const input = this.state === 'input' && cur;
       const tactics = this.state === 'tactics';
@@ -207,6 +206,7 @@
       if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); const hv = MK.Img.get('ui/hex_hover'); if (hv) { g.globalAlpha = pulse; g.drawImage(hv, p[0] - r * 1.02, p[1] - r * 1.02, r * 2.04, r * 2.04); g.globalAlpha = 1; return; } this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
       if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); const ha = MK.Img.get('ui/hex_attack'); if (ha && !o.ranged) { g.globalAlpha = 0.6; g.drawImage(ha, cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; return; } this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
       if (this.castSpell) { g.fillStyle = 'rgba(140,120,255,0.12)'; g.fillRect(0, 0, W, H - this.barH); }
+      this.drawHeroes(T); // героите са върху хексовете, под стековете
       // стекове (сенки, спрайтове, ефекти, брой)
       const stacks = b.stacks.filter((s) => s.alive || this.fading[s.id]).sort((a, c) => a.y - c.y);
       stacks.forEach((s) => {
