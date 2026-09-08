@@ -30,7 +30,9 @@
       this.resize();
       this.onResize = () => this.resize();
       window.addEventListener('resize', this.onResize);
-      if (window.ResizeObserver) { this.ro = new ResizeObserver(() => this.resize()); this.ro.observe(this.bar); }
+      // Размерът на полето се смята веднъж и се преизчислява само при истинска промяна на прозореца (завъртане),
+      // не при всяка промяна на лентата отдолу — иначе полето „подскача“ при всеки ход.
+      this._winW = window.innerWidth; this._winH = window.innerHeight;
       this.onPointer = (e) => this.tap(e);
       this.canvas.addEventListener('pointerup', this.onPointer);
       this.raf = null;
@@ -38,12 +40,14 @@
     }
     isHuman(side) { return this.humans.includes(side); }
     get human() { return this.b.current ? this.b.current.side : this.humans[0]; }
-    resize() {
+    resize(force) {
+      if (!force && this.r && Math.abs(window.innerWidth - this._winW) < 40 && Math.abs(window.innerHeight - this._winH) < 120) return;
+      this._winW = window.innerWidth; this._winH = window.innerHeight;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       this.dpr = dpr;
       this.canvas.width = Math.floor(this.canvas.clientWidth * dpr);
       this.canvas.height = Math.floor(this.canvas.clientHeight * dpr);
-      const barH = (this.bar.offsetHeight || 60) * dpr;
+      const barH = (parseFloat(getComputedStyle(this.bar).height) || 96) * dpr; // лентата е с фиксирана височина
       // отгоре остава лента за рисувания хоризонт (небе и планини)
       const band = Math.floor(this.canvas.height * 0.15);
       const availW = this.canvas.width - 20 * dpr, availH = this.canvas.height - barH - 30 * dpr - band;
@@ -298,18 +302,19 @@
       const b = this.b, bar = this.bar;
       bar.innerHTML = '';
       const cur = b.current;
-      const log = UI.el('div', { class: 'log' }, ...this.logLines.map((l) => UI.el('div', null, l)));
-      bar.appendChild(log);
+      const log = UI.el('div', { class: 'log' }, ...this.logLines.slice(-2).map((l) => UI.el('div', null, l)));
+      const btns = UI.el('div', { class: 'btns' });
+      bar.appendChild(btns); bar.appendChild(log);
       const ico = (name, txt) => { const u = MK.Img.url('ui/' + name); return u ? [UI.el('img', { src: u, class: 'btn-ico', alt: '' }), ' ' + txt] : [txt]; };
-      const mk = (label, fn, dis, cls) => bar.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
+      const mk = (label, fn, dis, cls) => btns.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
       if (this.state === 'tactics') {
-        bar.appendChild(UI.el('div', { class: 'tiny' }, 'Докосни свой стек, после хекс в осветената зона.'));
+        btns.appendChild(UI.el('div', { class: 'tiny' }, 'Докосни свой стек, после хекс в осветената зона.'));
         mk('✔ Готово', () => this.resolveTactics(), false, 'primary');
         return;
       }
       const canAct = this.state === 'input' && cur && this.isHuman(cur.side) && !this.auto;
       const side = cur ? cur.side : this.humans[0];
-      if (cur && canAct) bar.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
+      if (cur && canAct) btns.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
       mk(ico('icon_wait', 'Чакай'), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
       mk(ico('icon_defend', 'Защита'), () => this.act(() => b.doDefend(cur)), !canAct);
       mk(ico('icon_spellbook', 'Магия'), () => this.openSpellbook(side), !canAct || !b.canCast(side));

@@ -469,7 +469,10 @@
       });
       s.appendChild(view);
       // Долен панел: армии и бързи бутони
-      const bottom = el('div', { class: 'town-bottom' });
+      const bottom = el('div', { class: 'town-bottom' + (state.drawer ? ' open' : '') });
+      const handle = el('button', { class: 'drawer-handle', onclick: () => { state.drawer = !state.drawer; bottom.classList.toggle('open', state.drawer); handle.textContent = state.drawer ? '▼ Скрий армиите' : '▲ Армии' + (visitor() ? ' и герой' : ''); } }, state.drawer ? '▼ Скрий армиите' : '▲ Армии' + (visitor() ? ' и герой' : ''));
+      let ty0 = null; bottom.addEventListener('touchstart', (e) => { ty0 = e.touches[0].clientY; }, { passive: true }); bottom.addEventListener('touchend', (e) => { if (ty0 === null) return; const dy = e.changedTouches[0].clientY - ty0; ty0 = null; if (dy < -30 && !state.drawer) handle.click(); else if (dy > 30 && state.drawer) handle.click(); }, { passive: true });
+      bottom.appendChild(handle);
       const ap = el('div', { class: 'panel town-armies' });
       ap.appendChild(el('div', { class: 'row' }, el('div', { class: 'tiny', style: 'min-width:64px' }, 'Гарнизон'), armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game))));
       const v = visitor();
