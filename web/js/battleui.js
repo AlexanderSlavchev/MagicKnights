@@ -40,7 +40,19 @@
     }
     isHuman(side) { return this.humans.includes(side); }
     get human() { return this.b.current ? this.b.current.side : this.humans[0]; }
+    /* Подредба на битката: bar = bottom|right|left|overlay; squash = вертикално сплескване на хексовете; band = небе */
+    static layout() { try { return Object.assign({ bar: 'auto', squash: 1, band: 0.08, hexes: 'flat' }, JSON.parse(localStorage.getItem('mk_battle_layout') || '{}')); } catch (e) { return { bar: 'auto', squash: 1, band: 0.08 }; } }
+    static saveLayout(l) { localStorage.setItem('mk_battle_layout', JSON.stringify(l)); }
+    applyLayoutClass() {
+      const L = BattleUI.layout(); const bar = this.bar;
+      bar.classList.remove('lay-bottom', 'lay-right', 'lay-left', 'lay-overlay');
+      let mode = L.bar;
+      if (mode === 'auto') mode = window.innerWidth > window.innerHeight && window.innerHeight < 520 ? 'right' : 'bottom';
+      bar.classList.add('lay-' + mode);
+      this.layoutMode = mode; this.squash = L.squash || 1; this.bandK = L.band === undefined ? 0.08 : L.band;
+    }
     resize(force) {
+      this.applyLayoutClass();
       const cw = this.canvas.clientWidth, ch = this.canvas.clientHeight;
       if (!force && this.r && cw === this._cw && ch === this._ch) return;
       if (!cw || !ch) { setTimeout(() => this.resize(true), 50); return; } // платното още не е показано
@@ -52,26 +64,26 @@
       this.canvas.height = Math.floor(this.canvas.clientHeight * dpr);
       // Лентата с бутоните е отдолу (портрет/десктоп) или отдясно като колона (телефон в landscape)
       const rect = this.bar.getBoundingClientRect();
-      const sideBar = rect.height > rect.width;
-      const barH = sideBar ? 0 : (rect.height || 96) * dpr, barW = sideBar ? rect.width * dpr : 0;
-      const fieldW = this.canvas.width - barW;
-      // отгоре остава тънка лента за хоризонта; полето използва почти цялата височина
-      const band = Math.floor((this.canvas.height - barH) * (sideBar ? 0.05 : 0.08));
+      const mode = this.layoutMode, sq = this.squash;
+      const barH = mode === 'bottom' ? (rect.height || 96) * dpr : 0, barW = mode === 'right' || mode === 'left' ? rect.width * dpr : 0;
+      const fieldW = this.canvas.width - barW, fieldX = mode === 'left' ? barW : 0;
+      const band = Math.floor((this.canvas.height - barH) * this.bandK);
       const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
-      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / (1.5 * (Hex.H - 1) + 2)));
-      this.ox = (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
+      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
+      this.ox = fieldX + (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
       this.oy = 22 * dpr + band + this.r;
+      this.fieldX = fieldX;
       this.band = band; this._bg = null;
       this.barH = barH; this.barW = barW; this.fieldW = fieldW;
     }
-    hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y]; }
+    hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y * (this.squash || 1)]; }
     stackCenter(s) { const hs = this.b.hexes(s); let x = 0, y = 0; hs.forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); x += cx; y += cy; }); return [x / hs.length, y / hs.length]; }
     pixelToHex(px, py) {
       let best = null, bd = Infinity;
       for (let y = 0; y < Hex.H; y++) for (let x = 0; x < Hex.W; x++) { const [cx, cy] = this.hexCenter(x, y); const d = (cx - px) ** 2 + (cy - py) ** 2; if (d < bd) { bd = d; best = [x, y]; } }
       return bd < this.r * this.r ? best : null;
     }
-    hexPath(g, cx, cy, r) { g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a); if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); }
+    hexPath(g, cx, cy, r) { const sq = this.squash || 1; g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a) * sq; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); }
     sideColor(side) {
       const sd = this.b.sides[side];
       if (this.game && sd.owner >= 0 && this.game.world.players[sd.owner]) return this.game.world.players[sd.owner].color;
@@ -227,9 +239,9 @@
       const hg = g.createLinearGradient(0, 0, 0, this.oy - r); hg.addColorStop(0, 'rgba(10,8,16,0.85)'); hg.addColorStop(1, 'rgba(10,8,16,0)'); g.fillStyle = hg; g.fillRect(0, 0, W, this.oy - r + 4);
       g.font = '600 ' + 14 * this.dpr + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#ffd870';
       const s0 = b.sides[0], s1 = b.sides[1];
-      g.fillText((s0.hero ? s0.hero.name + '  ✦ ' + s0.mana : 'Нападатели'), 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : 'Защитници'), (this.fieldW || W) - 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? 'Тактика: подреди армията' : 'Рунд ' + b.round, (this.fieldW || W) / 2, 6 * this.dpr);
+      g.fillText((s0.hero ? s0.hero.name + '  ✦ ' + s0.mana : 'Нападатели'), (this.fieldX || 0) + 8 * this.dpr, 6 * this.dpr);
+      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : 'Защитници'), (this.fieldX || 0) + (this.fieldW || W) - 8 * this.dpr, 6 * this.dpr);
+      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? 'Тактика: подреди армията' : 'Рунд ' + b.round, (this.fieldX || 0) + (this.fieldW || W) / 2, 6 * this.dpr);
     }
     burst(x, y, color, n, speed, size, g) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.3 + Math.random()); this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, g: g || this.r * 1.5, t0: performance.now(), life: 400 + Math.random() * 400, color, size: size * (0.5 + Math.random()) }); } }
     async projectile(from, to, kind, color) {
@@ -306,6 +318,21 @@
     }
 
     // ------------------------------------------------------------ управление
+    /* Временно меню за проби на подредбата на бойния екран */
+    layoutDialog() {
+      const L = BattleUI.layout();
+      const content = UI.el('div');
+      const group = (label, key, opts) => {
+        const row = UI.el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, UI.el('div', { class: 'tiny', style: 'width:100%' }, label));
+        opts.forEach(([v, name]) => row.appendChild(UI.el('button', { class: 'small' + (String(L[key]) === String(v) ? ' primary' : ''), onclick: () => { L[key] = v; BattleUI.saveLayout(L); this.resize(true); this.renderBar(); wrap.remove(); this.layoutDialog(); } }, name)));
+        content.appendChild(row);
+      };
+      group('Бутони', 'bar', [['auto', 'Авто'], ['bottom', 'Долу'], ['right', 'Дясно'], ['left', 'Ляво'], ['overlay', 'Върху полето']]);
+      group('Форма на хексовете (сплескване)', 'squash', [[1, 'Правилни'], [0.9, '0.9'], [0.8, '0.8'], [0.7, '0.7'], [0.6, '0.6']]);
+      group('Небе отгоре', 'band', [[0, 'Без'], [0.04, 'Малко'], [0.08, 'Средно'], [0.15, 'Много']]);
+      const wrap = UI.el('div', { class: 'modal-wrap' }, UI.el('div', { class: 'modal', style: 'max-width:420px' }, UI.el('h2', null, 'Подредба на битката (проба)'), content, UI.el('div', { class: 'buttons' }, UI.el('button', { onclick: () => wrap.remove() }, 'Затвори'))));
+      document.getElementById('overlay').appendChild(wrap);
+    }
     renderBar() {
       const b = this.b, bar = this.bar;
       bar.innerHTML = '';
@@ -323,6 +350,7 @@
       const canAct = this.state === 'input' && cur && this.isHuman(cur.side) && !this.auto;
       const side = cur ? cur.side : this.humans[0];
       if (cur && canAct) btns.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
+      mk('⚙', () => this.layoutDialog(), false, 'small');
       mk(ico('icon_wait', 'Чакай'), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
       mk(ico('icon_defend', 'Защита'), () => this.act(() => b.doDefend(cur)), !canAct);
       mk(ico('icon_spellbook', 'Магия'), () => this.openSpellbook(side), !canAct || !b.canCast(side));
