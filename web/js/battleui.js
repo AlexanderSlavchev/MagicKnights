@@ -89,10 +89,11 @@
       const b = this.b, out = [];
       const fieldX = this.fieldX || 0, fieldW = this.fieldW || this.canvas.width;
       const bottom = this.canvas.height - (this.barH || 0);
-      const hgt = Math.min(bottom * 0.62, fieldW * 0.34), w = hgt / 1.4;
+      // поне два пъти по-големи от единиците (единица ≈ 2.3r × 1.4 = 3.2r височина) → 6.5r, ограничено от полето
+      const hgt = Math.min(Math.max(this.r * 6.5, bottom * 0.62), bottom * 0.95, fieldW * 0.45), w = hgt / 1.4;
       [0, 1].forEach((side) => {
         const h = b.sides[side].hero; if (!h) return;
-        const x = side === 0 ? fieldX - w * 0.22 : fieldX + fieldW - w * 0.78;
+        const x = side === 0 ? fieldX - w * 0.3 : fieldX + fieldW - w * 0.7;
         out.push({ side, hero: h, x, y: bottom - hgt + hgt * 0.06, w, h: hgt });
       });
       return out;
