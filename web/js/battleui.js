@@ -69,9 +69,7 @@
       const fieldW = this.canvas.width - barW, fieldX = mode === 'left' ? barW : 0;
       const band = Math.floor((this.canvas.height - barH) * this.bandK);
       const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
-      // отстрани се пази място за героите (по ~1.8r от всяка страна), както в класиките
-      const heroes = (this.b.sides[0].hero ? 1.8 : 0) + (this.b.sides[1].hero ? 1.8 : 0);
-      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5) + heroes), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
+      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
       this.ox = fieldX + (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
       this.oy = 22 * dpr + band + this.r;
       this.fieldX = fieldX;
@@ -87,26 +85,23 @@
     }
     /* Героите стоят на кон отляво и отдясно на полето, както в класиките */
     heroRects() {
-      const r = this.r, sq = this.squash || 1, b = this.b, out = [];
-      const gridL = this.hexCenter(0, 0)[0] - Math.sqrt(3) * r / 2, gridR = this.hexCenter(Hex.W - 1, 1)[0] + Math.sqrt(3) * r / 2;
+      // Големи фигури, „подаващи се“ от долните ъгли на полето — за красота и ориентир, не се местят
+      const b = this.b, out = [];
       const fieldX = this.fieldX || 0, fieldW = this.fieldW || this.canvas.width;
-      const marginL = gridL - fieldX, marginR = fieldX + fieldW - gridR;
-      const gy = this.hexCenter(0, Hex.H - 1)[1] + r * sq * 0.9; // земята на последния ред
+      const bottom = this.canvas.height - (this.barH || 0);
+      const hgt = Math.min(bottom * 0.62, fieldW * 0.34), w = hgt / 1.4;
       [0, 1].forEach((side) => {
         const h = b.sides[side].hero; if (!h) return;
-        const margin = side === 0 ? marginL : marginR;
-        const w = Math.min(r * 2.6, Math.max(margin * 1.15, r * 1.2)), hgt = w * 1.4; // може леко да навлиза над крайната колона
-        if (margin < r * 0.5) return;
-        const x = side === 0 ? gridL - w + Math.max(0, w - margin) * 0.5 : gridR - Math.max(0, w - margin) * 0.5;
-        out.push({ side, hero: h, x, y: gy - hgt, w, h: hgt });
+        const x = side === 0 ? fieldX - w * 0.22 : fieldX + fieldW - w * 0.78;
+        out.push({ side, hero: h, x, y: bottom - hgt + hgt * 0.06, w, h: hgt });
       });
       return out;
     }
     drawHeroes(T) {
       const g = this.ctx;
       this.heroRects().forEach((hr) => {
-        const bob = Math.sin(T * 1.5 + hr.side) * this.r * 0.03;
-        const spr = G.heroSprite(hr.hero, 160, this.sideColor(hr.side));
+        const bob = Math.sin(T * 1.5 + hr.side) * this.r * 0.02;
+        const spr = G.heroSprite(hr.hero, 320, this.sideColor(hr.side));
         g.save();
         if (hr.side === 1) { g.translate(hr.x + hr.w, 0); g.scale(-1, 1); g.drawImage(spr, 0, hr.y + bob, hr.w, hr.h); }
         else g.drawImage(spr, hr.x, hr.y + bob, hr.w, hr.h);
