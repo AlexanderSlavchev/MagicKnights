@@ -45,10 +45,11 @@ button.sel { outline: 2px solid var(--gold-2); outline-offset: -1px; box-shadow:
 #side { position: absolute; right: 0; top: 34px; bottom: 0; width: 156px; display: flex; flex-direction: column; gap: 6px; padding: 6px; background: linear-gradient(90deg, rgba(18, 14, 10, 0.75), rgba(18, 14, 10, 0.94)); border-left: 1px solid var(--line); pointer-events: auto; overflow: hidden; backdrop-filter: blur(8px); box-shadow: -6px 0 20px rgba(0, 0, 0, 0.35); }
 #minimap-wrap { width: 144px; height: 144px; border: 1px solid var(--line); border-radius: 8px; background: #000; flex: none; overflow: hidden; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.4), var(--shadow); }
 #minimap { width: 100%; height: 100%; display: block; }
-.list { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; overflow-y: hidden; flex: none; min-height: 54px; padding: 2px 2px 6px; align-items: flex-start; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
-.list .item { flex: none; }
+.list { display: grid; grid-auto-flow: column; grid-auto-columns: 46px; gap: 5px; overflow-x: auto; overflow-y: hidden; flex: 0 0 auto; height: 56px; padding: 2px 2px 6px; justify-content: start; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
 .list:empty { display: none; }
-#side { overflow-y: auto; }
+#side { overflow-y: auto; overflow-x: hidden; }
+@media (max-width: 600px) { .list { grid-auto-columns: 40px; height: 50px; } }
+@media (orientation: landscape) and (max-height: 480px) { #battlebar { height: 84px; } #battlebar .log { height: 26px; font-size: 11px; } #battlebar .btns { height: 42px; } #battlebar .btns button { min-height: 36px; } #minimap-wrap { width: 84px; height: 84px; } }
 .list .item { width: 46px; height: 46px; border: 2px solid var(--gold-dim); border-radius: 8px; position: relative; background: #1a1610; overflow: hidden; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); transition: transform 0.12s ease, border-color 0.12s ease; }
 .list .item:hover { transform: translateY(-1px); }
 .list .item.sel { border-color: var(--gold-2); box-shadow: 0 0 12px rgba(255, 224, 138, 0.5); }

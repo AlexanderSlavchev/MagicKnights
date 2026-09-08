@@ -41,7 +41,10 @@
     isHuman(side) { return this.humans.includes(side); }
     get human() { return this.b.current ? this.b.current.side : this.humans[0]; }
     resize(force) {
-      if (!force && this.r && Math.abs(window.innerWidth - this._winW) < 40 && Math.abs(window.innerHeight - this._winH) < 120) return;
+      const cw = this.canvas.clientWidth, ch = this.canvas.clientHeight;
+      if (!force && this.r && cw === this._cw && ch === this._ch) return;
+      if (!cw || !ch) { setTimeout(() => this.resize(true), 50); return; } // платното още не е показано
+      this._cw = cw; this._ch = ch;
       this._winW = window.innerWidth; this._winH = window.innerHeight;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       this.dpr = dpr;
@@ -120,6 +123,7 @@
       return this._pat;
     }
     draw() {
+      if (this.canvas.clientWidth !== this._cw || this.canvas.clientHeight !== this._ch) this.resize(true); // показано/завъртяно
       const g = this.ctx, b = this.b, r = this.r;
       const W = this.canvas.width, H = this.canvas.height;
       const now = performance.now(), T = now / 1000;
