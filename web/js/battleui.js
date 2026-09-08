@@ -50,15 +50,19 @@
       this.dpr = dpr;
       this.canvas.width = Math.floor(this.canvas.clientWidth * dpr);
       this.canvas.height = Math.floor(this.canvas.clientHeight * dpr);
-      const barH = (parseFloat(getComputedStyle(this.bar).height) || 96) * dpr; // лентата е с фиксирана височина
-      // отгоре остава лента за рисувания хоризонт (небе и планини)
-      const band = Math.floor(this.canvas.height * 0.15);
-      const availW = this.canvas.width - 20 * dpr, availH = this.canvas.height - barH - 30 * dpr - band;
+      // Лентата с бутоните е отдолу (портрет/десктоп) или отдясно като колона (телефон в landscape)
+      const rect = this.bar.getBoundingClientRect();
+      const sideBar = rect.height > rect.width;
+      const barH = sideBar ? 0 : (rect.height || 96) * dpr, barW = sideBar ? rect.width * dpr : 0;
+      const fieldW = this.canvas.width - barW;
+      // отгоре остава тънка лента за хоризонта; полето използва почти цялата височина
+      const band = Math.floor((this.canvas.height - barH) * (sideBar ? 0.05 : 0.08));
+      const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
       this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / (1.5 * (Hex.H - 1) + 2)));
-      this.ox = (this.canvas.width - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
-      this.oy = 26 * dpr + band + this.r;
+      this.ox = (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
+      this.oy = 22 * dpr + band + this.r;
       this.band = band; this._bg = null;
-      this.barH = barH;
+      this.barH = barH; this.barW = barW; this.fieldW = fieldW;
     }
     hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y]; }
     stackCenter(s) { const hs = this.b.hexes(s); let x = 0, y = 0; hs.forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); x += cx; y += cy; }); return [x / hs.length, y / hs.length]; }
@@ -224,8 +228,8 @@
       g.font = '600 ' + 14 * this.dpr + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#ffd870';
       const s0 = b.sides[0], s1 = b.sides[1];
       g.fillText((s0.hero ? s0.hero.name + '  ✦ ' + s0.mana : 'Нападатели'), 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : 'Защитници'), W - 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? 'Тактика: подреди армията' : 'Рунд ' + b.round, W / 2, 6 * this.dpr);
+      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : 'Защитници'), (this.fieldW || W) - 8 * this.dpr, 6 * this.dpr);
+      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? 'Тактика: подреди армията' : 'Рунд ' + b.round, (this.fieldW || W) / 2, 6 * this.dpr);
     }
     burst(x, y, color, n, speed, size, g) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.3 + Math.random()); this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, g: g || this.r * 1.5, t0: performance.now(), life: 400 + Math.random() * 400, color, size: size * (0.5 + Math.random()) }); } }
     async projectile(from, to, kind, color) {
