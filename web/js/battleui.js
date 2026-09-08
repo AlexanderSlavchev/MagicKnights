@@ -41,7 +41,7 @@
     isHuman(side) { return this.humans.includes(side); }
     get human() { return this.b.current ? this.b.current.side : this.humans[0]; }
     /* Подредба на битката: bar = bottom|right|left|overlay; squash = вертикално сплескване на хексовете; band = небе */
-    static layout() { try { return Object.assign({ bar: 'auto', squash: 1, band: 0.08, hexes: 'flat' }, JSON.parse(localStorage.getItem('mk_battle_layout') || '{}')); } catch (e) { return { bar: 'auto', squash: 1, band: 0.08 }; } }
+    static layout() { return { bar: 'auto', squash: 0.6, band: 0 }; } // избрано след проби на телефон: бутони авто, сплескани хексове, без небе
     static saveLayout(l) { localStorage.setItem('mk_battle_layout', JSON.stringify(l)); }
     applyLayoutClass() {
       const L = BattleUI.layout(); const bar = this.bar;
@@ -318,28 +318,14 @@
     }
 
     // ------------------------------------------------------------ управление
-    /* Временно меню за проби на подредбата на бойния екран */
-    layoutDialog() {
-      const L = BattleUI.layout();
-      const content = UI.el('div');
-      const group = (label, key, opts) => {
-        const row = UI.el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, UI.el('div', { class: 'tiny', style: 'width:100%' }, label));
-        opts.forEach(([v, name]) => row.appendChild(UI.el('button', { class: 'small' + (String(L[key]) === String(v) ? ' primary' : ''), onclick: () => { L[key] = v; BattleUI.saveLayout(L); this.resize(true); this.renderBar(); wrap.remove(); this.layoutDialog(); } }, name)));
-        content.appendChild(row);
-      };
-      group('Бутони', 'bar', [['auto', 'Авто'], ['bottom', 'Долу'], ['right', 'Дясно'], ['left', 'Ляво'], ['overlay', 'Върху полето']]);
-      group('Форма на хексовете (сплескване)', 'squash', [[1, 'Правилни'], [0.9, '0.9'], [0.8, '0.8'], [0.7, '0.7'], [0.6, '0.6']]);
-      group('Небе отгоре', 'band', [[0, 'Без'], [0.04, 'Малко'], [0.08, 'Средно'], [0.15, 'Много']]);
-      const wrap = UI.el('div', { class: 'modal-wrap' }, UI.el('div', { class: 'modal', style: 'max-width:420px' }, UI.el('h2', null, 'Подредба на битката (проба)'), content, UI.el('div', { class: 'buttons' }, UI.el('button', { onclick: () => wrap.remove() }, 'Затвори'))));
-      document.getElementById('overlay').appendChild(wrap);
-    }
     renderBar() {
       const b = this.b, bar = this.bar;
       bar.innerHTML = '';
       const cur = b.current;
-      const log = UI.el('div', { class: 'log' }, ...this.logLines.slice(-2).map((l) => UI.el('div', null, l)));
+      const log = UI.el('div', { class: 'log' }, ...this.logLines.map((l) => UI.el('div', null, l)));
       const btns = UI.el('div', { class: 'btns' });
       bar.appendChild(btns); bar.appendChild(log);
+      requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); // най-новото е най-долу
       const ico = (name, txt) => { const u = MK.Img.url('ui/' + name); return u ? [UI.el('img', { src: u, class: 'btn-ico', alt: '' }), ' ' + txt] : [txt]; };
       const mk = (label, fn, dis, cls) => btns.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
       if (this.state === 'tactics') {
@@ -350,7 +336,6 @@
       const canAct = this.state === 'input' && cur && this.isHuman(cur.side) && !this.auto;
       const side = cur ? cur.side : this.humans[0];
       if (cur && canAct) btns.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
-      mk('⚙', () => this.layoutDialog(), false, 'small');
       mk(ico('icon_wait', 'Чакай'), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
       mk(ico('icon_defend', 'Защита'), () => this.act(() => b.doDefend(cur)), !canAct);
       mk(ico('icon_spellbook', 'Магия'), () => this.openSpellbook(side), !canAct || !b.canCast(side));
