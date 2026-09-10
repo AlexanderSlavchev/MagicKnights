@@ -417,7 +417,8 @@
       s.killed += kills;
       s.ref.n = s.count;
       const es = this.sides[1 - s.side];
-      es.kills = (es.kills || 0) + kills; es.hpKilled = (es.hpKilled || 0) + Math.min(dmg, total);
+      // Опитът е като в класиките: пълният живот на всяко убито същество (ранените не носят опит)
+      es.kills = (es.kills || 0) + kills; es.hpKilled = (es.hpKilled || 0) + kills * s.maxHp;
       return { kills, dmg: Math.min(dmg, total) };
     }
     onDeath(s) {

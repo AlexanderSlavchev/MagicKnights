@@ -34,6 +34,16 @@
     toScreen(tx, ty) { const S = this.tileSize(); return [this.vw / 2 + (tx - this.cam.x) * S, this.vh / 2 + (ty - this.cam.y) * S]; }
     toTile(sx, sy) { const S = this.tileSize(); return [Math.floor(this.cam.x + (sx * this.dpr - this.vw / 2) / S), Math.floor(this.cam.y + (sy * this.dpr - this.vh / 2) / S)]; }
     center(x, y) { this.cam.x = x + 0.5; this.cam.y = y + 0.5; this.clamp(); }
+    /* Плочката е в границите на екрана (с малък запас) */
+    isVisible(x, y) { const S = this.tileSize(); const hw = this.vw / 2 / S, hh = this.vh / 2 / S; return Math.abs(x + 0.5 - this.cam.x) < hw - 1.5 && Math.abs(y + 0.5 - this.cam.y) < hh - 1.5; }
+    /* Меко следване: камерата се мести само колкото плочката да остане в „удобната“ зона на екрана */
+    follow(x, y) {
+      const S = this.tileSize(); const hw = this.vw / 2 / S, hh = this.vh / 2 / S;
+      const mx = hw * 0.55, my = hh * 0.55, dx = x + 0.5 - this.cam.x, dy = y + 0.5 - this.cam.y;
+      if (dx > mx) this.cam.x += dx - mx; else if (dx < -mx) this.cam.x += dx + mx;
+      if (dy > my) this.cam.y += dy - my; else if (dy < -my) this.cam.y += dy + my;
+      this.clamp();
+    }
     clamp() {
       const w = this.world; if (!w) return;
       const S = this.tileSize();

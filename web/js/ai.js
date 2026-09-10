@@ -45,7 +45,9 @@
         const path = target.path;
         let stopped = false;
         for (const st of path.path) {
+          const fx = h.x, fy = h.y;
           const r = world.stepHero(h, st.x, st.y);
+          if (!r.stop && (h.x !== fx || h.y !== fy)) yield { type: 'step', hero: h, fromX: fx, fromY: fy };
           if (r.stop) { stopped = true; break; }
           if (r.event) {
             const ev = r.event;

@@ -742,11 +742,11 @@
       Army.clean(a.army); Army.clean(d.army); if (d.garrison) Army.clean(d.garrison);
       const attWon = r.winner === 'att';
       if (attWon && attHero) {
-        const xp = this.gainXp(attHero, r.defHpKilled + (defHero ? 500 : 0));
+        const xp = this.gainXp(attHero, r.defHpKilled);
         events.push({ type: 'battleResult', win: true, hero: attHero, xp, text: 'Победа! ' + attHero.name + ' получава ' + xp + ' опит.' });
         this.necromancy(attHero, r.defKills);
       } else if (!attWon && defHero) {
-        const xp = this.gainXp(defHero, r.attHpKilled + (attHero ? 500 : 0));
+        const xp = this.gainXp(defHero, r.attHpKilled);
         events.push({ type: 'battleResult', win: false, hero: defHero, xp, text: defHero.name + ' отблъсква нападението и получава ' + xp + ' опит.' });
         this.necromancy(defHero, r.attKills);
       } else if (!attWon) {

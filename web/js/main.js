@@ -412,6 +412,21 @@
     }
 
     // ------------------------------------------------------------ ход
+    /* Чужд герой минава през разкрита от играча земя: камерата го следва и ходът се анимира (както в класиките) */
+    async followStep(v) {
+      const w = this.world, p = w.players[this.human], h = v.hero, z = h.z || 0;
+      if (!w.heroes[h.id]) return;
+      const seen = p.fog[z] && (p.fog[z][w.idx(h.x, h.y)] || p.fog[z][w.idx(v.fromX, v.fromY)]);
+      if (!seen) return;
+      const R = this.renderer;
+      if (R.z !== z) R.z = z;
+      if (this._followId !== h.id || !R.isVisible || !R.isVisible(h.x, h.y)) { R.center(h.x, h.y); this._followId = h.id; }
+      else R.follow(h.x, h.y);
+      R.anim = { hero: h, fromX: v.fromX, fromY: v.fromY, toX: h.x, toY: h.y, t: 0 };
+      const dur = 150, t0 = performance.now();
+      while (performance.now() - t0 < dur) { R.anim.t = (performance.now() - t0) / dur; await sleep(16); }
+      R.anim = null;
+    }
     /* Снимка на състоянието в началото на хода — за да разберем дали играчът е направил нещо */
     turnSnapshot() {
       const w = this.world, p = w.players[this.human];
@@ -442,6 +457,7 @@
           let r = gen.next(), k = 0;
           while (!r.done) {
             if (r.value.type === 'battle') { this.busy = false; const res = await this.fight(r.value.ctx); this.busy = true; r = gen.next(res); }
+            else if (r.value.type === 'step') { await this.followStep(r.value); r = gen.next(); }
             else { if (++k % 2 === 0) await sleep(0); r = gen.next(); }
           }
         }
