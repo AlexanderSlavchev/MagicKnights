@@ -290,6 +290,39 @@
     });
     // --- 10. Свързаност (по нива); на острови водата се брои за проходима
     ensureConnected(map, 0, N, towns, T.islands);
+    // На острови: всеки стартов град трябва да е до вода (за корабостроителница) и започва с кораб на брега,
+    // за да няма положение „трябва кораб, а няма как да се стигне до такъв“
+    if (T.islands) {
+      const L0 = map.levels[0];
+      const isW = (x, y) => inb(x, y) && L0.terrain[y * N + x] === 0;
+      towns.filter((t) => t.start).forEach((t) => {
+        let coast = null;
+        const occupied = (x, y) => map.objects.some((o) => o.z === 0 && o.x === x && o.y === y);
+        // предпочитаме свободна водна плочка; иначе коя да е
+        for (let pass = 0; pass < 2 && !coast; pass++) for (let r = 1; r <= 3 && !coast; r++) for (let dy = -r; dy <= r && !coast; dy++) for (let dx = -r; dx <= r && !coast; dx++) if (isW(t.x + dx, t.y + dy) && (pass === 1 || !occupied(t.x + dx, t.y + dy))) coast = { x: t.x + dx, y: t.y + dy };
+        if (!coast) {
+          // няма вода наблизо: прокопаваме канал от най-близкото море до 2 плочки от града
+          let best = null, bd = Infinity;
+          for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (L0.terrain[y * N + x] === 0) { const d = Math.hypot(x - t.x, y - t.y); if (d < bd) { bd = d; best = { x, y }; } }
+          if (!best) return;
+          const ang = Math.atan2(best.y - t.y, best.x - t.x);
+          const ex = Math.round(t.x + Math.cos(ang) * 2), ey = Math.round(t.y + Math.sin(ang) * 2);
+          let x = best.x, y = best.y;
+          while (x !== ex || y !== ey) {
+            if (x !== ex) x += Math.sign(ex - x); else y += Math.sign(ey - y);
+            const i = y * N + x; if (L0.objAt && L0.objAt[i] >= 0) continue;
+            L0.terrain[i] = 0; L0.block[i] = 0; L0.road[i] = 0;
+          }
+          coast = { x: ex, y: ey };
+        }
+        // кораб на брега; ако мястото е заето от друг морски обект, той се маха
+        const old = map.objects.find((o) => o.z === 0 && o.x === coast.x && o.y === coast.y);
+        if (old && old.type !== 'boat') { map.objects.splice(map.objects.indexOf(old), 1); L0.objAt[coast.y * N + coast.x] = -1; }
+        if (!old || old.type !== 'boat') place({ type: 'boat', x: coast.x, y: coast.y, z: 0, owner: t.owner });
+        else old.owner = t.owner;
+      });
+      ensureConnected(map, 0, N, towns, true);
+    }
     if (hasUnder) { const gates = map.objects.filter((o) => o.type === 'gate' && o.z === 1); if (gates.length) ensureConnected(map, 1, N, gates, false); }
 
     // --- 11. Пътища между близки градове

@@ -354,3 +354,27 @@ test('ИИ: 25 дни с 11 фракции на подземна карта бе
   assert(Object.values(w.heroes).length > 0);
 });
 console.log(passed + ' теста общо');
+
+test('острови: всеки стартов град е до вода, има кораб на брега и всички градове са достижими по суша+вода', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) for (const size of [36, 54]) {
+    const players = ['kingdom', 'harbor', 'necropolis'].map((f) => ({ faction: f }));
+    const w = MK.World.create({ seed, size, players, difficulty: 1, template: D.TEMPLATE('islands') });
+    const N = w.map.w, L = w.map.levels[0];
+    const starts = w.map.objects.filter((o) => o.type === 'town' && o.start);
+    assert.strictEqual(starts.length, 3, 'три стартови града');
+    starts.forEach((t) => {
+      let water = false, boat = false;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        if (w.isWater(t.x + dx, t.y + dy, 0)) water = true;
+        const o = w.objectAt(t.x + dx, t.y + dy, 0); if (o && o.type === 'boat') boat = true;
+      }
+      assert.ok(water, `seed ${seed} size ${size}: град ${t.name} не е до вода`);
+      assert.ok(boat, `seed ${seed} size ${size}: град ${t.name} няма кораб на брега`);
+    });
+    // достижимост: суша (проходима) и вода (без блокирани), 4 посоки, от първия стартов град
+    const pass = (x, y) => x >= 0 && y >= 0 && x < N && y < N && !L.block[y * N + x];
+    const seen = new Uint8Array(N * N); const st = [[starts[0].x, starts[0].y]]; seen[starts[0].y * N + starts[0].x] = 1;
+    while (st.length) { const [x, y] = st.pop(); for (let d = 0; d < 4; d++) { const nx = x + MK.DIRS[d][0], ny = y + MK.DIRS[d][1]; if (pass(nx, ny) && !seen[ny * N + nx]) { seen[ny * N + nx] = 1; st.push([nx, ny]); } } }
+    w.map.objects.filter((o) => o.type === 'town' && o.z === 0).forEach((t) => assert.ok(seen[t.y * N + t.x], `seed ${seed} size ${size}: град ${t.name} е недостижим`));
+  }
+});
