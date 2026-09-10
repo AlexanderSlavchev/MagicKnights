@@ -192,20 +192,25 @@
       return { ok: true };
     }
     // Кораб от корабостроителница: 1000 злато, 10 дърво; появява се на най-близката свободна вода
-    buildBoat(t) {
-      const p = this.players[t.owner];
-      if (!t.buildings.shipyard) return { ok: false, why: 'Няма корабостроителница.' };
+    /* Кораб до котва (град или корабостроителница на картата) за 1000 злато и 10 дърво */
+    buildBoatAt(anchor, owner, radius) {
+      const p = this.players[owner];
       if (p.res.gold < 1000 || p.res.wood < 10) return { ok: false, why: 'Нужни са 1000 злато и 10 дърво.' };
       let best = null, bd = Infinity;
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-        const x = t.x + dx, y = t.y + dy;
-        if (!this.isWater(x, y, t.z) || this.objectAt(x, y, t.z) || this.heroAt(x, y, t.z)) continue;
+      const R = radius || 3;
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        const x = anchor.x + dx, y = anchor.y + dy;
+        if (!this.isWater(x, y, anchor.z || 0) || this.objectAt(x, y, anchor.z || 0) || this.heroAt(x, y, anchor.z || 0)) continue;
         const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { x, y }; }
       }
-      if (!best) return { ok: false, why: 'Няма свободна вода до града.' };
+      if (!best) return { ok: false, why: 'Няма свободна вода наблизо.' };
       p.res.gold -= 1000; p.res.wood -= 10;
-      this.addObject({ type: 'boat', x: best.x, y: best.y, z: t.z, owner: t.owner });
-      return { ok: true };
+      this.addObject({ type: 'boat', x: best.x, y: best.y, z: anchor.z || 0, owner });
+      return { ok: true, x: best.x, y: best.y };
+    }
+    buildBoat(t) {
+      if (!t.buildings.shipyard) return { ok: false, why: 'Няма корабостроителница.' };
+      return this.buildBoatAt(t, t.owner, 3);
     }
     generateGuildSpells(t, level) {
       const used = new Set(); for (let l = 1; l <= 5; l++) t.spells[l].forEach((s) => used.add(s));
@@ -637,6 +642,14 @@
         }
         case 'artifact': { const a = D.artById[o.art]; this.removeObject(o); this.equipArtifact(h, o.art); return msg('Намираш артефакт: ' + a.name + '. ' + a.desc, 'artifact'); }
         case 'mine': { if (o.owner === h.owner) return null; o.owner = h.owner; const m = D.MINES.find((m) => m.res === o.res); return msg(m.name + ' е вече твоя: +' + m.amount + ' ' + D.RES_NAME[o.res].toLowerCase() + ' на ден.', 'flag'); }
+        case 'shipyard': {
+          const near = this.map.objects.some((b) => b.type === 'boat' && (b.z || 0) === (o.z || 0) && Math.abs(b.x - o.x) <= 2 && Math.abs(b.y - o.y) <= 2);
+          const canPay = p.res.gold >= 1000 && p.res.wood >= 10;
+          return { type: 'choice', obj: o, title: 'Корабостроителница', text: 'Тук може да се построи кораб за 1000 злато и 10 дърво.' + (near ? ' На брега вече има кораб.' : '') + (canPay ? '' : ' Нямаш достатъчно ресурси.'), options: [
+            { label: 'Построй кораб (1000 злато, 10 дърво)', disabled: !canPay || near, apply: () => { const r = this.buildBoatAt(o, h.owner, 2); this.events.push({ type: 'msg', text: r.ok ? 'Корабът е готов и чака на брега.' : r.why }); } },
+            { label: 'Откажи', apply: () => {} }
+          ], aiPick: () => (!near && canPay && !this.players[h.owner].heroes.some((id) => this.heroes[id].boat) ? 0 : 1) };
+        }
         case 'lighthouse': { if (o.owner === h.owner) return null; o.owner = h.owner; p.heroes.forEach((id) => { const hh = this.heroes[id]; if (hh.boat) hh.maxMovement = this.computeMaxMovement(hh); }); return msg('Фарът е твой: +500 движение по вода за корабите ти.', 'flag'); }
         case 'dwelling': { o.owner = h.owner; return { type: 'dwelling', obj: o, hero: h }; }
         case 'windmill': { if (o.takenWeek === this.week()) return msg('Мелницата вече е дала своето тази седмица.'); o.takenWeek = this.week(); const res = this.rng.pick(['mercury', 'sulfur', 'crystal', 'gems', 'ore', 'wood']); const n = this.rng.int(3, 6); p.res[res] += n; return msg('Мелничарят ти дава ' + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup'); }

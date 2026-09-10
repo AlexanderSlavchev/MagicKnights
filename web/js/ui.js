@@ -78,7 +78,7 @@
       if (opts.text) m.appendChild(el('p', null, opts.text));
       if (opts.content) m.appendChild(opts.content);
       const bs = el('div', { class: 'buttons' });
-      (opts.buttons || [{ label: 'Добре', value: true }]).forEach((b) => bs.appendChild(el('button', { class: b.cls || '', onclick: () => { wrap.remove(); resolve(b.value); } }, b.label)));
+      (opts.buttons || [{ label: 'Добре', value: true }]).forEach((b) => bs.appendChild(el('button', { class: b.cls || '', disabled: b.disabled ? 'disabled' : null, onclick: () => { wrap.remove(); resolve(b.value); } }, b.label)));
       m.appendChild(bs);
       wrap.appendChild(m); overlay().appendChild(wrap);
     });

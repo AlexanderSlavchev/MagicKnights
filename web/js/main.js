@@ -341,7 +341,7 @@
       const w = this.world;
       switch (ev.type) {
         case 'visit': if (!this.showGains(ev.text, ev)) UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
-        case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i })) }); ev.options[v].apply(); this.showGains(ev.options[v].label, null); break; }
+        case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i, disabled: !!o.disabled })) }); ev.options[v].apply(); this.showGains(ev.options[v].label, null); break; }
         case 'dwelling': await UI.dwellingDialog(this, ev.hero, ev.obj); break;
         case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + ' е превзет!'); if (ev.learned && ev.learned.length) MK.Audio.sfx('spell_learn'); if (ev.learned && ev.learned.length) UI.toast('Научени магии: ' + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
         case 'meet': UI.showHero(this, ev.hero, ev.other); break;

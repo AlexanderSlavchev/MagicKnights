@@ -265,6 +265,13 @@
         const a = rng.pick(waterTiles), b = rng.pick(waterTiles);
         if (freeWater(a[0], a[1]) && freeWater(b[0], b[1]) && Math.hypot(a[0] - b[0], a[1] - b[1]) > N * 0.3) { const o1 = place({ type: 'whirlpool', x: a[0], y: a[1] }); const o2 = place({ type: 'whirlpool', x: b[0], y: b[1] }); o1.pair = o2.id; o2.pair = o1.id; }
       }
+      // корабостроителници на брега (както в класиките: кораб за злато и дърво) — по една на ~600 водни плочки, поне 1, до 4
+      const coastal = (x, y) => { for (let d = 0; d < 8; d++) { const nx = x + MK.DIRS[d][0], ny = y + MK.DIRS[d][1]; if (inb(nx, ny) && L0.terrain[idx(nx, ny)] === 0) return true; } return false; };
+      const yards = [];
+      for (let k = 0; k < (waterTiles.length < 250 ? 0 : Math.min(4, Math.max(1, Math.round(waterTiles.length / 600)))); k++) {
+        const sp = anySpot((x, y) => coastal(x, y) && yards.every((q) => Math.hypot(q.x - x, q.y - y) > N * 0.25));
+        if (sp) yards.push(place({ type: 'shipyard', x: sp.x, y: sp.y }));
+      }
       // фарове на брега
       for (let k = 0; k < Math.max(1, players.length - 1); k++) {
         const sp = anySpot((x, y) => { for (let d = 0; d < 8; d++) { const nx = x + MK.DIRS[d][0], ny = y + MK.DIRS[d][1]; if (inb(nx, ny) && L0.terrain[idx(nx, ny)] === 0) return true; } return false; });

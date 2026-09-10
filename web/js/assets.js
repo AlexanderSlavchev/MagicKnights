@@ -197,6 +197,7 @@
       case 'resource': return 'objects/res_' + o.res;
       case 'monster': return 'creatures/' + o.creature;
       case 'dwelling': { const c = D.creatureOf(o.creature); return 'objects/dwelling_' + (c ? c.faction : 'kingdom'); }
+      case 'shipyard': return has('objects/shipyard') ? 'objects/shipyard' : 'buildings/common_shipyard';
       case 'dragon_utopia': return has('objects/dragon_utopia') ? 'objects/dragon_utopia' : 'decor/mountain_lava';
       default: return 'objects/' + o.type;
     }
