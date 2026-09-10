@@ -711,6 +711,7 @@
       const s0 = this.sides[0], s1 = this.sides[1];
       return {
         winner: this.winner === 0 ? 'att' : 'def', retreated: this.retreated, surrendered: this.surrendered, surrenderCost: this.surrenderCostVal || 0,
+        // attKills/attHpKilled = колко е убил НАПАДАТЕЛЯТ (т.е. загубите на защитника), и обратно
         attKills: s0.kills || 0, attHpKilled: s0.hpKilled || 0, defKills: s1.kills || 0, defHpKilled: s1.hpKilled || 0,
         rounds: this.round
       };

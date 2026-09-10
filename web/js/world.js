@@ -734,7 +734,8 @@
       }
       return ctx;
     }
-    /* r: {winner, retreated, surrendered, surrenderCost, attKills, defKills, attHpKilled, defHpKilled} */
+    /* r: {winner, retreated, surrendered, surrenderCost, attKills, defKills, attHpKilled, defHpKilled}
+       attKills/attHpKilled = убитите ОТ нападателя; defKills/defHpKilled = убитите ОТ защитника */
     resolveBattle(ctx, r) {
       const a = ctx.attacker, d = ctx.defender;
       const attHero = a.hero, defHero = d.hero;
@@ -742,13 +743,13 @@
       Army.clean(a.army); Army.clean(d.army); if (d.garrison) Army.clean(d.garrison);
       const attWon = r.winner === 'att';
       if (attWon && attHero) {
-        const xp = this.gainXp(attHero, r.defHpKilled);
+        const xp = this.gainXp(attHero, r.attHpKilled);
         events.push({ type: 'battleResult', win: true, hero: attHero, xp, text: 'Победа! ' + attHero.name + ' получава ' + xp + ' опит.' });
-        this.necromancy(attHero, r.defKills);
+        this.necromancy(attHero, r.attKills);
       } else if (!attWon && defHero) {
-        const xp = this.gainXp(defHero, r.attHpKilled);
+        const xp = this.gainXp(defHero, r.defHpKilled);
         events.push({ type: 'battleResult', win: false, hero: defHero, xp, text: defHero.name + ' отблъсква нападението и получава ' + xp + ' опит.' });
-        this.necromancy(defHero, r.attKills);
+        this.necromancy(defHero, r.defKills);
       } else if (!attWon) {
         events.push({ type: 'battleResult', win: false, hero: attHero, xp: 0, text: attHero ? attHero.name + ' е разбит.' : 'Нападението е отблъснато.' });
       }
