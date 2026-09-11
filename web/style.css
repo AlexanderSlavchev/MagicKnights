@@ -196,7 +196,8 @@ input[type=range] { accent-color: var(--gold); }
 .screen.town .body-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .town-armies { padding: 6px 8px; }
 .town-tabs { justify-content: center; }
-.town-modal { max-width: 620px; }
+.town-modal { max-width: 620px; max-height: 94vh; display: flex; flex-direction: column; }
+.town-modal > .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; max-height: none !important; }
 @media (orientation: portrait) { .town-view { flex: 1; } .town-bottom.open .town-armies { max-height: 40vh; overflow-y: auto; } }
 
 .spinner { width: 36px; height: 36px; margin: 6px auto 12px; border-radius: 50%; border: 4px solid rgba(232, 196, 106, 0.25); border-top-color: var(--gold-2); animation: spin 0.9s linear infinite; }
@@ -257,3 +258,15 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 #battlebar.lay-bottom .page .tiny, #battlebar.lay-overlay .page .tiny { display: none; }
 #battlebar.lay-right .btns, #battlebar.lay-left .btns { flex: 1 1 auto; }
 #battlebar.lay-right .log, #battlebar.lay-left .log { flex: 1 1 auto; min-height: 0; }
+
+/* Пазар */
+.market-cols { display: flex; gap: 10px; }
+.market-col { flex: 1; min-width: 0; }
+.market-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; }
+.market-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; padding: 4px 2px; font-size: 11px; background: rgba(255,255,255,0.04); }
+.market-cell.sel { border-color: var(--gold-2); background: rgba(255,216,112,0.18); box-shadow: 0 0 0 1px var(--gold-2) inset, 0 0 12px rgba(255,216,112,0.4); }
+.market-rate { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; font-size: 18px; color: var(--gold-2); }
+.market-rate .arrow { font-size: 26px; color: var(--ink-dim); }
+.market-amount { text-align: center; color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.market-amount img { vertical-align: middle; }
+@media (max-width: 480px) { .market-grid { grid-template-columns: repeat(4, 1fr); } .market-cell { min-height: 46px; } }

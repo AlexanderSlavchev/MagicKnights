@@ -582,19 +582,32 @@
       if (t.visitor) pane.appendChild(el('div', { class: 'tiny' }, 'В града вече има герой — изведи го, за да наемеш друг.'));
     };
     const renderMarket = (pane) => {
-      const st = state.market || (state.market = { from: 'wood', to: 'gold' });
-      pane.appendChild(el('div', { class: 'tiny' }, 'Пазари в кралството: ' + w.marketRate(p) + '. Повече пазари — по-добър курс.'));
-      const mk = (key, label) => { const row = el('div', { class: 'opt-row' }, el('label', null, label)); D.RES.forEach((r) => row.appendChild(el('button', { class: 'small' + (st[key] === r ? ' sel' : ''), style: 'border-color:' + D.RES_COLOR[r], onclick: () => { st[key] = r; render(); } }, D.RES_NAME[r].split(' ')[0]))); return row; };
-      pane.appendChild(mk('from', 'Даваш'));
-      pane.appendChild(mk('to', 'Получаваш'));
-      if (st.from === st.to) { pane.appendChild(el('div', { class: 'tiny' }, 'Избери различни ресурси.')); return; }
+      // Пазар като в класиките: две решетки с ресурси (даваш / получаваш), курс с икони и плъзгач за количество
+      const st = state.market || (state.market = { from: 'wood', to: 'gold', amount: 0 });
+      const icon = (r, size) => { const u = MK.Img.url('ui/icon_' + r); return u ? el('img', { src: u, alt: '', style: 'width:' + size + 'px;height:' + size + 'px;object-fit:contain' }) : el('i', { style: 'display:inline-block;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + D.RES_COLOR[r] }); };
+      const grid = (key, title, showOwn) => {
+        const g = el('div', { class: 'market-grid' });
+        D.RES.forEach((r) => g.appendChild(el('button', { class: 'market-cell' + (st[key] === r ? ' sel' : ''), title: D.RES_NAME[r], onclick: () => { st[key] = r; st.amount = 0; render(); } }, icon(r, 30), el('span', null, showOwn ? String(p.res[r]) : D.RES_NAME[r].split(' ')[0]))));
+        return el('div', { class: 'market-col' }, el('div', { class: 'tiny', style: 'text-align:center' }, title), g);
+      };
+      pane.appendChild(el('div', { class: 'tiny', style: 'text-align:center;margin-bottom:6px' }, 'Пазари в кралството: ' + w.marketRate(p) + ' · повече пазари — по-добър курс'));
+      pane.appendChild(el('div', { class: 'market-cols' }, grid('from', 'Даваш (твоите ресурси)', true), grid('to', 'Получаваш', false)));
+      if (st.from === st.to) { pane.appendChild(el('p', { class: 'tiny', style: 'text-align:center' }, 'Избери два различни ресурса.')); return; }
       const rate = w.tradeRate(p, st.from, st.to);
-      const text = st.to === 'gold' ? '1 ' + D.RES_NAME[st.from] + ' → ' + rate + ' злато' : rate + ' ' + D.RES_NAME[st.from] + ' → 1 ' + D.RES_NAME[st.to];
-      pane.appendChild(el('p', null, 'Курс: ' + text));
-      const amounts = st.to === 'gold' ? [1, 5, 10, 'всичко'] : [1, 2, 5];
-      const row = el('div', { class: 'opt-row' });
-      amounts.forEach((a) => row.appendChild(el('button', { class: 'small', onclick: () => { const n = a === 'всичко' ? p.res[st.from] : a; if (!w.trade(p, st.from, st.to, n)) toast('Недостатъчно ресурси.'); render(); } }, a === 'всичко' ? 'Всичко' : '× ' + a)));
-      pane.appendChild(row);
+      const toGold = st.to === 'gold';
+      // единица сделка: към злато — 1 ресурс → rate злато; иначе — rate ресурс → 1
+      const unitGive = toGold ? 1 : rate, unitGet = toGold ? rate : 1;
+      const maxUnits = Math.floor(p.res[st.from] / unitGive);
+      const rateRow = el('div', { class: 'market-rate' }, icon(st.from, 34), el('b', null, '× ' + unitGive), el('span', { class: 'arrow' }, '→'), icon(st.to, 34), el('b', null, '× ' + unitGet));
+      pane.appendChild(rateRow);
+      if (st.amount === 0 || st.amount > maxUnits) st.amount = maxUnits;
+      const lbl = el('div', { class: 'market-amount' });
+      const range = el('input', { type: 'range', min: 0, max: maxUnits, value: st.amount, style: 'flex:1' });
+      const upd = () => { lbl.innerHTML = ''; lbl.appendChild(el('span', null, 'Даваш ')); lbl.appendChild(icon(st.from, 18)); lbl.appendChild(el('b', null, ' ' + st.amount * unitGive + ' ')); lbl.appendChild(el('span', null, ' получаваш ')); lbl.appendChild(icon(st.to, 18)); lbl.appendChild(el('b', null, ' ' + st.amount * unitGet)); };
+      range.addEventListener('input', () => { st.amount = +range.value; upd(); }); upd();
+      pane.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin:6px 0' }, range, el('button', { class: 'small', onclick: () => { st.amount = maxUnits; range.value = maxUnits; upd(); } }, 'Макс')));
+      pane.appendChild(lbl);
+      pane.appendChild(el('div', { class: 'buttons', style: 'justify-content:center;margin-top:8px' }, el('button', { class: 'primary', disabled: st.amount > 0 && maxUnits > 0 ? null : 'disabled', onclick: () => { if (!w.trade(p, st.from, st.to, st.amount)) return toast('Недостатъчно ресурси.'); toast('Сделката е сключена.'); st.amount = 0; render(); } }, 'Търгувай')));
     };
     render();
   }
