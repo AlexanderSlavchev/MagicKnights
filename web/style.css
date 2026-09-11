@@ -259,14 +259,23 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 #battlebar.lay-right .btns, #battlebar.lay-left .btns { flex: 1 1 auto; }
 #battlebar.lay-right .log, #battlebar.lay-left .log { flex: 1 1 auto; min-height: 0; }
 
-/* Пазар */
-.market-cols { display: flex; gap: 10px; }
+/* Пазар (по образеца на класиките) */
+.market-top { display: flex; gap: 10px; align-items: flex-end; }
 .market-col { flex: 1; min-width: 0; }
-.market-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; }
-.market-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; padding: 4px 2px; font-size: 11px; background: rgba(255,255,255,0.04); }
+.market-title { text-align: center; font-size: 12px; color: var(--ink-dim); background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 6px; padding: 3px; margin: 6px 0 4px; }
+.market-offer { min-height: 44px; font-size: 12px; text-align: center; color: var(--ink); background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 6px; padding: 6px; display: flex; align-items: center; justify-content: center; }
+.market-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.market-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 4px 2px; font-size: 11px; background: rgba(255,255,255,0.04); border-radius: 6px; }
+.market-cell.gold { grid-column: 2; }
 .market-cell.sel { border-color: var(--gold-2); background: rgba(255,216,112,0.18); box-shadow: 0 0 0 1px var(--gold-2) inset, 0 0 12px rgba(255,216,112,0.4); }
-.market-rate { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px; font-size: 18px; color: var(--gold-2); }
-.market-rate .arrow { font-size: 26px; color: var(--ink-dim); }
-.market-amount { text-align: center; color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
-.market-amount img { vertical-align: middle; }
-@media (max-width: 480px) { .market-grid { grid-template-columns: repeat(4, 1fr); } .market-cell { min-height: 46px; } }
+.market-bottom { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px; border-radius: 8px; background: linear-gradient(180deg, rgba(120,20,20,0.35), rgba(60,10,10,0.45)); border: 1px solid rgba(255,120,90,0.35); }
+.market-box { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); border-radius: 6px; font-size: 13px; color: var(--gold-2); }
+.market-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.market-qty { font-size: 11px; letter-spacing: 1px; color: var(--gold-2); background: rgba(0,0,0,0.35); padding: 2px 10px; border-radius: 10px; }
+.market-pot { display: flex; align-items: center; gap: 4px; width: 100%; }
+.market-pot button { min-height: 30px; min-width: 30px; padding: 0; }
+.market-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 18px; border-radius: 9px; background: linear-gradient(180deg, #1b1208, #3a2a12); border: 1px solid var(--line); outline: none; }
+.market-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 26px; border-radius: 6px; background: linear-gradient(180deg, #ffe08a, #b98a2e); border: 1px solid #5a3a10; box-shadow: 0 2px 4px rgba(0,0,0,0.6); cursor: pointer; }
+.market-slider::-moz-range-thumb { width: 30px; height: 26px; border-radius: 6px; background: linear-gradient(180deg, #ffe08a, #b98a2e); border: 1px solid #5a3a10; cursor: pointer; }
+.market-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.market-actions .tiny { margin-right: auto; }

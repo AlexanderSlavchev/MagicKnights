@@ -582,32 +582,49 @@
       if (t.visitor) pane.appendChild(el('div', { class: 'tiny' }, 'В града вече има герой — изведи го, за да наемеш друг.'));
     };
     const renderMarket = (pane) => {
-      // Пазар като в класиките: две решетки с ресурси (даваш / получаваш), курс с икони и плъзгач за количество
+      // Пазар като в класиките: „Ресурси на кралството“ / „Налични за търговия“ с курсове, оферта, плъзгач за количество
       const st = state.market || (state.market = { from: 'wood', to: 'gold', amount: 0 });
       const icon = (r, size) => { const u = MK.Img.url('ui/icon_' + r); return u ? el('img', { src: u, alt: '', style: 'width:' + size + 'px;height:' + size + 'px;object-fit:contain' }) : el('i', { style: 'display:inline-block;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + D.RES_COLOR[r] }); };
-      const grid = (key, title, showOwn) => {
+      const name = (r) => D.RES_NAME[r].toLowerCase();
+      const rateText = (to) => { if (to === st.from) return 'н/д'; const r = w.tradeRate(p, st.from, to); return to === 'gold' ? String(r) : '1/' + r; };
+      const cell = (r, sub, sel, onclick) => el('button', { class: 'market-cell' + (sel ? ' sel' : ''), title: D.RES_NAME[r], onclick }, icon(r, 30), el('span', null, sub));
+      const grid = (key, showOwn) => {
         const g = el('div', { class: 'market-grid' });
-        D.RES.forEach((r) => g.appendChild(el('button', { class: 'market-cell' + (st[key] === r ? ' sel' : ''), title: D.RES_NAME[r], onclick: () => { st[key] = r; st.amount = 0; render(); } }, icon(r, 30), el('span', null, showOwn ? String(p.res[r]) : D.RES_NAME[r].split(' ')[0]))));
-        return el('div', { class: 'market-col' }, el('div', { class: 'tiny', style: 'text-align:center' }, title), g);
+        ['wood', 'mercury', 'ore', 'sulfur', 'crystal', 'gems'].forEach((r) => g.appendChild(cell(r, showOwn ? String(p.res[r]) : rateText(r), st[key] === r, () => { st[key] = r; st.amount = 0; render(); })));
+        const gold = cell('gold', showOwn ? String(p.res.gold) : rateText('gold'), st[key] === 'gold', () => { st[key] = 'gold'; st.amount = 0; render(); });
+        gold.classList.add('gold'); g.appendChild(gold);
+        return g;
       };
-      pane.appendChild(el('div', { class: 'tiny', style: 'text-align:center;margin-bottom:6px' }, 'Пазари в кралството: ' + w.marketRate(p) + ' · повече пазари — по-добър курс'));
-      pane.appendChild(el('div', { class: 'market-cols' }, grid('from', 'Даваш (твоите ресурси)', true), grid('to', 'Получаваш', false)));
-      if (st.from === st.to) { pane.appendChild(el('p', { class: 'tiny', style: 'text-align:center' }, 'Избери два различни ресурса.')); return; }
-      const rate = w.tradeRate(p, st.from, st.to);
+      const same = st.from === st.to;
+      const rate = same ? 0 : w.tradeRate(p, st.from, st.to);
       const toGold = st.to === 'gold';
-      // единица сделка: към злато — 1 ресурс → rate злато; иначе — rate ресурс → 1
       const unitGive = toGold ? 1 : rate, unitGet = toGold ? rate : 1;
-      const maxUnits = Math.floor(p.res[st.from] / unitGive);
-      const rateRow = el('div', { class: 'market-rate' }, icon(st.from, 34), el('b', null, '× ' + unitGive), el('span', { class: 'arrow' }, '→'), icon(st.to, 34), el('b', null, '× ' + unitGet));
-      pane.appendChild(rateRow);
-      if (st.amount === 0 || st.amount > maxUnits) st.amount = maxUnits;
-      const lbl = el('div', { class: 'market-amount' });
-      const range = el('input', { type: 'range', min: 0, max: maxUnits, value: st.amount, style: 'flex:1' });
-      const upd = () => { lbl.innerHTML = ''; lbl.appendChild(el('span', null, 'Даваш ')); lbl.appendChild(icon(st.from, 18)); lbl.appendChild(el('b', null, ' ' + st.amount * unitGive + ' ')); lbl.appendChild(el('span', null, ' получаваш ')); lbl.appendChild(icon(st.to, 18)); lbl.appendChild(el('b', null, ' ' + st.amount * unitGet)); };
-      range.addEventListener('input', () => { st.amount = +range.value; upd(); }); upd();
-      pane.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center;margin:6px 0' }, range, el('button', { class: 'small', onclick: () => { st.amount = maxUnits; range.value = maxUnits; upd(); } }, 'Макс')));
-      pane.appendChild(lbl);
-      pane.appendChild(el('div', { class: 'buttons', style: 'justify-content:center;margin-top:8px' }, el('button', { class: 'primary', disabled: st.amount > 0 && maxUnits > 0 ? null : 'disabled', onclick: () => { if (!w.trade(p, st.from, st.to, st.amount)) return toast('Недостатъчно ресурси.'); toast('Сделката е сключена.'); st.amount = 0; render(); } }, 'Търгувай')));
+      const maxUnits = same ? 0 : Math.floor(p.res[st.from] / unitGive);
+      if (st.amount > maxUnits) st.amount = maxUnits;
+      const offer = same ? 'Избери два различни ресурса.' : 'Мога да ти предложа ' + unitGet + ' ' + name(st.to) + ' за ' + unitGive + ' ' + name(st.from) + '.';
+      pane.appendChild(el('div', { class: 'market-top' },
+        el('div', { class: 'market-col' }, el('div', { class: 'market-title' }, 'Ресурси на кралството'), grid('from', true)),
+        el('div', { class: 'market-col' }, el('div', { class: 'market-offer' }, offer), el('div', { class: 'market-title' }, 'Налични за търговия'), grid('to', false))
+      ));
+      // долна лента: даваш — количество — получаваш
+      const giveBox = el('div', { class: 'market-box' }, icon(st.from, 30), el('span', null, '0'));
+      const getBox = el('div', { class: 'market-box' }, icon(st.to, 30), el('span', null, '0'));
+      const range = el('input', { type: 'range', min: 0, max: Math.max(0, maxUnits), value: st.amount, class: 'market-slider' });
+      const upd = () => { giveBox.lastChild.textContent = String(st.amount * unitGive); getBox.lastChild.textContent = String(st.amount * unitGet); range.value = st.amount; };
+      range.addEventListener('input', () => { st.amount = +range.value; upd(); });
+      const step = (d) => { st.amount = Math.max(0, Math.min(maxUnits, st.amount + d)); upd(); };
+      const bottom = el('div', { class: 'market-bottom' },
+        giveBox,
+        el('div', { class: 'market-mid' }, el('div', { class: 'market-qty' }, 'Количество за размяна ▶'), el('div', { class: 'market-pot' }, el('button', { class: 'small', onclick: () => step(-1) }, '◀'), range, el('button', { class: 'small', onclick: () => step(1) }, '▶'))),
+        getBox
+      );
+      pane.appendChild(bottom);
+      upd();
+      pane.appendChild(el('div', { class: 'market-actions' },
+        el('div', { class: 'tiny' }, 'Пазари: ' + w.marketRate(p)),
+        el('button', { class: 'small', disabled: maxUnits ? null : 'disabled', title: 'Максимум', onclick: () => { st.amount = maxUnits; upd(); } }, '⬆ Макс'),
+        el('button', { class: 'primary', disabled: maxUnits ? null : 'disabled', title: 'Търгувай', onclick: () => { if (!st.amount) return toast('Избери количество.'); if (!w.trade(p, st.from, st.to, st.amount)) return toast('Недостатъчно ресурси.'); toast('Сделката е сключена.'); st.amount = 0; render(); } }, '🤝 Търгувай')
+      ));
     };
     render();
   }
