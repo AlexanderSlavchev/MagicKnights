@@ -540,7 +540,7 @@
       if (other && other !== h) {
         h.movement -= cost;
         if (other.owner === h.owner) return { event: { type: 'meet', hero: h, other } };
-        if (other.boat !== h.boat) return { stop: true, why: 'Не можеш да нападнеш от суша към кораб.' };
+        // от суша към кораб и обратно битката е позволена; победителят остава на мястото си, корабът на победения остава на водата
         return { event: this.startBattle(h, { type: 'hero', hero: other }) };
       }
       // Кораб: качване / слизане

@@ -33,6 +33,8 @@
         // вода: качване на кораб (крайна точка) или прелитане
         const oid = L.objAt[i];
         if (isGoal && oid >= 0) { const o = world.objById(oid); if (o && o.type === 'boat') return diag ? 141 : 100; }
+        // вражески герой на кораб до брега може да бъде нападнат от сушата (както в класиките)
+        if (isGoal) { const eh = world.heroAt(x, y, hero.z || 0); if (eh && eh.owner !== hero.owner) return diag ? 141 : 100; }
         if (hero._fly && !isGoal) c = 150; else return Infinity;
       } else if (L.block[i]) {
         if (hero._fly) c = Math.round(t.cost * 1.5); else return Infinity;
