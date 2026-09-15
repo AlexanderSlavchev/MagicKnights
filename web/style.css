@@ -54,7 +54,7 @@ button.sel { outline: 2px solid var(--gold-2); outline-offset: -1px; box-shadow:
 #battlebar.lay-right { left: auto; right: 0; border-left: 1px solid var(--line); box-shadow: -6px 0 20px rgba(0,0,0,0.45); }
 #battlebar.lay-left { left: 0; right: auto; border-right: 1px solid var(--line); box-shadow: 6px 0 20px rgba(0,0,0,0.45); }
 #battlebar.lay-right .btns, #battlebar.lay-left .btns { flex-direction: column; align-items: stretch; height: auto; flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; gap: 4px; }
-#battlebar.lay-right .btns button, #battlebar.lay-left .btns button { width: 100%; min-height: 34px; padding: 2px 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#battlebar.lay-right .btns button, #battlebar.lay-left .btns button { width: 100%; min-height: 34px; height: 34px; max-height: 34px; padding: 2px 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #battlebar.lay-right .log, #battlebar.lay-left .log { height: auto; flex: 1 1 40%; min-height: 60px; font-size: 11px; white-space: nowrap; overflow: auto; border-left: none; border-top: 2px solid var(--gold-dim); padding: 2px 4px; }
 #battlebar.lay-right .log div, #battlebar.lay-left .log div { padding: 1px 0; border-bottom: 1px dotted rgba(232,196,106,0.15); }
 #battlebar.lay-right .btns, #battlebar.lay-left .btns { flex: 0 1 auto; }
@@ -151,11 +151,11 @@ button.sel { outline: 2px solid var(--gold-2); outline-offset: -1px; box-shadow:
 .faction-card.sel { border-color: var(--gold-2); box-shadow: 0 0 14px rgba(255, 224, 138, 0.35); }
 
 /* Битка */
-#battlebar { position: fixed; left: 0; right: 0; bottom: 0; height: 96px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; justify-content: flex-start; padding: 6px 8px; background: linear-gradient(180deg, rgba(18, 14, 10, 0.85), rgba(12, 9, 6, 0.98)); border-top: 1px solid var(--line); z-index: 5; flex-wrap: wrap; backdrop-filter: blur(8px); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.45); }
+#battlebar { position: fixed; left: 0; right: 0; bottom: 0; height: 96px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; justify-content: flex-start; padding: 6px 8px; background: linear-gradient(180deg, rgba(18, 14, 10, 0.85), rgba(12, 9, 6, 0.98)); border-top: 1px solid var(--line); z-index: 5; flex-wrap: nowrap; backdrop-filter: blur(8px); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.45); }
 #battlebar .log { flex: none; height: 32px; font-size: 12px; color: var(--ink); overflow: auto; line-height: 1.3; padding: 0 8px; border-left: 2px solid var(--gold-dim); white-space: nowrap; scrollbar-width: thin; }
 #battlebar .btns { display: flex; gap: 6px; align-items: center; overflow-x: auto; overflow-y: hidden; flex: none; height: 46px; scrollbar-width: none; }
 #battlebar .btns::-webkit-scrollbar { display: none; }
-#battlebar .btns button { flex: none; white-space: nowrap; }
+#battlebar .btns button { flex: 0 0 auto; white-space: nowrap; height: 40px; max-height: 40px; line-height: 1.1; }
 #battlebar button { min-height: 40px; padding: 4px 10px; font-size: 13px; }
 .spellbook { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .spell { border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)); transition: transform 0.12s ease, box-shadow 0.12s ease; }
@@ -279,3 +279,9 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .market-slider::-moz-range-thumb { width: 30px; height: 26px; border-radius: 6px; background: linear-gradient(180deg, #ffe08a, #b98a2e); border: 1px solid #5a3a10; cursor: pointer; }
 .market-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .market-actions .tiny { margin-right: auto; }
+
+/* Индикатор на града в страничния панел: чук = може да се строи днес, задраскан = вече е строено */
+.list .item { position: relative; }
+.list .item .badge { position: absolute; right: -2px; bottom: -2px; font-size: 11px; line-height: 1; padding: 1px 3px; border-radius: 6px; background: rgba(0,0,0,0.75); border: 1px solid var(--line); pointer-events: none; }
+.list .item .badge.built { color: #ff8a80; text-decoration: line-through; border-color: rgba(255,120,90,0.6); }
+.list .item .badge.recruit { right: auto; left: -2px; color: #9fe39f; }

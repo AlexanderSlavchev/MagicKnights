@@ -237,7 +237,10 @@
       const t = w.towns[id];
       const it = el('div', { class: 'item', title: t.name, onclick: () => { game.renderer.center(t.x, t.y); showTown(game, t); } });
       it.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44));
-      if (!t.builtToday) it.appendChild(el('div', { class: 'dot', style: 'background:#8f8' }));
+      // както в класиките: чук = днес може да се строи, задраскан чук = вече е строено; зелена точка = има същества за наемане
+      it.appendChild(el('span', { class: 'badge' + (t.builtToday ? ' built' : ''), title: t.builtToday ? 'Днес вече е строено' : 'Може да се строи' }, '🔨'));
+      const canRecruit = t.avail.some((n, tier) => tier > 0 && n > 0 && t.buildings['dw' + tier] && w.maxAffordable(p, t.faction + tier + (t.buildings['dw' + tier + 'u'] ? 'u' : '')) > 0);
+      if (canRecruit) it.appendChild(el('span', { class: 'badge recruit', title: 'Има същества за наемане' }, '●'));
       tl.appendChild(it);
     });
     document.getElementById('hint').textContent = game.hint || '';
