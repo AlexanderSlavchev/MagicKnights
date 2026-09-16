@@ -19,7 +19,7 @@
       this.bar = document.getElementById('battlebar');
       this.auto = humanSides.length === 0;
       this.speed = 1;
-      this.floats = []; this.flash = {}; this.animPos = {}; this.lunge = {}; this.shake = {}; this.fading = {}; this.particles = []; this.projectiles = []; this.rings = [];
+      this.floats = []; this.flash = {}; this.animPos = {}; this.lunge = {}; this.shake = {}; this.fading = {}; this.particles = []; this.projectiles = []; this.fx = []; this.rings = [];
       this.state = 'anim';
       this.castSpell = null;
       this.logLines = [];
@@ -69,7 +69,8 @@
       const fieldW = this.canvas.width - barW, fieldX = mode === 'left' ? barW : 0;
       const band = Math.floor((this.canvas.height - barH) * this.bandK);
       const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
-      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5)), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
+      const heroPad = (this.b.sides[0].hero ? 1.3 : 0) + (this.b.sides[1].hero ? 1.3 : 0); // място за героите отстрани
+      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5) + heroPad), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
       this.ox = fieldX + (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
       this.oy = 22 * dpr + band + this.r;
       this.fieldX = fieldX;
@@ -85,16 +86,19 @@
     }
     /* Героите стоят на кон отляво и отдясно на полето, както в класиките */
     heroRects() {
-      // Големи фигури, „подаващи се“ от долните ъгли на полето — за красота и ориентир, не се местят
-      const b = this.b, out = [];
+      // Както в класиките: героят стои на кон отстрани на полето, на средата по височина, с големина ~1.2 единица;
+      // където няма място встрани (телефон), навлиза леко над крайната колона, но се рисува под единиците.
+      const b = this.b, r = this.r, sq = this.squash || 1, out = [];
+      const gridL = this.hexCenter(0, 0)[0] - Math.sqrt(3) * r / 2, gridR = this.hexCenter(Hex.W - 1, 1)[0] + Math.sqrt(3) * r / 2;
       const fieldX = this.fieldX || 0, fieldW = this.fieldW || this.canvas.width;
-      const bottom = this.canvas.height - (this.barH || 0);
-      // поне два пъти по-големи от единиците (единица ≈ 2.3r × 1.4 = 3.2r височина) → 6.5r, ограничено от полето
-      const hgt = Math.min(Math.max(this.r * 6.5, bottom * 0.62), bottom * 0.95, fieldW * 0.45), w = hgt / 1.4;
+      const hgt = r * 4.2, w = hgt / 1.4;
+      const gy = this.hexCenter(0, 6)[1] + r * sq * 0.8;
       [0, 1].forEach((side) => {
         const h = b.sides[side].hero; if (!h) return;
-        const x = side === 0 ? fieldX - w * 0.3 : fieldX + fieldW - w * 0.7;
-        out.push({ side, hero: h, x, y: bottom - hgt + hgt * 0.06, w, h: hgt });
+        const margin = side === 0 ? gridL - fieldX : fieldX + fieldW - gridR;
+        const over = Math.max(0, w - margin + r * 0.1); // колко навлиза над полето
+        const x = side === 0 ? gridL - w + over : gridR - over;
+        out.push({ side, hero: h, x, y: gy - hgt, w, h: hgt, alpha: over > r * 0.5 ? 0.8 : 1 });
       });
       return out;
     }
@@ -103,12 +107,74 @@
       this.heroRects().forEach((hr) => {
         const bob = Math.sin(T * 1.5 + hr.side) * this.r * 0.02;
         const spr = G.heroSprite(hr.hero, 320, this.sideColor(hr.side));
-        g.save();
+        g.save(); g.globalAlpha = hr.alpha || 1;
         if (hr.side === 1) { g.translate(hr.x + hr.w, 0); g.scale(-1, 1); g.drawImage(spr, 0, hr.y + bob, hr.w, hr.h); }
         else g.drawImage(spr, hr.x, hr.y + bob, hr.w, hr.h);
         g.restore();
         if (this.b.current && this.b.current.side === hr.side && this.state === 'input') { g.strokeStyle = 'rgba(255,216,112,0.6)'; g.lineWidth = 2; g.beginPath(); g.ellipse(hr.x + hr.w / 2, hr.y + hr.h - this.r * 0.15, hr.w * 0.45, this.r * 0.25, 0, 0, Math.PI * 2); g.stroke(); }
       });
+    }
+    /* Стена, порта и кули на ред y (само при обсада): 3/4 перспектива, каменна текстура, зъбери, щети; стрелци на кулите */
+    drawWallRow(y, T) {
+      const b = this.b; if (!b.siege) return;
+      const g = this.ctx, r = this.r, sq = this.squash || 1;
+      const WX = 10, gateI = Hex.idx(WX, 5);
+      const stone = MK.Img.get('terrain/rough');
+      const seg = (cx, cy, kind, hp, maxHp) => {
+        const w = Math.sqrt(3) * r * 1.02, hgt = r * 2.4, top = cy - hgt + r * sq * 0.9, base = cy + r * sq * 0.9;
+        const dmg = maxHp ? 1 - hp / maxHp : 0;
+        // тяло
+        g.save(); g.beginPath(); g.rect(cx - w / 2, top, w, base - top); g.clip();
+        if (stone) { g.drawImage(stone, cx - w / 2, top, w, base - top); g.fillStyle = 'rgba(120,110,100,0.35)'; g.fillRect(cx - w / 2, top, w, base - top); }
+        else { const gr = g.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0); gr.addColorStop(0, '#b8b0a0'); gr.addColorStop(1, '#6a6458'); g.fillStyle = gr; g.fillRect(cx - w / 2, top, w, base - top); }
+        // каменни редове
+        g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = Math.max(1, r * 0.04);
+        for (let k = 0; k < 5; k++) { const yy = top + (base - top) * (k + 1) / 6; g.beginPath(); g.moveTo(cx - w / 2, yy); g.lineTo(cx + w / 2, yy); g.stroke(); for (let m = 0; m < 3; m++) { const xx = cx - w / 2 + w * ((m + (k % 2) * 0.5) / 3); g.beginPath(); g.moveTo(xx, yy); g.lineTo(xx, yy - (base - top) / 6); g.stroke(); } }
+        // сянка отдясно (гледаме от ляво-горе)
+        const sh = g.createLinearGradient(cx - w / 2, 0, cx + w / 2, 0); sh.addColorStop(0, 'rgba(255,255,255,0.12)'); sh.addColorStop(1, 'rgba(0,0,0,0.35)'); g.fillStyle = sh; g.fillRect(cx - w / 2, top, w, base - top);
+        // щети: пукнатини и липсващи камъни
+        if (dmg > 0) { g.strokeStyle = 'rgba(20,16,12,0.8)'; g.lineWidth = Math.max(1, r * 0.06); for (let k = 0; k < Math.ceil(dmg * 4); k++) { const sx = cx - w / 2 + w * G.hashN(y, k, 3), sy = top + (base - top) * G.hashN(y, k, 4); g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + (G.hashN(y, k, 5) - 0.5) * r, sy + r * 0.6); g.lineTo(sx + (G.hashN(y, k, 6) - 0.5) * r * 1.4, sy + r * 1.2); g.stroke(); } }
+        g.restore();
+        // зъбери
+        g.fillStyle = '#9a9284'; for (let k = 0; k < 3; k++) { g.fillRect(cx - w / 2 + w * (k / 3) + w * 0.06, top - r * 0.28, w * 0.2, r * 0.3); }
+        g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1; g.strokeRect(cx - w / 2, top, w, base - top);
+        if (kind === 'gate') {
+          // сводеста порта с дървени врати
+          const gw = w * 0.62, gh = (base - top) * 0.7;
+          g.fillStyle = '#1a1208'; g.beginPath(); g.roundRect(cx - gw / 2, base - gh, gw, gh, [gw / 2, gw / 2, 0, 0]); g.fill();
+          g.fillStyle = '#6a4522'; g.beginPath(); g.roundRect(cx - gw / 2 + r * 0.06, base - gh + r * 0.06, gw - r * 0.12, gh - r * 0.06, [gw / 2, gw / 2, 0, 0]); g.fill();
+          g.strokeStyle = '#c9a961'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(cx, base - gh + r * 0.1); g.lineTo(cx, base); g.moveTo(cx - gw / 2 + r * 0.1, base - gh * 0.5); g.lineTo(cx + gw / 2 - r * 0.1, base - gh * 0.5); g.stroke();
+        }
+        // знаме в цвета на защитника (на портата и през сегмент)
+        if (kind === 'gate' || (y % 2 === 0)) { const col = this.sideColor(1); const fx = cx + (kind === 'gate' ? 0 : -w * 0.18), fy = top - r * 0.28; g.strokeStyle = '#3a2a10'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - r * 1.1); g.stroke(); g.fillStyle = col; g.beginPath(); g.moveTo(fx, fy - r * 1.1); g.lineTo(fx + r * 0.55 + Math.sin(T * 3 + y) * r * 0.06, fy - r * 0.9); g.lineTo(fx, fy - r * 0.65); g.closePath(); g.fill(); }
+        // здравина
+        if (maxHp) { g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(cx - r * 0.5, base + r * 0.05, r, r * 0.12); g.fillStyle = dmg > 0.5 ? '#ff8a60' : '#ffd870'; g.fillRect(cx - r * 0.5, base + r * 0.05, r * (hp / maxHp), r * 0.12); }
+      };
+      const tower = (cx, cy, big, alive, side) => {
+        const tw = r * (big ? 1.7 : 1.3), th = r * (big ? 4.2 : 3.3), base = cy + r * sq * 0.9, top = base - th;
+        g.save();
+        if (!alive) { g.globalAlpha = 0.9; g.fillStyle = '#6a6458'; g.beginPath(); g.ellipse(cx, base, tw * 0.8, r * 0.35, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#8a8070'; for (let k = 0; k < 6; k++) { g.beginPath(); g.ellipse(cx + (G.hashN(cx | 0, k, 1) - 0.5) * tw * 1.4, base - G.hashN(cx | 0, k, 2) * r * 0.5, r * 0.25, r * 0.16, k, 0, Math.PI * 2); g.fill(); } g.restore(); return; }
+        // тяло на кулата (цилиндър)
+        const gr = g.createLinearGradient(cx - tw / 2, 0, cx + tw / 2, 0); gr.addColorStop(0, '#c8c0b0'); gr.addColorStop(0.5, '#9a9284'); gr.addColorStop(1, '#5a544a');
+        g.fillStyle = gr; g.beginPath(); g.rect(cx - tw / 2, top + r * 0.3, tw, th - r * 0.3); g.fill();
+        if (stone) { g.save(); g.globalAlpha = 0.35; g.beginPath(); g.rect(cx - tw / 2, top + r * 0.3, tw, th - r * 0.3); g.clip(); g.drawImage(stone, cx - tw / 2, top, tw, th); g.restore(); }
+        g.fillStyle = '#6a6458'; g.beginPath(); g.ellipse(cx, base, tw / 2, r * 0.2, 0, 0, Math.PI * 2); g.fill();
+        // зъбери на върха и платформа
+        g.fillStyle = '#aaa294'; g.beginPath(); g.ellipse(cx, top + r * 0.3, tw / 2 * 1.15, r * 0.22, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#8a8274'; for (let k = 0; k < 5; k++) { g.fillRect(cx - tw * 0.575 + tw * 1.15 * k / 5 + tw * 0.03, top + r * 0.05, tw * 0.13, r * 0.28); }
+        // прозорче-бойница
+        g.fillStyle = '#1a1208'; g.fillRect(cx - r * 0.06, top + r * 1.4, r * 0.12, r * 0.5);
+        // стрелец на кулата (същество от 2-ро ниво на фракцията на защитника)
+        const t = b.ctx.town; const c = t ? D.creatureOf(t.faction + '2' + (t.buildings && t.buildings.dw2u ? 'u' : '')) : null;
+        if (c) { const spr = G.creatureSprite(c, 128, true); const sz = r * 1.3; g.drawImage(spr, cx - sz / 2, top + r * 0.35 - sz * 1.4 + Math.sin(T * 1.7 + cx) * r * 0.02, sz, sz * 1.4); }
+        g.restore();
+      };
+      // сегменти на този ред
+      for (let x = 0; x < Hex.W; x++) {
+        const i = Hex.idx(x, y);
+        if (b.walls.has(i) || (i === gateI && b.isGateIntact())) { const [cx, cy] = this.hexCenter(x, y); seg(cx, cy, i === gateI ? 'gate' : 'wall', b.wallHp[i] || 0, b.siege + (i === gateI ? 1 : 0)); }
+      }
+      b.towers.forEach((t) => { if (t.y !== y) return; const [cx, cy] = this.hexCenter(t.x, t.y); tower(cx, cy, t.x === 13, !t.destroyed, 1); });
     }
     hexPath(g, cx, cy, r) { const sq = this.squash || 1; g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a) * sq; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath(); }
     sideColor(side) {
@@ -167,12 +233,15 @@
     }
     draw() {
       if (this.canvas.clientWidth !== this._cw || this.canvas.clientHeight !== this._ch) this.resize(true); // показано/завъртяно
-      const g = this.ctx, b = this.b, r = this.r;
+      const g = this.ctx, b = this.b, r = this.r, sq = this.squash || 1;
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      if (this.fieldShake) { const fs = this.fieldShake, kk = (performance.now() - fs.t0) / fs.ms; if (kk >= 1) this.fieldShake = null; else g.translate((Math.random() - 0.5) * fs.amp * (1 - kk), (Math.random() - 0.5) * fs.amp * (1 - kk)); }
       const W = this.canvas.width, H = this.canvas.height;
       const now = performance.now(), T = now / 1000;
       const Tcol = D.TERRAIN[b.terrain] || D.TERRAIN[1];
       // рисуван фон: земя, небе с хоризонт, планини и гори в далечината (кеширан)
       g.drawImage(this.backdrop(), 0, 0);
+      this.drawHeroes(T); // както в класиките: в края на полето, зад мрежата и единиците
       const cur = b.current;
       const input = this.state === 'input' && cur;
       const tactics = this.state === 'tactics';
@@ -183,33 +252,30 @@
         const i = Hex.idx(x, y);
         this.hexPath(g, cx, cy, r - 1.5);
         if (b.walls.has(i) || (i === gateI && b.isGateIntact())) {
-          const gate = i === gateI;
-          const wg = g.createLinearGradient(cx - r, cy - r, cx + r, cy + r); wg.addColorStop(0, gate ? '#8a6a3a' : '#a8a090'); wg.addColorStop(1, gate ? '#4a2e12' : '#5a5448');
-          g.fillStyle = wg; g.fill(); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1.5; g.stroke();
-          if (!gate) { g.fillStyle = 'rgba(0,0,0,0.25)'; for (let k = 0; k < 3; k++) { g.fillRect(cx - r * 0.7 + (k % 2) * r * 0.35, cy - r * 0.6 + k * r * 0.4, r * 0.7, r * 0.06); g.fillRect(cx - r * 0.35 + (k % 2) * r * 0.35, cy - r * 0.6 + k * r * 0.4, r * 0.06, r * 0.4); } g.fillStyle = '#c8c0b0'; for (let k = -1; k <= 1; k++) g.fillRect(cx + k * r * 0.5 - r * 0.15, cy - r * 0.95, r * 0.3, r * 0.25); }
-          else { g.fillStyle = '#2a1a10'; g.beginPath(); g.roundRect(cx - r * 0.45, cy - r * 0.7, r * 0.9, r * 1.4, [r * 0.45, r * 0.45, 0, 0]); g.fill(); g.strokeStyle = '#c9a961'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(cx, cy - r * 0.7); g.lineTo(cx, cy + r * 0.7); g.moveTo(cx - r * 0.45, cy); g.lineTo(cx + r * 0.45, cy); g.stroke(); }
-          const hp = b.wallHp[i]; if (hp) { g.fillStyle = '#ffd870'; for (let k = 0; k < hp; k++) g.fillRect(cx - r * 0.3 + k * r * 0.22, cy + r * 0.72, r * 0.16, r * 0.1); }
-          continue;
+          // основата на стената (самата стена се рисува по-късно, подредена по дълбочина с единиците)
+          g.fillStyle = 'rgba(70,64,56,0.75)'; g.fill(); continue;
         }
         if (b.rubble.has(i)) { g.fillStyle = 'rgba(60,54,48,0.7)'; g.fill(); for (let k = 0; k < 5; k++) { const rr = G.hashN(i, k, 1); g.fillStyle = MK.shade('#8a8070', 0.7 + rr * 0.6); g.beginPath(); g.ellipse(cx + (rr - 0.5) * r, cy + (G.hashN(i, k, 2) - 0.5) * r, r * 0.22, r * 0.14, rr * 3, 0, Math.PI * 2); g.fill(); } continue; }
         if (b.obstacles.has(i)) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fill(); g.drawImage(G.decor(b.terrain === 6 || b.terrain === 4 || b.terrain === 7 || b.terrain === 9 ? 2 : b.terrain === 3 ? 3 : b.terrain === 8 ? 5 : 1, (x * 3 + y) & 7, 96, b.terrain), cx - r * 1.05, cy + r * 0.95 - r * 3.36, r * 2.1, r * 3.36); continue; }
         g.fillStyle = (x + y) & 1 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'; g.fill();
-        if (b.moat.has(i)) { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
+        if (b.moat.has(i)) { const wimg = MK.Img.get('terrain/water'); if (wimg) { g.save(); g.clip(); g.globalAlpha = 0.85; g.drawImage(wimg, ((x * 7) % 4) * wimg.width / 4, ((y * 5) % 4) * wimg.height / 4, wimg.width / 4, wimg.height / 4, cx - r, cy - r * sq, r * 2, r * 2 * sq); g.restore(); g.strokeStyle = 'rgba(20,40,80,0.7)'; g.lineWidth = Math.max(1, r * 0.06); g.stroke(); } else { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); } g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
         if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y) && MK.Img.get('ui/hex_move')) { g.globalAlpha = 0.55; g.drawImage(MK.Img.get('ui/hex_move'), cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; }
         else if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { const rg = g.createRadialGradient(cx, cy, r * 0.2, cx, cy, r); rg.addColorStop(0, 'rgba(120,255,80,0.08)'); rg.addColorStop(1, 'rgba(60,200,40,0.24)'); g.fillStyle = rg; g.fill(); g.strokeStyle = 'rgba(150,255,100,0.6)'; g.lineWidth = Math.max(1, r * 0.045); g.stroke(); }
         if (tactics && this.tacticsStack && b.tacticsAllowed(this.tacticsStack.side, x) && b.canStand(this.tacticsStack, x, y)) { g.fillStyle = 'rgba(255,216,112,0.18)'; g.fill(); }
         g.strokeStyle = 'rgba(190,255,120,0.28)'; g.lineWidth = 1; g.stroke();
       }
-      b.towers.forEach((t) => { const [cx, cy] = this.hexCenter(t.x, t.y); const tg = g.createLinearGradient(cx - r * 0.4, 0, cx + r * 0.4, 0); tg.addColorStop(0, '#b0a898'); tg.addColorStop(1, '#5a5448'); g.fillStyle = tg; g.fillRect(cx - r * 0.38, cy - r * 1.2, r * 0.76, r * 1.6); g.fillStyle = '#7a7268'; for (let k = -1; k <= 1; k++) g.fillRect(cx + k * r * 0.28 - r * 0.1, cy - r * 1.4, r * 0.2, r * 0.25); g.fillStyle = '#1a1410'; g.fillRect(cx - r * 0.1, cy - r * 0.9, r * 0.2, r * 0.3); });
+      // кулите се рисуват заедно със стените по дълбочина
       if (b.siege && b.alive(0).length) { const [cx, cy] = this.hexCenter(0, 10); g.fillStyle = '#5a4a2a'; g.fillRect(cx - r * 0.55, cy + r * 0.2, r * 1.1, r * 0.28); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(cx - r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.arc(cx + r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#6a4a2a'; g.lineWidth = r * 0.12; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - r * 0.2, cy + r * 0.2); g.lineTo(cx + r * 0.35, cy - r * 0.7); g.stroke(); g.fillStyle = '#7a7068'; g.beginPath(); g.arc(cx + r * 0.4, cy - r * 0.78, r * 0.14, 0, Math.PI * 2); g.fill(); }
       const hi = tactics ? this.tacticsStack : (cur && cur.alive ? cur : null);
       if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); const hv = MK.Img.get('ui/hex_hover'); if (hv) { g.globalAlpha = pulse; g.drawImage(hv, p[0] - r * 1.02, p[1] - r * 1.02, r * 2.04, r * 2.04); g.globalAlpha = 1; return; } this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
       if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); const ha = MK.Img.get('ui/hex_attack'); if (ha && !o.ranged) { g.globalAlpha = 0.6; g.drawImage(ha, cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; return; } this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
       if (this.castSpell) { g.fillStyle = 'rgba(140,120,255,0.12)'; g.fillRect(0, 0, W, H - this.barH); }
-      this.drawHeroes(T); // героите са върху хексовете, под стековете
       // стекове (сенки, спрайтове, ефекти, брой)
       const stacks = b.stacks.filter((s) => s.alive || this.fading[s.id]).sort((a, c) => a.y - c.y);
+      let wallRow = 0;
+      const drawWallsUpTo = (row) => { while (wallRow <= row && wallRow < Hex.H) { this.drawWallRow(wallRow, T); wallRow++; } };
       stacks.forEach((s) => {
+        drawWallsUpTo(s.y);
         const base = this.animPos[s.id] || this.stackCenter(s);
         const lunge = this.lunge[s.id] || [0, 0], shake = this.shake[s.id] ? (Math.random() - 0.5) * r * 0.25 : 0;
         const p = [base[0] + lunge[0] + shake, base[1] + lunge[1]];
@@ -240,6 +306,7 @@
         }
         g.globalAlpha = 1;
       });
+      drawWallsUpTo(Hex.H - 1);
       // снаряди
       this.projectiles.forEach((pr) => {
         const k = Math.min(1, (now - pr.t0) / pr.dur);
@@ -251,6 +318,9 @@
         else { g.strokeStyle = '#e8dcc0'; g.lineWidth = Math.max(1.5, r * 0.06); g.beginPath(); g.moveTo(-r * 0.45, 0); g.lineTo(r * 0.35, 0); g.stroke(); g.fillStyle = '#d0d8e0'; g.beginPath(); g.moveTo(r * 0.45, 0); g.lineTo(r * 0.28, -r * 0.08); g.lineTo(r * 0.28, r * 0.08); g.fill(); }
         g.restore();
       });
+      // магически ефекти
+      this.fx = this.fx.filter((f) => now < f.t0 + f.life);
+      this.fx.forEach((f) => { const k = Math.min(1, (now - f.t0) / f.life); g.save(); try { f.draw(g, k, now); } finally { g.restore(); } });
       // частици
       this.particles = this.particles.filter((pt) => now < pt.t0 + pt.life);
       this.particles.forEach((pt) => {
@@ -272,6 +342,124 @@
       g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? 'Тактика: подреди армията' : 'Рунд ' + b.round, (this.fieldX || 0) + (this.fieldW || W) / 2, 6 * this.dpr);
     }
     burst(x, y, color, n, speed, size, g) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.3 + Math.random()); this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, g: g || this.r * 1.5, t0: performance.now(), life: 400 + Math.random() * 400, color, size: size * (0.5 + Math.random()) }); } }
+    /* ---------------------------------------------------------------- анимации на магиите (по духа на класиките, с повече ефекти) */
+    spellVisual(sp) {
+      const S = sp.id;
+      const school = { fire: ['#ff8a30', '#ffd070'], water: ['#70c8ff', '#e0f6ff'], air: ['#c8d8ff', '#ffffff'], earth: ['#b8e070', '#e8ffb0'], all: ['#d0b0ff', '#ffffff'] }[sp.school] || ['#d0b0ff', '#fff'];
+      const map = {
+        magic_arrow: { kind: 'bolt', color: '#e0c0ff' }, ice_bolt: { kind: 'bolt', color: '#a0e0ff', ice: true }, lightning: { kind: 'sky_bolt', color: '#e8f0ff' }, chain_lightning: { kind: 'chain', color: '#e8f0ff' },
+        fireball: { kind: 'fireball', color: '#ff9030' }, inferno: { kind: 'inferno', color: '#ff6020' }, meteor_shower: { kind: 'meteors', color: '#ffb060' }, frost_ring: { kind: 'frost', color: '#b0f0ff' },
+        implosion: { kind: 'implode', color: '#c8ff80' }, armageddon: { kind: 'armageddon', color: '#ff7030' }, death_ripple: { kind: 'ripple', color: '#a080ff' }, destroy_undead: { kind: 'holy_wave', color: '#fff6c0' },
+        cure: { kind: 'holy', color: '#a0ffb0' }, resurrection: { kind: 'holy', color: '#fff0a0', big: true }, animate_dead: { kind: 'necro', color: '#b070ff' }, dispel: { kind: 'flash', color: '#ffffff' },
+        blind: { kind: 'debuff', color: '#ffe080', icon: '👁' }, slow: { kind: 'debuff', color: '#b0a080' }, curse: { kind: 'debuff', color: '#ff6060' }, weakness: { kind: 'debuff', color: '#80c0ff' }, misfortune: { kind: 'debuff', color: '#ff8080' }, sorrow: { kind: 'debuff', color: '#8080c0' }, disrupting_ray: { kind: 'bolt', color: '#ff80ff' },
+        haste: { kind: 'buff', color: '#ffe080' }, bless: { kind: 'buff', color: '#ffffff' }, shield: { kind: 'buff', color: '#c0c0ff', shield: true }, air_shield: { kind: 'buff', color: '#d0f0ff', shield: true }, stone_skin: { kind: 'buff', color: '#c0b090', shield: true }, bloodlust: { kind: 'buff', color: '#ff5050' }, precision: { kind: 'buff', color: '#80ff80' }, fortune: { kind: 'buff', color: '#80ff80' }, mirth: { kind: 'buff', color: '#ffd0ff' }, anti_magic: { kind: 'buff', color: '#ff80ff', shield: true }, prayer: { kind: 'buff', color: '#fff0c0' }, slayer: { kind: 'buff', color: '#ff9040' }, counterstrike: { kind: 'buff', color: '#ffd070' }
+      };
+      const v = map[S] || { kind: sp.kind === 'dmg' ? 'bolt' : sp.kind === 'area' ? 'fireball' : sp.kind === 'buff' ? 'buff' : sp.kind === 'debuff' ? 'debuff' : 'flash', color: school[0] };
+      v.color2 = school[1]; return v;
+    }
+    casterPoint(side) {
+      const hr = this.heroRects().find((q) => q.side === side);
+      if (hr) return [hr.x + hr.w * (side === 0 ? 0.62 : 0.38), hr.y + hr.h * 0.35];
+      return [side === 0 ? this.fieldX + this.r : this.fieldX + this.fieldW - this.r, this.oy + this.r * 4];
+    }
+    addFx(life, draw) { const f = { t0: performance.now(), life, draw }; this.fx.push(f); return f; }
+    async playSpell(sp, side, tx, ty, targets) {
+      const v = this.spellVisual(sp), r = this.r, dur = (ms) => sleep(ms * (this.auto ? 0.5 : 1) / this.speed);
+      const [cx, cy] = Hex.inb(tx, ty) ? this.hexCenter(tx, ty) : [this.fieldX + this.fieldW / 2, this.oy + r * 7];
+      const from = this.casterPoint(side);
+      const pts = (targets && targets.length ? targets : [[cx, cy]]);
+      const iconImg = MK.Img.get('spells/' + sp.id);
+      const showIcon = (x, y) => this.addFx(900, (g, k) => { const a = k < 0.2 ? k / 0.2 : k > 0.7 ? (1 - k) / 0.3 : 1; g.globalAlpha = a; const s = r * 0.9; if (iconImg) g.drawImage(iconImg, x - s / 2, y - r * 1.9 - k * r * 0.8 - s / 2, s, s); });
+      const glow = (x, y, color, life, rise, size) => this.addFx(life, (g, k) => { const rr = (size || r) * (0.6 + 0.6 * k); const gr = g.createRadialGradient(x, y - k * (rise || 0), 0, x, y - k * (rise || 0), rr); gr.addColorStop(0, color); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = (1 - k) * 0.9; g.fillStyle = gr; g.beginPath(); g.arc(x, y - k * (rise || 0), rr, 0, Math.PI * 2); g.fill(); });
+      switch (v.kind) {
+        case 'bolt': {
+          // светеща стрела от героя към целта с опашка, после взрив
+          await this.magicBolt(from, [cx, cy - r * 0.4], v.color, v.ice);
+          this.burst(cx, cy - r * 0.4, v.color, 18, r * 2.2, r * 0.1); this.rings.push({ x: cx, y: cy - r * 0.3, r0: r * 0.2, r1: r * 1.3, t0: performance.now(), life: 400, color: v.color });
+          if (v.ice) this.addFx(700, (g, k) => { g.globalAlpha = 1 - k; g.strokeStyle = '#d8f4ff'; g.lineWidth = Math.max(1, r * 0.05); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.beginPath(); g.moveTo(cx, cy - r * 0.4); g.lineTo(cx + Math.cos(a) * r * (0.5 + k), cy - r * 0.4 + Math.sin(a) * r * (0.5 + k)); g.stroke(); } });
+          await dur(150); break;
+        }
+        case 'sky_bolt': case 'chain': {
+          const chain = v.kind === 'chain' ? pts : [[cx, cy]];
+          let prev = [chain[0][0], -r * 2];
+          for (const p of chain) {
+            const a = prev, bpt = [p[0], p[1] - r * 0.5];
+            this.addFx(380, (g, k) => { const seg = 9; g.globalAlpha = k < 0.15 ? 1 : 1 - (k - 0.15) / 0.85; g.strokeStyle = '#ffffff'; g.lineWidth = Math.max(2, r * 0.09); g.shadowColor = '#a0c0ff'; g.shadowBlur = r * 0.5; g.beginPath(); g.moveTo(a[0], a[1]); for (let i = 1; i <= seg; i++) { const t = i / seg; g.lineTo(a[0] + (bpt[0] - a[0]) * t + (i < seg ? (Math.sin(i * 7.3 + k * 40) * r * 0.45) : 0), a[1] + (bpt[1] - a[1]) * t + (i < seg ? Math.cos(i * 5.1 + k * 30) * r * 0.25 : 0)); } g.stroke(); });
+            this.addFx(220, (g, k) => { g.globalAlpha = (1 - k) * 0.5; g.fillStyle = '#e8f0ff'; g.fillRect(this.fieldX, 0, this.fieldW, this.canvas.height); });
+            this.burst(bpt[0], bpt[1], '#e8f0ff', 14, r * 2.4, r * 0.09);
+            prev = bpt; await dur(v.kind === 'chain' ? 160 : 60);
+          }
+          await dur(250); break;
+        }
+        case 'fireball': {
+          await this.magicBolt(from, [cx, cy - r * 0.3], '#ff9030', false, true);
+          this.addFx(650, (g, k) => { const rr = r * (0.5 + 2.6 * Math.sqrt(k)); const gr = g.createRadialGradient(cx, cy - r * 0.3, 0, cx, cy - r * 0.3, rr); gr.addColorStop(0, 'rgba(255,255,200,' + (1 - k) + ')'); gr.addColorStop(0.35, 'rgba(255,140,40,' + (0.9 - k * 0.9) + ')'); gr.addColorStop(1, 'rgba(120,20,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy - r * 0.3, rr, 0, Math.PI * 2); g.fill(); });
+          this.burst(cx, cy - r * 0.3, '#ff9030', 26, r * 3, r * 0.14, -r); this.shakeField(6, 350); await dur(500); break;
+        }
+        case 'inferno': {
+          this.addFx(900, (g, k) => { for (let i = 0; i < 18; i++) { const a = i * 0.35 + k * 2, rad = r * 2.4 * (0.3 + 0.7 * Math.sin(k * Math.PI)); const px = cx + Math.cos(a) * rad * (0.5 + 0.5 * ((i * 37) % 10) / 10), py = cy - r * 0.2 + Math.sin(a) * rad * 0.5; const h = r * (1 + 1.6 * Math.sin(k * Math.PI)) * (0.6 + ((i * 53) % 10) / 20); g.globalAlpha = 0.85 * (1 - k * k); const gr = g.createLinearGradient(px, py, px, py - h); gr.addColorStop(0, '#ff5010'); gr.addColorStop(0.5, '#ffb030'); gr.addColorStop(1, 'rgba(255,240,150,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(px - r * 0.25, py); g.quadraticCurveTo(px, py - h * 0.5, px, py - h); g.quadraticCurveTo(px, py - h * 0.5, px + r * 0.25, py); g.fill(); } });
+          this.burst(cx, cy, '#ff6020', 30, r * 3.5, r * 0.12, -r * 2); this.shakeField(5, 500); await dur(800); break;
+        }
+        case 'meteors': {
+          for (let i = 0; i < 7; i++) {
+            const ox = (Math.random() - 0.5) * r * 4, oy = (Math.random() - 0.5) * r * 2.4, tx2 = cx + ox, ty2 = cy + oy;
+            this.addFx(420, (g, k) => { const x = tx2 + r * 5 * (1 - k), y = ty2 - r * 9 * (1 - k); g.globalAlpha = 1; g.fillStyle = '#ffb060'; g.shadowColor = '#ff8020'; g.shadowBlur = r * 0.6; g.beginPath(); g.ellipse(x, y, r * 0.35, r * 0.25, -0.9, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(255,160,60,' + (0.6) + ')'; g.lineWidth = r * 0.25; g.beginPath(); g.moveTo(x, y); g.lineTo(x + r * 1.5, y - r * 2.7); g.stroke(); });
+            setTimeout(() => { this.burst(tx2, ty2, '#ffb060', 12, r * 2.2, r * 0.12, -r); this.rings.push({ x: tx2, y: ty2, r0: r * 0.2, r1: r * 1.2, t0: performance.now(), life: 350, color: 'rgba(255,170,80,0.9)' }); this.shakeField(4, 200); }, 400 / this.speed);
+            await dur(110);
+          }
+          await dur(500); break;
+        }
+        case 'frost': {
+          this.addFx(800, (g, k) => { const rr = r * (1.2 + 1.6 * k); g.globalAlpha = 1 - k * k; g.strokeStyle = '#d8f8ff'; g.lineWidth = Math.max(2, r * 0.14); g.shadowColor = '#80d0ff'; g.shadowBlur = r * 0.5; g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke(); for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + k; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(cx + Math.cos(a) * rr * 0.85, cy + Math.sin(a) * rr * 0.85); g.lineTo(cx + Math.cos(a) * rr * 1.15, cy + Math.sin(a) * rr * 1.15); g.stroke(); } });
+          this.burst(cx, cy, '#d8f8ff', 24, r * 2.8, r * 0.1, -r * 0.5); await dur(600); break;
+        }
+        case 'implode': {
+          this.addFx(700, (g, k) => { const rr = r * 2.6 * (1 - k) + r * 0.2; g.globalAlpha = 0.9; g.strokeStyle = '#c8ff80'; g.lineWidth = Math.max(2, r * 0.12); g.shadowColor = '#80ff40'; g.shadowBlur = r * 0.4; g.beginPath(); g.arc(cx, cy - r * 0.3, rr, 0, Math.PI * 2); g.stroke(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + k * 3; g.beginPath(); g.moveTo(cx + Math.cos(a) * rr, cy - r * 0.3 + Math.sin(a) * rr); g.lineTo(cx + Math.cos(a) * rr * 0.3, cy - r * 0.3 + Math.sin(a) * rr * 0.3); g.stroke(); } });
+          await dur(600); this.burst(cx, cy - r * 0.3, '#c8ff80', 30, r * 3.5, r * 0.12); this.shakeField(8, 400); await dur(250); break;
+        }
+        case 'armageddon': {
+          this.addFx(1400, (g, k) => { g.globalAlpha = k < 0.3 ? k / 0.3 * 0.85 : 0.85 * (1 - (k - 0.3) / 0.7); const gr = g.createLinearGradient(0, 0, 0, this.canvas.height); gr.addColorStop(0, '#ff9030'); gr.addColorStop(1, '#600'); g.fillStyle = gr; g.fillRect(this.fieldX, 0, this.fieldW, this.canvas.height); });
+          for (let i = 0; i < 16; i++) { const tx2 = this.fieldX + Math.random() * this.fieldW, ty2 = this.oy + Math.random() * r * 15; setTimeout(() => { this.burst(tx2, ty2, '#ffb060', 14, r * 2.6, r * 0.14, -r); this.shakeField(6, 250); }, (i * 60) / this.speed); }
+          await dur(1300); break;
+        }
+        case 'ripple': case 'holy_wave': {
+          const col = v.kind === 'ripple' ? 'rgba(160,120,255,' : 'rgba(255,246,190,';
+          this.addFx(1000, (g, k) => { const cxx = this.fieldX + this.fieldW / 2, cyy = this.oy + r * 7; for (let i = 0; i < 3; i++) { const kk = Math.max(0, k - i * 0.15); const rr = r * 16 * kk; g.globalAlpha = 1; g.strokeStyle = col + (1 - kk) + ')'; g.lineWidth = Math.max(2, r * 0.3 * (1 - kk)); g.beginPath(); g.ellipse(cxx, cyy, rr, rr * 0.55, 0, 0, Math.PI * 2); g.stroke(); } });
+          await dur(900); break;
+        }
+        case 'holy': case 'necro': {
+          for (const [px, py] of pts) {
+            const col = v.kind === 'necro' ? 'rgba(176,112,255,' : 'rgba(255,250,200,';
+            this.addFx(900, (g, k) => { const w = r * 0.9 * (1 - Math.abs(k - 0.5) * 2 * 0.5); g.globalAlpha = k < 0.15 ? k / 0.15 : k > 0.7 ? (1 - k) / 0.3 : 1; const gr = g.createLinearGradient(px, py - r * 8, px, py + r * 0.5); gr.addColorStop(0, col + '0)'); gr.addColorStop(0.6, col + '0.75)'); gr.addColorStop(1, col + '0.2)'); g.fillStyle = gr; g.fillRect(px - w / 2, py - r * 8, w, r * 8.5); });
+            glow(px, py + r * 0.2, v.color, 900, r * 1.5, r * 1.3);
+            this.burst(px, py, v.color, 16, r * 1.2, r * 0.09, -r * 2.5); showIcon(px, py);
+          }
+          await dur(700); break;
+        }
+        case 'flash': { for (const [px, py] of pts) { this.rings.push({ x: px, y: py - r * 0.4, r0: r * 0.3, r1: r * 1.6, t0: performance.now(), life: 450, color: 'rgba(255,255,255,0.95)' }); glow(px, py - r * 0.4, '#fff', 400, 0, r); } await dur(350); break; }
+        case 'buff': case 'debuff': {
+          const up = v.kind === 'buff';
+          for (const [px, py] of pts) {
+            // мек ореол + издигащи се (или спускащи се) искри + иконата на магията
+            glow(px, py - r * 0.3, v.color, 800, up ? r * 0.8 : -r * 0.6, r * 1.1);
+            this.addFx(800, (g, k) => { for (let i = 0; i < 10; i++) { const a = i * 0.63 + k * 2, rad = r * 0.75; const yy = py - r * 0.4 + (up ? -k * r * 1.8 : k * r * 1.2) + Math.sin(a * 2) * r * 0.2; g.globalAlpha = (1 - k) * 0.9; g.fillStyle = i % 2 ? v.color : v.color2; g.beginPath(); g.arc(px + Math.cos(a) * rad, yy, r * 0.07, 0, Math.PI * 2); g.fill(); } });
+            if (v.shield) this.addFx(900, (g, k) => { g.globalAlpha = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8; g.strokeStyle = v.color; g.lineWidth = Math.max(2, r * 0.1); g.shadowColor = v.color; g.shadowBlur = r * 0.4; g.beginPath(); g.ellipse(px, py - r * 0.5, r * 0.9, r * 1.2, 0, 0, Math.PI * 2); g.stroke(); });
+            if (!up) this.addFx(800, (g, k) => { g.globalAlpha = 0.5 * (1 - k); g.fillStyle = '#000'; g.beginPath(); g.ellipse(px, py - r * 0.5, r * 0.9, r * 1.2, 0, 0, Math.PI * 2); g.fill(); });
+            showIcon(px, py);
+          }
+          await dur(550); break;
+        }
+        default: { glow(cx, cy, v.color, 500, 0, r); await dur(300); }
+      }
+    }
+    /* Светещ снаряд с опашка от героя към целта */
+    async magicBolt(from, to, color, ice, fire) {
+      const r = this.r, d = 380 * (this.auto ? 0.5 : 1) / this.speed;
+      const f = this.addFx(d + 120, (g, k) => { const kk = Math.min(1, k * (d + 120) / d); const x = from[0] + (to[0] - from[0]) * kk, y = from[1] + (to[1] - from[1]) * kk - Math.sin(kk * Math.PI) * r * 1.2; g.globalAlpha = 1; for (let i = 6; i >= 0; i--) { const t2 = Math.max(0, kk - i * 0.035); const tx = from[0] + (to[0] - from[0]) * t2, ty = from[1] + (to[1] - from[1]) * t2 - Math.sin(t2 * Math.PI) * r * 1.2; const gr = g.createRadialGradient(tx, ty, 0, tx, ty, r * (fire ? 0.45 : 0.3) * (1 - i * 0.12)); gr.addColorStop(0, i === 0 ? '#fff' : color); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.globalAlpha = 1 - i * 0.13; g.fillStyle = gr; g.beginPath(); g.arc(tx, ty, r * (fire ? 0.5 : 0.32), 0, Math.PI * 2); g.fill(); } if (ice) { g.strokeStyle = '#e8ffff'; g.lineWidth = Math.max(1, r * 0.04); for (let i = 0; i < 3; i++) { const a = i * 1.05 + kk * 6; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5); g.stroke(); } } });
+      await sleep(d);
+      this.fx = this.fx.filter((q) => q !== f);
+    }
+    shakeField(amp, ms) { this.fieldShake = { amp: amp * this.dpr, t0: performance.now(), ms }; }
     async projectile(from, to, kind, color) {
       const dur = kind === 'rock' ? 500 : 320;
       const pr = { x0: from[0], y0: from[1] - this.r * 0.6, x1: to[0], y1: to[1] - this.r * 0.4, arc: kind === 'rock' ? this.r * 3 : this.r * 1.2, t0: performance.now(), dur, kind, color };
@@ -334,7 +522,8 @@
           case 'catapult': { const [cx, cy] = this.hexCenter(e.idx % Hex.W, Math.floor(e.idx / Hex.W)); await this.projectile(this.hexCenter(0, 10), [cx, cy], 'rock'); this.burst(cx, cy, 'rgba(160,150,130,0.9)', 18, this.r * 2.5, this.r * 0.14); this.shakeScreen = performance.now(); this.floats.push({ x: cx, y: cy - this.r * 0.5, text: e.destroyed ? (e.gate ? 'Портата пада!' : 'Стената пада!') : 'Удар по стената', color: '#ffd870', t: performance.now(), big: e.destroyed }); await sleep(350 * fast); break; }
           case 'death': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy, 'rgba(90,80,70,0.7)', 14, this.r * 1.5, this.r * 0.16, this.r); const t0 = performance.now(), dur = 450 * fast; while (performance.now() - t0 < dur) { this.fading[s.id] = 1 - (performance.now() - t0) / dur; await sleep(16); } delete this.fading[s.id]; break; }
           case 'morale': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.floats.push({ x: cx, y: cy - this.r, text: e.good ? 'Висок морал!' : 'Лош морал', color: e.good ? '#ffe070' : '#a0a0a0', t: performance.now() }); if (e.good) this.burst(cx, cy - this.r, 'rgba(255,224,112,0.9)', 10, this.r, this.r * 0.08, -this.r); await sleep(400 * fast); break; }
-          case 'cast': { const sd = b.sides[e.side]; const [cx, cy] = Hex.inb(e.x, e.y) ? this.hexCenter(e.x, e.y) : [this.canvas.width / 2, this.oy + this.r * 7]; const sp = D.spellById[e.spell]; const col = sp.school === 'fire' ? 'rgba(255,120,40,0.9)' : sp.school === 'water' ? 'rgba(100,180,255,0.9)' : sp.school === 'earth' ? 'rgba(160,220,100,0.9)' : 'rgba(190,160,255,0.9)'; this.rings.push({ x: cx, y: cy, r0: this.r * 0.3, r1: this.r * (sp.kind === 'all' ? 9 : sp.kind === 'area' ? 2.6 : 1.4), t0: performance.now(), life: 550, color: col }); this.burst(cx, cy, col, 16, this.r * 2, this.r * 0.12, -this.r * 0.5); this.floats.push({ x: this.canvas.width / 2, y: this.oy + this.r * 0.5, text: '✦ ' + sp.name + ' ✦', color: '#d8c0ff', t: performance.now(), big: true }); await sleep(380 * fast); break; }
+          case 'cast': { const sd = b.sides[e.side]; const [cx, cy] = Hex.inb(e.x, e.y) ? this.hexCenter(e.x, e.y) : [this.canvas.width / 2, this.oy + this.r * 7]; const sp = D.spellById[e.spell];
+            { const tg = (e.targets || []).map((id) => st(id)).filter(Boolean).map((s) => this.stackCenter(s)); this.floats.push({ x: this.casterPoint(e.side)[0], y: this.casterPoint(e.side)[1] - this.r, text: sp.name, color: '#e0c8ff', t: performance.now(), big: true }); await this.playSpell(sp, e.side, e.x, e.y, tg); } const col = sp.school === 'fire' ? 'rgba(255,120,40,0.9)' : sp.school === 'water' ? 'rgba(100,180,255,0.9)' : sp.school === 'earth' ? 'rgba(160,220,100,0.9)' : 'rgba(190,160,255,0.9)'; this.rings.push({ x: cx, y: cy, r0: this.r * 0.3, r1: this.r * (sp.kind === 'all' ? 9 : sp.kind === 'area' ? 2.6 : 1.4), t0: performance.now(), life: 550, color: col }); this.burst(cx, cy, col, 16, this.r * 2, this.r * 0.12, -this.r * 0.5); this.floats.push({ x: this.canvas.width / 2, y: this.oy + this.r * 0.5, text: '✦ ' + sp.name + ' ✦', color: '#d8c0ff', t: performance.now(), big: true }); await sleep(380 * fast); break; }
           case 'effect': { const s = st(e.stack); if (s) { const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.6, 'rgba(200,170,255,0.9)', 8, this.r, this.r * 0.08, -this.r * 1.5); } await sleep(120 * fast); break; }
           case 'resist': case 'immune': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.rings.push({ x: cx, y: cy - this.r * 0.4, r0: this.r * 0.8, r1: this.r * 1.1, t0: performance.now(), life: 350, color: 'rgba(255,255,255,0.9)' }); this.floats.push({ x: cx, y: cy - this.r * 0.6, text: e.type === 'resist' ? 'Устоява!' : 'Имунитет', color: '#fff', t: performance.now() }); await sleep(250 * fast); break; }
           case 'wait': case 'defend': { const s = st(e.stack); if (s && e.type === 'defend') { const [cx, cy] = this.stackCenter(s); this.rings.push({ x: cx, y: cy - this.r * 0.3, r0: this.r * 0.4, r1: this.r * 1.0, t0: performance.now(), life: 400, color: 'rgba(160,200,255,0.8)' }); } await sleep(120 * fast); break; }

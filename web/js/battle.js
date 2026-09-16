@@ -642,7 +642,13 @@
       sd.mana -= cost; this.casted[side] = true;
       if (sd.hero) sd.hero.mana = sd.mana;
       const dur = Math.max(1, sd.pow + this.specPow(sd, spell));
-      this.pushEv({ type: 'cast', side, spell: spellId, x, y });
+      let castTargets = targets.map((t) => t.id);
+      if (spell.kind === 'chain') { // веригата: редът на прескачане, за анимацията
+        const order = []; let cur = targets[0]; const hit = new Set();
+        for (let k = 0; k < spell.hits[Math.max(0, lvl - 1)] && cur; k++) { order.push(cur.id); hit.add(cur.id); let next = null, bd = Infinity; this.stacks.forEach((s2) => { if (s2.alive && !hit.has(s2.id)) { const d = this.distBetween(s2, cur); if (d < bd) { bd = d; next = s2; } } }); cur = next; }
+        castTargets = order;
+      }
+      this.pushEv({ type: 'cast', side, spell: spellId, x, y, targets: castTargets });
       this.logLine((sd.hero ? sd.hero.name : 'Героят') + ' прави магия „' + spell.name + '“.');
       const affectedList = [];
       const hitDmg = (t, dmg) => {
