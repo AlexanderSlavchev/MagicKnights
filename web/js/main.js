@@ -233,22 +233,25 @@
     /* Показва награди „като в казино“ по текста/данните на събитието */
     showGains(text, ev) {
       const shown = [];
-      const resNames = { 'злато': 'gold', 'дърво': 'wood', 'руда': 'ore', 'живак': 'mercury', 'сяра': 'sulfur', 'кристал': 'crystal', 'скъпоценни камъни': 'gems' };
-      const re = /(?:^|[^\d])[+]?(\d+)\s*(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)|(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)\s*:\s*\+?(\d+)/gi; let m;
+      // имената на ресурсите и „опит“ на текущия език (регулярният израз се строи динамично)
+      const resNames = {}; D.RES.forEach((r) => { resNames[D.RES_NAME[r].toLowerCase()] = r; });
+      const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const words = Object.keys(resNames).concat([T('опит').toLowerCase()]).map(esc).join('|');
+      const re = new RegExp('(?:^|[^\\d])[+]?(\\d+)\\s*(' + words + ')|(' + words + ')\\s*:\\s*\\+?(\\d+)', 'gi'); let m;
       while ((m = re.exec(text))) {
         const n = +(m[1] || m[4]), what = (m[2] || m[3]).toLowerCase();
-        if (what === T('опит')) { UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: n, title: T('опит'), cls: 'xp' }); shown.push('xp'); continue; }
+        if (what === T('опит').toLowerCase()) { UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: n, title: T('опит'), cls: 'xp' }); shown.push('xp'); continue; }
         const r = resNames[what]; if (!r) continue;
         UI.reward({ icon: this.iconEl('ui/icon_' + r, '💰'), amount: n, title: D.RES_NAME[r], cls: 'res' }); shown.push(r);
       }
-      const ra = /Намираш артефакт: ([^.]+)\./.exec(text) || /намираш ([^.]+)\./.exec(text) ;
+      const ra = new RegExp(esc(T('Намираш артефакт: ')) + '([^.。]+)[.。]').exec(text) || new RegExp(esc(T('намираш ')) + '([^.。]+)[.。]').exec(text);
       if (ev && ev.kind === 'artifact') {
         const names = ra ? ra[1].split(/,| и /).map((x) => x.trim()).filter(Boolean) : [];
         names.forEach((nm) => { const a = D.ARTIFACTS.find((x) => x.name === nm || nm.includes(x.name)); if (a) { UI.reward({ icon: this.iconEl('artifacts/' + a.id, '🏺'), title: a.name, sub: a.desc, cls: 'art', ms: 2400 }); shown.push('art'); } });
       }
-      const rs = /(?:Научаваш магията|Магията) „([^“]+)“/.exec(text);
-      if (rs && ev && ev.kind === 'spell') { const sp = D.SPELLS.find((x) => x.name === rs[1]); UI.reward({ icon: this.iconEl(sp ? 'spells/' + sp.id : null, '📖'), title: rs[1], sub: T('Нова магия'), cls: 'spell' }); shown.push('spell'); }
-      const rst = /\+1 (атака|защита|сила|познание)/.exec(text);
+      const rs = /„([^“]+)“|"([^"]+)"|「([^」]+)」/.exec(text);
+      if (rs && ev && ev.kind === 'spell') { const nm = rs[1] || rs[2] || rs[3]; const sp = D.SPELLS.find((x) => x.name === nm); UI.reward({ icon: this.iconEl(sp ? 'spells/' + sp.id : null, '📖'), title: nm, sub: T('Нова магия'), cls: 'spell' }); shown.push('spell'); }
+      const rst = new RegExp('\\+1 (' + Object.values(D.PRIMARY_NAME).map((x) => esc(x.toLowerCase())).join('|') + ')', 'i').exec(text.toLowerCase());
       if (rst) { UI.reward({ icon: this.iconEl('ui/icon_defend', '⚔️'), amount: 1, title: rst[1], cls: 'stat' }); shown.push('stat'); }
       return shown.length > 0;
     }

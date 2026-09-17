@@ -283,7 +283,7 @@
           if (last) { g.strokeStyle = g.fillStyle; g.lineWidth = Math.max(2, S * 0.08); g.beginPath(); g.arc(sx + S / 2, sy + S / 2, S * 0.3 + Math.sin(T * 5) * S * 0.03, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(sx + S * 0.5, sy + S * 0.3); g.lineTo(sx + S * 0.5, sy + S * 0.7); g.moveTo(sx + S * 0.3, sy + S * 0.5); g.lineTo(sx + S * 0.7, sy + S * 0.5); g.stroke(); }
           else { g.beginPath(); g.arc(sx + S / 2, sy + S / 2, S * 0.08, 0, TAU); g.fill(); }
         });
-        if (p.path.length) { const st = p.path[p.path.length - 1]; const days = Math.ceil(p.total / Math.max(1, this.selected.maxMovement)); const [sx, sy] = this.toScreen(st.x, st.y); if (p.total > mv) { g.font = 'bold ' + Math.max(10, S * 0.26) + 'px sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,0.6)'; g.beginPath(); g.roundRect(sx + S * 0.2, sy - S * 0.36, S * 0.6, S * 0.3, S * 0.06); g.fill(); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(days + ' д.', sx + S / 2, sy - S * 0.2); } }
+        if (p.path.length) { const st = p.path[p.path.length - 1]; const days = Math.ceil(p.total / Math.max(1, this.selected.maxMovement)); const [sx, sy] = this.toScreen(st.x, st.y); if (p.total > mv) { g.font = 'bold ' + Math.max(10, S * 0.26) + 'px sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,0.6)'; g.beginPath(); g.roundRect(sx + S * 0.2, sy - S * 0.36, S * 0.6, S * 0.3, S * 0.06); g.fill(); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(days + (MK.T ? MK.T(' д.') : ' д.'), sx + S / 2, sy - S * 0.2); } }
       }
       if (this.selected && (this.selected.z || 0) === this.z) this.drawTargetIcon(S, T);
       // --- светлина: топла винетка (повърхност) или студена (подземие)

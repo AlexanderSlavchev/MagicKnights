@@ -18,17 +18,19 @@
       try { const x = new XMLHttpRequest(); x.open('GET', 'i18n/' + code + '.json', false); x.overrideMimeType('application/json'); x.send(); if (x.status === 200 || x.status === 0) dict = JSON.parse(x.responseText) || {}; } catch (e) { dict = {}; }
     },
     set(code) { try { localStorage.setItem('mk_lang', code); } catch (e) { /* noop */ } location.reload(); },
-    /* Превежда имена/описания в данните на място (оригиналът се пази в _bg) */
+    /* Превежда всички текстове в данните на място: обхожда дълбоко D и кампаниите и заменя
+       всеки низ, който има превод в речника (идентификаторите са на латиница и не се засягат) */
     applyData() {
       const D = MK.data; if (!D || lang === 'bg') return;
-      const tr = (o) => { if (!o || typeof o !== 'object') return; ['name', 'desc', 'rare', 'text', 'win', 'intro', 'title', 'label', 'difficulty'].forEach((k) => { if (typeof o[k] === 'string' && dict[o[k]]) { o['_bg_' + k] = o[k]; o[k] = dict[o[k]]; } }); };
-      const walk = (c) => { if (!c) return; if (Array.isArray(c)) c.forEach(tr); else Object.values(c).forEach(tr); };
-      ['FACTIONS', 'CREATURES', 'BUILDINGS', 'ARTIFACTS', 'SPELLS', 'SKILLS', 'TERRAIN', 'RES_NAME', 'PLAYER_COLORS', 'TEMPLATES', 'DIFFICULTY', 'MAP_SIZES', 'CLASSES', 'SPECIALTIES', 'SETS'].forEach((k) => walk(D[k]));
-      if (D.OBJECTS) Object.values(D.OBJECTS).forEach(tr);
-      if (D.RES_NAME) for (const r in D.RES_NAME) if (dict[D.RES_NAME[r]]) D.RES_NAME[r] = dict[D.RES_NAME[r]];
-      if (D.COUNT_RANGES) D.COUNT_RANGES.forEach((r) => { if (dict[r[2]]) r[2] = dict[r[2]]; });
-      if (D.HERO_NAMES) for (const f in D.HERO_NAMES) D.HERO_NAMES[f] = D.HERO_NAMES[f].map((n) => dict[n] || n);
-      (MK.CAMPAIGNS || []).forEach((C) => { tr(C); C.scenarios.forEach((sc) => { tr(sc); (sc.bonuses || []).forEach(tr); }); });
+      const seen = new Set();
+      const walk = (o, depth) => {
+        if (!o || typeof o !== 'object' || seen.has(o) || depth > 8) return; seen.add(o);
+        if (Array.isArray(o)) { for (let i = 0; i < o.length; i++) { if (typeof o[i] === 'string') { if (dict[o[i]]) o[i] = dict[o[i]]; } else walk(o[i], depth + 1); } return; }
+        for (const k in o) { const v = o[k]; if (typeof v === 'string') { if (dict[v]) o[k] = dict[v]; } else if (v && typeof v === 'object') walk(v, depth + 1); }
+      };
+      walk(D, 0); walk(MK.CAMPAIGNS || [], 0);
+      // статични етикети в HTML
+      document.querySelectorAll('[data-i18n]').forEach((el) => { const k = el.getAttribute('data-i18n'); if (dict[k]) el.textContent = dict[k]; });
     }
   };
   MK.i18n.load(lang);

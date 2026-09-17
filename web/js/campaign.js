@@ -4,12 +4,13 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
-  const gold = (n) => ({ label: n + ' злато', type: 'gold', n });
+  const T = (x) => (MK.T ? MK.T(x) : x);
+  const gold = (n) => ({ label: n + T(' злато'), type: 'gold', n });
   const res = (label, r) => ({ label, type: 'res', r });
   const art = (aid, label) => ({ label, type: 'art', aid });
   const cre = (cid, n, label) => ({ label, type: 'creatures', cid, n });
   const spell = (sid, label) => ({ label, type: 'spell', sid });
-  const xp = (n) => ({ label: n + ' опит', type: 'xp', n });
+  const xp = (n) => ({ label: n + T(' опит'), type: 'xp', n });
 
   MK.CAMPAIGNS = [
     {

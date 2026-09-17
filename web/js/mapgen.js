@@ -4,6 +4,7 @@
   'use strict';
   const MK = (window.MK = window.MK || {});
   const D = MK.data;
+  const TR = (x) => (MK.T ? MK.T(x) : x);
 
   function newLevel(N) {
     return { terrain: new Uint8Array(N * N), road: new Uint8Array(N * N), block: new Uint8Array(N * N), objAt: new Int32Array(N * N).fill(-1) };
@@ -155,7 +156,7 @@
     };
 
     // --- 6. Градове на играчите
-    const townNames = rng.shuffle(['Белоград', 'Ветрен', 'Тъмнолес', 'Звезден брод', 'Кремен', 'Росеник', 'Черна скала', 'Златица', 'Мъглин', 'Севернище', 'Огнище', 'Синигер', 'Върбица', 'Камендол', 'Лунев', 'Драконовец', 'Пепелград', 'Сребърник', 'Каменица', 'Мочурин']);
+    const townNames = rng.shuffle([TR('Белоград'), TR('Ветрен'), TR('Тъмнолес'), TR('Звезден брод'), TR('Кремен'), TR('Росеник'), TR('Черна скала'), TR('Златица'), TR('Мъглин'), TR('Севернище'), TR('Огнище'), TR('Синигер'), TR('Върбица'), TR('Камендол'), TR('Лунев'), TR('Драконовец'), TR('Пепелград'), TR('Сребърник'), TR('Каменица'), TR('Мочурин')]);
     const towns = [];
     starts.forEach((s, i) => {
       clearAround(s.x, s.y, 2, 0);
@@ -185,7 +186,7 @@
       if (!sp) continue;
       clearAround(sp.x, sp.y, 2, 0);
       const f = rng.pick(D.FACTIONS).id;
-      towns.push(place({ type: 'town', x: sp.x, y: sp.y, faction: f, owner: -1, name: townNames.pop() || 'Град', neutralGuard: true }));
+      towns.push(place({ type: 'town', x: sp.x, y: sp.y, faction: f, owner: -1, name: townNames.pop() || TR('Град'), neutralGuard: true }));
     }
 
     // --- 7. Мини, обекти, ресурси, артефакти, жилища, чудовища (повърхност)
@@ -392,7 +393,7 @@
     for (let k = 0; k < monN; k++) { const sp = anyU((x, y) => !nearGate(x, y)); if (sp) H.makeGuard(sp.x, sp.y, H.budgetAt(sp.x, sp.y, 1), 1); }
     if (T.undergroundRich || N >= 72) {
       const sp = anyU((x, y) => !nearGate(x, y) && Math.hypot(x - hub.x, y - hub.y) < 8);
-      if (sp) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) L1.block[idx(sp.x + dx, sp.y + dy)] = 0; H.place({ type: 'town', x: sp.x, y: sp.y, z: 1, faction: rng.pick(['dungeon', 'inferno', 'necropolis']), owner: -1, name: H.townNames.pop() || 'Подземен град', neutralGuard: true }); }
+      if (sp) { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) L1.block[idx(sp.x + dx, sp.y + dy)] = 0; H.place({ type: 'town', x: sp.x, y: sp.y, z: 1, faction: rng.pick(['dungeon', 'inferno', 'necropolis']), owner: -1, name: H.townNames.pop() || TR('Подземен град'), neutralGuard: true }); }
     }
   }
 
