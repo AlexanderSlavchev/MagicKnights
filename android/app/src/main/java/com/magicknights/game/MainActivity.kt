@@ -2,28 +2,23 @@ package com.magicknights.game
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
-import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import androidx.webkit.WebViewAssetLoader
 import android.webkit.WebViewClient
 
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
-    private var fellBack = false
-
     companion object {
-        // Хибриден режим: първо сайтът (винаги последната версия),
-        // при липса на интернет или грешка — вградената в APK-то игра.
-        const val REMOTE_URL = "https://alexanderslavchev.github.io/MagicKnights/"
-        const val LOCAL_URL = "file:///android_asset/index.html"
+        // Играта е изцяло вградена в приложението и се зарежда от assets през https origin
+        // (WebViewAssetLoader) — така сейвовете в localStorage са на едно място, няма разлика
+        // между „онлайн“ и „офлайн“ версия и приложението работи без интернет.
+        const val LOCAL_URL = "https://appassets.androidplatform.net/assets/index.html"
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -31,40 +26,25 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true          // localStorage за сейвовете
             settings.mediaPlaybackRequiresUserGesture = false
+            settings.allowFileAccess = false
             setBackgroundColor(0xFF0A0A12.toInt())
             webViewClient = object : WebViewClient() {
-                override fun onReceivedError(
-                    view: WebView, request: WebResourceRequest, error: WebResourceError
-                ) {
-                    if (request.isForMainFrame) fallBackToLocal()
-                }
-
-                override fun onReceivedHttpError(
-                    view: WebView, request: WebResourceRequest, response: WebResourceResponse
-                ) {
-                    if (request.isForMainFrame) fallBackToLocal()
-                }
+                override fun shouldInterceptRequest(
+                    view: WebView, request: WebResourceRequest
+                ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
             }
-            loadUrl(if (isOnline()) REMOTE_URL else LOCAL_URL)
+            loadUrl(LOCAL_URL)
         }
         setContentView(webView)
         hideSystemUi()
-    }
-
-    private fun fallBackToLocal() {
-        if (fellBack) return
-        fellBack = true
-        webView.loadUrl(LOCAL_URL)
-    }
-
-    private fun isOnline(): Boolean {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun hideSystemUi() {
