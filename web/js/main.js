@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
-  const D = MK.data;
+  const D = MK.data, G = MK.Gfx;
   const UI = MK.UI;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -379,10 +379,34 @@
       if (ctx.defender.owner >= 0 && w.players[ctx.defender.owner] && w.players[ctx.defender.owner].human) humans.push(1);
       const d = ctx.defender;
       const desc = d.hero ? d.hero.name + ' (ниво ' + d.hero.level + ')' : ctx.town ? 'гарнизона на ' + ctx.town.name : d.obj ? (ctx.guardOf ? 'пазачите на ' + this.objName(d.obj).split(' — ')[0].toLowerCase() : d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name) : 'противник';
-      const army = (a, mine) => a.filter(Boolean).map((s) => (mine ? s.n : D.countRange(s.n).text) + ' ' + D.creatureOf(s.c).name).join(', ') || 'няма';
-      const content = UI.el('div', null, UI.el('p', { class: 'tiny' }, 'Армия на противника: ' + army(d.army, false) + (d.garrison ? ' + гарнизон: ' + army(d.garrison, false) : '')), UI.el('p', { class: 'tiny' }, 'Армия на нападателя: ' + army(ctx.attacker.army, true)), ctx.town ? UI.el('p', { class: 'tiny' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
-      if (humans.includes(0) && !humans.includes(1)) await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
-      else await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: 'В бой!', value: true, cls: 'primary' }] });
+      // Прозорец преди битка (както в HotA): армиите с точен брой и портрети, героите с характеристики; бърз бой без бойния екран
+      const armyRow = (a) => { const row = UI.el('div', { class: 'pre-army' }); a.filter((s) => s && s.n > 0).forEach((s) => { const c = D.creatureOf(s.c); row.appendChild(UI.el('div', { class: 'pre-stack', title: c.name, onclick: () => UI.creatureInfo(c, UI.stackInfo(s.n, undefined, true)) }, UI.spriteCanvas(G.creatureSprite(c, 128), 44, 54), UI.el('b', null, String(s.n)), UI.el('small', null, c.name))); }); if (!row.childNodes.length) row.appendChild(UI.el('span', { class: 'tiny' }, 'няма')); return row; };
+      const heroBox = (hero, owner) => hero ? UI.el('div', { class: 'pre-hero' }, UI.spriteCanvas(G.portrait(hero, 96, w.players[owner].color), 52, 52), UI.el('div', null, UI.el('div', { class: 'name' }, hero.name), UI.el('div', { class: 'tiny' }, D.CLASSES[hero.cls].name + ' · ниво ' + hero.level), UI.el('div', { class: 'tiny' }, '⚔ ' + hero.att + '  🛡 ' + hero.def + '  ✦ ' + hero.pow + '  📖 ' + hero.know + '  мана ' + hero.mana))) : null;
+      const sideBox = (title, hero, owner, a, extra) => UI.el('div', { class: 'pre-side' }, UI.el('div', { class: 'pre-title' }, title), heroBox(hero, owner), armyRow(a), extra || null);
+      const content = UI.el('div', { class: 'pre-battle' },
+        sideBox('Нападател', ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
+        sideBox('Защитник', d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? UI.el('div', null, UI.el('div', { class: 'tiny' }, 'Гарнизон:'), armyRow(d.garrison)) : null),
+        ctx.town ? UI.el('p', { class: 'tiny', style: 'width:100%;text-align:center' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
+      let choice = true;
+      if (humans.includes(0) && !humans.includes(1)) choice = await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: '⚔ В бой!', value: true, cls: 'primary' }, { label: '⚡ Бърз бой', value: 'quick' }] });
+      else choice = await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: '⚔ В бой!', value: true, cls: 'primary' }, { label: '⚡ Бърз бой', value: 'quick' }] });
+      if (choice === 'quick') {
+        // бърз бой: битката се изиграва мигновено от ИИ за двете страни, показва се само резултатът
+        const b = new MK.Battle(ctx);
+        const before = { att: MK.Army.count(ctx.attacker.army), def: MK.Army.count(d.army) + (d.garrison ? MK.Army.count(d.garrison) : 0) };
+        const res = b.runAuto();
+        const mine = humans.includes(0) ? 0 : 1;
+        const won = (res.winner === 'att') === (mine === 0);
+        MK.Audio.battleEnd(won);
+        const after = { att: MK.Army.count(ctx.attacker.army), def: MK.Army.count(d.army) + (d.garrison ? MK.Army.count(d.garrison) : 0) };
+        const rc = UI.el('div', { class: 'pre-battle' },
+          sideBox('Нападател — загуби ' + (before.att - after.att), ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
+          sideBox('Защитник — загуби ' + (before.def - after.def), d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? armyRow(d.garrison) : null));
+        await UI.dialog({ title: won ? 'Победа!' : 'Поражение', content: rc });
+        w.resolveBattle(ctx, res);
+        MK.Audio.resumeMap();
+        return res;
+      }
       MK.Audio.battle(!!ctx.town);
       try { await MK.Img.load(MK.Img.listForBattle(ctx), 6000); } catch (e) { /* без изчакване */ }
       const b = new MK.Battle(ctx);
