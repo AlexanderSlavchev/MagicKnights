@@ -357,10 +357,12 @@
       const opts = [];
       const enemies = this.alive(1 - s.side);
       if (this.isShooter(s) && !this.adjacentEnemy(s)) enemies.forEach((e) => opts.push({ target: e, ranged: true }));
+      // за всеки враг: всички достижими хексове, от които може да се удари (ИИ ползва най-близкия — първия)
       enemies.forEach((e) => {
-        let best = null;
-        reach.forEach((r) => { if (this.adjacentAt(s, r.x, r.y, e) && (!best || r.d < best.d)) best = r; });
-        if (best) opts.push({ target: e, ranged: false, from: best });
+        const froms = [];
+        reach.forEach((r) => { if (this.adjacentAt(s, r.x, r.y, e)) froms.push(r); });
+        froms.sort((a, b) => a.d - b.d);
+        froms.forEach((f) => opts.push({ target: e, ranged: false, from: f }));
       });
       return opts;
     }
