@@ -331,6 +331,8 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .tut-tip::before { content: ''; position: absolute; left: 24px; top: -10px; border: 10px solid transparent; border-top: none; border-bottom-color: var(--gold); }
 .tut-tip.above::before { top: auto; bottom: -10px; border-bottom: none; border-top: 10px solid var(--gold); }
 .tut-ov.yield { pointer-events: none; } .tut-ov.yield .tut-spot, .tut-ov.yield .tut-hand { display: none !important; } .tut-ov.yield .tut-tip { opacity: 0.35; }
+.tut-ov.yield.center { background: none; }
+.tut-ov.yield.center .tut-tip { top: auto !important; bottom: 110px !important; left: 8px !important; transform: none; opacity: 0.9; max-width: 300px; }
 
 .tut-progress { height: 5px; background: rgba(0,0,0,0.5); border-radius: 3px; margin-bottom: 8px; overflow: hidden; }
 .tut-progress i { display: block; height: 100%; background: linear-gradient(90deg, #b98a2e, var(--gold-2)); border-radius: 3px; transition: width 0.4s; }

@@ -56,7 +56,8 @@
 
   function place(step, game) {
     const modal = document.querySelector('#overlay .modal-wrap');
-    Tut.ov.classList.toggle('yield', !!modal && !!step.when);
+    // свободни стъпки (битка): целият екран е достъпен, съветникът само коментира
+    Tut.ov.classList.toggle('yield', (!!modal && !!step.when) || !!step.free);
     // цел на картата извън екрана → камерата отива при нея (иначе играчът не може да я докосне)
     if (step.target && step.target.tile && game.renderer) {
       const t = step.target.tile;
@@ -145,7 +146,7 @@
     S.push({ text: TR('Задръж пръста върху нещо на картата (същество, град, обект), за да видиш подробности. Пробвай върху пазачите ей там.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !!document.querySelector('#overlay .modal') || game._tutSeenInfo, setup: (g) => { ensureTutorialObjects(g); }, cheer: TR('Знанието е сила!') });
     S.push({ text: TR('Когато си свършил за деня, натисни „Ход“. Компютърът играе, после идва нов ден с нови точки за движение.'), target: '#btn-end', when: () => w.day > game._tutDay, setup: () => { game._tutDay = w.day; document.querySelectorAll('#overlay .modal-wrap').forEach((m) => m.remove()); }, cheer: TR('Нов ден!') });
     S.push({ text: TR('Време за бой! Докосни пазачите — избери „В бой!“, за да ти покажа бойното поле.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !$('battle').hidden, setup: (g) => { ensureTutorialObjects(g); const h = hero(); if (!h.spells.includes('magic_arrow')) h.spells.push('magic_arrow'); h.mana = Math.max(h.mana, 10); } });
-    S.push({ text: TR('Бойно поле! Единиците се редуват по скорост. Зелените хексове са докъдето стига текущата. Опитай магия: „Магия“ → Магическа стрела → врага. После ги довърши с меча: докосни враг и избери откъде да го удариш.'), target: '#battle', when: () => $('battle').hidden, cheer: TR('Победа!'), reward: 700 });
+    S.push({ text: TR('Бойно поле! Единиците се редуват по скорост. Зелените хексове са докъдето стига текущата. Опитай магия: „Магия“ → Магическа стрела → врага. После ги довърши с меча: докосни враг и избери откъде да го удариш.'), target: null, free: true, when: () => $('battle').hidden, waitText: TR('Бий се…'), cheer: TR('Победа!'), reward: 700 });
     S.push({ text: TR('Опитът от битката вдига ниво! Избери умение — те правят героя уникален.'), target: '#btn-level', when: () => !hero().pendingLevels, setup: () => { const h = hero(); if (!h.pendingLevels) w.gainXp(h, 1000); game.updateHUD(); }, cheer: TR('Ново ниво!') });
     S.push({ text: TR('Това е играта: ход по ход събираш, строиш, наемаш и се биеш, докато превземеш всички вражески градове. Ето финалната награда — и те чакат шест кампании с истории.'), last: true, reward: 1000 });
     return S;
