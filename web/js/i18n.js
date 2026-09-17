@@ -32,4 +32,5 @@
     }
   };
   MK.i18n.load(lang);
+  try { document.documentElement.lang = lang; } catch (e) { /* noop */ }
 })();
