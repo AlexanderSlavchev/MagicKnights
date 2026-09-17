@@ -239,9 +239,11 @@
     const im = get('creatures/' + c.id);
     if (!im) return orig.creatureSprite(c, S, flip);
     const R = Math.max(S, 320);
-    return spr('C' + c.id + '_' + S + (flip ? 'f' : ''), R, R * 1.4, (g) => {
-      const gy = R * 1.3;
-      fit(g, im, c.wide ? -R * 0.15 : R * 0.02, R * 0.05, c.wide ? R * 1.3 : R * 0.96, gy - R * 0.05, flip);
+    // широките (двухексови) същества получават по-широко платно със същото съотношение 1:1.4, за да не се режат отстрани
+    const W = c.wide ? R * 1.3 : R, H = W * 1.4;
+    return spr('C' + c.id + '_' + S + (flip ? 'f' : ''), W, H, (g) => {
+      const gy = H * 0.93;
+      fit(g, im, W * 0.02, H * 0.04, W * 0.96, gy - H * 0.04, flip);
     });
   };
   G.portrait = function (h, S, color) {

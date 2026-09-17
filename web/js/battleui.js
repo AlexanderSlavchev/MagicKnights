@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
-  const T = (s) => (MK.T ? MK.T(s) : s);
+  const TR = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data;
   const G = MK.Gfx;
   const Hex = MK.Hex;
@@ -400,9 +400,9 @@
       const hg = g.createLinearGradient(0, 0, 0, this.oy - r); hg.addColorStop(0, 'rgba(10,8,16,0.85)'); hg.addColorStop(1, 'rgba(10,8,16,0)'); g.fillStyle = hg; g.fillRect(0, 0, W, this.oy - r + 4);
       g.font = '600 ' + 14 * this.dpr + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#ffd870';
       const s0 = b.sides[0], s1 = b.sides[1];
-      g.fillText((s0.hero ? s0.hero.name + '  ✦ ' + s0.mana : T('Нападатели')), (this.fieldX || 0) + 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : T('Защитници')), (this.fieldX || 0) + (this.fieldW || W) - 8 * this.dpr, 6 * this.dpr);
-      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? T('Тактика: подреди армията') : T('Рунд ') + b.round, (this.fieldX || 0) + (this.fieldW || W) / 2, 6 * this.dpr);
+      g.fillText((s0.hero ? s0.hero.name + '  ✦ ' + s0.mana : TR('Нападатели')), (this.fieldX || 0) + 8 * this.dpr, 6 * this.dpr);
+      g.textAlign = 'right'; g.fillText((s1.hero ? s1.hero.name + '  ✦ ' + s1.mana : b.ctx.town ? b.ctx.town.name : TR('Защитници')), (this.fieldX || 0) + (this.fieldW || W) - 8 * this.dpr, 6 * this.dpr);
+      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(tactics ? TR('Тактика: подреди армията') : TR('Рунд ') + b.round, (this.fieldX || 0) + (this.fieldW || W) / 2, 6 * this.dpr);
     }
     burst(x, y, color, n, speed, size, g) { for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.3 + Math.random()); this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, g: g || this.r * 1.5, t0: performance.now(), life: 400 + Math.random() * 400, color, size: size * (0.5 + Math.random()) }); } }
     /* ---------------------------------------------------------------- анимации на магиите (по духа на класиките, с повече ефекти) */
@@ -573,22 +573,22 @@
             this.flash[tgt.id] = 1; this.shake[tgt.id] = 1;
             this.burst(tp[0], tp[1] - this.r * 0.3, e.type === 'spellHit' ? 'rgba(190,150,255,0.9)' : bloodColor(tgt), e.kills ? 14 : 8, this.r * 2.2, this.r * 0.12);
             this.floats.push({ x: tp[0], y: tp[1] - this.r * 0.6, text: '−' + e.dmg + (e.kills ? '  ☠' + e.kills : ''), color: e.luck > 0 ? '#ffe070' : e.type === 'spellHit' ? '#d0b0ff' : e.fire ? '#ff9040' : '#ff8a8a', t: performance.now(), big: e.kills > 0 });
-            if (e.luck > 0) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: T('Късмет!'), color: '#ffe070', t: performance.now() });
-            if (e.deathBlow) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: T('Смъртоносен удар!'), color: '#ff4040', t: performance.now() });
+            if (e.luck > 0) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: TR('Късмет!'), color: '#ffe070', t: performance.now() });
+            if (e.deathBlow) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: TR('Смъртоносен удар!'), color: '#ff4040', t: performance.now() });
             await sleep((e.retaliation ? 220 : 300) * fast / this.speed);
             delete this.flash[tgt.id]; delete this.shake[tgt.id];
             break;
           }
           case 'heal': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.5, 'rgba(120,255,140,0.9)', 12, this.r * 1.2, this.r * 0.1, -this.r * 2); this.floats.push({ x: cx, y: cy - this.r * 0.6, text: '+' + e.amount, color: '#80ff80', t: performance.now() }); await sleep(260 * fast); break; }
-          case 'rebirth': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); delete this.fading[s.id]; this.rings.push({ x: cx, y: cy - this.r * 0.3, r0: 0, r1: this.r * 2.5, t0: performance.now(), life: 600, color: 'rgba(255,170,60,0.9)' }); this.burst(cx, cy, 'rgba(255,160,40,0.9)', 30, this.r * 3, this.r * 0.14, -this.r); this.floats.push({ x: cx, y: cy - this.r, text: T('Прераждане!'), color: '#ffb040', t: performance.now(), big: true }); await sleep(500 * fast); break; }
-          case 'stare': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.4, 'rgba(160,255,200,0.9)', 16, this.r * 1.5, this.r * 0.1); this.floats.push({ x: cx, y: cy - this.r, text: T('Смъртоносен поглед ☠') + e.kills, color: '#c0ffc0', t: performance.now() }); await sleep(300 * fast); break; }
-          case 'catapult': { const [cx, cy] = this.hexCenter(e.idx % Hex.W, Math.floor(e.idx / Hex.W)); await this.projectile(this.hexCenter(0, 10), [cx, cy], 'rock'); this.burst(cx, cy, 'rgba(160,150,130,0.9)', 18, this.r * 2.5, this.r * 0.14); this.shakeScreen = performance.now(); this.floats.push({ x: cx, y: cy - this.r * 0.5, text: e.destroyed ? (e.gate ? T('Портата пада!') : T('Стената пада!')) : T('Удар по стената'), color: '#ffd870', t: performance.now(), big: e.destroyed }); await sleep(350 * fast); break; }
+          case 'rebirth': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); delete this.fading[s.id]; this.rings.push({ x: cx, y: cy - this.r * 0.3, r0: 0, r1: this.r * 2.5, t0: performance.now(), life: 600, color: 'rgba(255,170,60,0.9)' }); this.burst(cx, cy, 'rgba(255,160,40,0.9)', 30, this.r * 3, this.r * 0.14, -this.r); this.floats.push({ x: cx, y: cy - this.r, text: TR('Прераждане!'), color: '#ffb040', t: performance.now(), big: true }); await sleep(500 * fast); break; }
+          case 'stare': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.4, 'rgba(160,255,200,0.9)', 16, this.r * 1.5, this.r * 0.1); this.floats.push({ x: cx, y: cy - this.r, text: TR('Смъртоносен поглед ☠') + e.kills, color: '#c0ffc0', t: performance.now() }); await sleep(300 * fast); break; }
+          case 'catapult': { const [cx, cy] = this.hexCenter(e.idx % Hex.W, Math.floor(e.idx / Hex.W)); await this.projectile(this.hexCenter(0, 10), [cx, cy], 'rock'); this.burst(cx, cy, 'rgba(160,150,130,0.9)', 18, this.r * 2.5, this.r * 0.14); this.shakeScreen = performance.now(); this.floats.push({ x: cx, y: cy - this.r * 0.5, text: e.destroyed ? (e.gate ? TR('Портата пада!') : TR('Стената пада!')) : TR('Удар по стената'), color: '#ffd870', t: performance.now(), big: e.destroyed }); await sleep(350 * fast); break; }
           case 'death': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy, 'rgba(90,80,70,0.7)', 14, this.r * 1.5, this.r * 0.16, this.r); const t0 = performance.now(), dur = 450 * fast; while (performance.now() - t0 < dur) { this.fading[s.id] = 1 - (performance.now() - t0) / dur; await sleep(16); } delete this.fading[s.id]; break; }
-          case 'morale': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.floats.push({ x: cx, y: cy - this.r, text: e.good ? T('Висок морал!') : T('Лош морал'), color: e.good ? '#ffe070' : '#a0a0a0', t: performance.now() }); if (e.good) this.burst(cx, cy - this.r, 'rgba(255,224,112,0.9)', 10, this.r, this.r * 0.08, -this.r); await sleep(400 * fast); break; }
+          case 'morale': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.floats.push({ x: cx, y: cy - this.r, text: e.good ? TR('Висок морал!') : TR('Лош морал'), color: e.good ? '#ffe070' : '#a0a0a0', t: performance.now() }); if (e.good) this.burst(cx, cy - this.r, 'rgba(255,224,112,0.9)', 10, this.r, this.r * 0.08, -this.r); await sleep(400 * fast); break; }
           case 'cast': { const sd = b.sides[e.side]; const [cx, cy] = Hex.inb(e.x, e.y) ? this.hexCenter(e.x, e.y) : [this.canvas.width / 2, this.oy + this.r * 7]; const sp = D.spellById[e.spell];
             { const tg = (e.targets || []).map((id) => st(id)).filter(Boolean).map((s) => this.stackCenter(s)); this.floats.push({ x: this.casterPoint(e.side)[0], y: this.casterPoint(e.side)[1] - this.r, text: sp.name, color: '#e0c8ff', t: performance.now(), big: true }); await this.playSpell(sp, e.side, e.x, e.y, tg); } const col = sp.school === 'fire' ? 'rgba(255,120,40,0.9)' : sp.school === 'water' ? 'rgba(100,180,255,0.9)' : sp.school === 'earth' ? 'rgba(160,220,100,0.9)' : 'rgba(190,160,255,0.9)'; this.rings.push({ x: cx, y: cy, r0: this.r * 0.3, r1: this.r * (sp.kind === 'all' ? 9 : sp.kind === 'area' ? 2.6 : 1.4), t0: performance.now(), life: 550, color: col }); this.burst(cx, cy, col, 16, this.r * 2, this.r * 0.12, -this.r * 0.5); this.floats.push({ x: this.canvas.width / 2, y: this.oy + this.r * 0.5, text: '✦ ' + sp.name + ' ✦', color: '#d8c0ff', t: performance.now(), big: true }); await sleep(380 * fast); break; }
           case 'effect': { const s = st(e.stack); if (s) { const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.6, 'rgba(200,170,255,0.9)', 8, this.r, this.r * 0.08, -this.r * 1.5); } await sleep(120 * fast); break; }
-          case 'resist': case 'immune': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.rings.push({ x: cx, y: cy - this.r * 0.4, r0: this.r * 0.8, r1: this.r * 1.1, t0: performance.now(), life: 350, color: 'rgba(255,255,255,0.9)' }); this.floats.push({ x: cx, y: cy - this.r * 0.6, text: e.type === 'resist' ? T('Устоява!') : T('Имунитет'), color: '#fff', t: performance.now() }); await sleep(250 * fast); break; }
+          case 'resist': case 'immune': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.rings.push({ x: cx, y: cy - this.r * 0.4, r0: this.r * 0.8, r1: this.r * 1.1, t0: performance.now(), life: 350, color: 'rgba(255,255,255,0.9)' }); this.floats.push({ x: cx, y: cy - this.r * 0.6, text: e.type === 'resist' ? TR('Устоява!') : TR('Имунитет'), color: '#fff', t: performance.now() }); await sleep(250 * fast); break; }
           case 'wait': case 'defend': { const s = st(e.stack); if (s && e.type === 'defend') { const [cx, cy] = this.stackCenter(s); this.rings.push({ x: cx, y: cy - this.r * 0.3, r0: this.r * 0.4, r1: this.r * 1.0, t0: performance.now(), life: 400, color: 'rgba(160,200,255,0.8)' }); } await sleep(120 * fast); break; }
           case 'log': { this.logLines.push(e.text); this.logLines = this.logLines.slice(-3); this.renderBar(); break; }
           case 'round': { this.renderBar(); break; }
@@ -604,7 +604,7 @@
       const cur = b.current;
       const log = UI.el('div', { class: 'log' }, ...this.logLines.map((l) => UI.el('div', null, l)));
       const btns = UI.el('div', { class: 'btns' });
-      const pages = UI.el('div', { class: 'pages' }, UI.el('div', { class: 'page' }, btns), UI.el('div', { class: 'page' }, UI.el('div', { class: 'tiny', style: 'padding:2px 4px' }, T('История')), log));
+      const pages = UI.el('div', { class: 'pages' }, UI.el('div', { class: 'page' }, btns), UI.el('div', { class: 'page' }, UI.el('div', { class: 'tiny', style: 'padding:2px 4px' }, TR('История')), log));
       bar.appendChild(pages);
       bar.appendChild(UI.el('div', { class: 'dots' }, UI.el('i', { class: 'on' }), UI.el('i')));
       pages.addEventListener('scroll', () => { const on = pages.scrollLeft > pages.clientWidth / 2; bar.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', (i === 1) === on)); }, { passive: true });
@@ -612,31 +612,31 @@
       const ico = (name, txt) => { const u = MK.Img.url('ui/' + name); return u ? [UI.el('img', { src: u, class: 'btn-ico', alt: '' }), ' ' + txt] : [txt]; };
       const mk = (label, fn, dis, cls) => btns.appendChild(UI.el('button', { class: cls || '', disabled: dis ? 'disabled' : null, onclick: fn }, ...(Array.isArray(label) ? label : [label])));
       if (this.state === 'tactics') {
-        btns.appendChild(UI.el('div', { class: 'tiny' }, T('Докосни свой стек, после хекс в осветената зона.')));
-        mk(T('✔ Готово'), () => this.resolveTactics(), false, 'primary');
+        btns.appendChild(UI.el('div', { class: 'tiny' }, TR('Докосни свой стек, после хекс в осветената зона.')));
+        mk(TR('✔ Готово'), () => this.resolveTactics(), false, 'primary');
         return;
       }
       const canAct = this.state === 'input' && cur && this.isHuman(cur.side) && !this.auto;
       const side = cur ? cur.side : this.humans[0];
       if (cur && canAct) btns.appendChild(UI.el('button', { class: 'small', onclick: () => UI.creatureInfo(cur.c) }, cur.c.name + ' ×' + cur.count + (cur.shots ? ' 🏹' + cur.shots : '')));
-      mk(ico('icon_wait', T('Чакай')), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
-      mk(ico('icon_defend', T('Защита')), () => this.act(() => b.doDefend(cur)), !canAct);
-      mk(ico('icon_spellbook', T('Магия')), () => this.openSpellbook(side), !canAct || !b.canCast(side));
-      mk(this.auto ? T('⏸ Ръчно') : T('⚡ Авто'), () => { this.auto = !this.auto; if (this.auto && this.state === 'input' && cur) this.resolveInput({ auto: true }); this.renderBar(); }, !this.humans.length);
-      mk(T('🏳 Бягство'), () => this.retreat(side), !canAct || !b.canRetreat(side), 'danger');
-      mk(T('💰 Предаване'), () => this.surrender(side), !canAct || !b.canSurrender(side), 'danger');
+      mk(ico('icon_wait', TR('Чакай')), () => this.act(() => b.doWait(cur)), !canAct || (cur && cur.waited));
+      mk(ico('icon_defend', TR('Защита')), () => this.act(() => b.doDefend(cur)), !canAct);
+      mk(ico('icon_spellbook', TR('Магия')), () => this.openSpellbook(side), !canAct || !b.canCast(side));
+      mk(this.auto ? TR('⏸ Ръчно') : TR('⚡ Авто'), () => { this.auto = !this.auto; if (this.auto && this.state === 'input' && cur) this.resolveInput({ auto: true }); this.renderBar(); }, !this.humans.length);
+      mk(TR('🏳 Бягство'), () => this.retreat(side), !canAct || !b.canRetreat(side), 'danger');
+      mk(TR('💰 Предаване'), () => this.surrender(side), !canAct || !b.canSurrender(side), 'danger');
       mk(this.speed > 1 ? '⏩' : '▶', () => { this.speed = this.speed > 1 ? 1 : 3; this.renderBar(); });
     }
     act(fn) { if (this.state !== 'input') return; if (fn() !== false) this.resolveInput({}); }
     async retreat(side) {
-      const ok = await UI.dialog({ title: T('Бягство'), text: T('Героят ще избяга, армията ще бъде изгубена, но той ще може да бъде нает отново в таверна. Сигурен ли си?'), buttons: [{ label: T('Не'), value: false }, { label: T('Бягай'), value: true, cls: 'danger' }] });
+      const ok = await UI.dialog({ title: TR('Бягство'), text: TR('Героят ще избяга, армията ще бъде изгубена, но той ще може да бъде нает отново в таверна. Сигурен ли си?'), buttons: [{ label: TR('Не'), value: false }, { label: TR('Бягай'), value: true, cls: 'danger' }] });
       if (ok && this.state === 'input') { this.b.doRetreat(side); this.resolveInput({}); }
     }
     async surrender(side) {
       const cost = this.b.surrenderCost(side);
       const p = this.game && this.game.world.players[this.b.sides[side].owner];
-      const ok = await UI.dialog({ title: T('Предаване'), text: T('Срещу ') + cost + T(' злато врагът ще пусне героя с цялата му армия. Той ще чака в таверна. ') + (p && p.res.gold < cost ? T('Нямаш толкова злато.') : T('Приемаш ли?')), buttons: [{ label: T('Не'), value: false }, { label: T('Предай се'), value: true, cls: 'danger' }] });
-      if (ok && this.state === 'input') { if (!this.b.doSurrender(side)) { UI.toast(T('Предаването не е възможно.')); return; } this.resolveInput({}); }
+      const ok = await UI.dialog({ title: TR('Предаване'), text: TR('Срещу ') + cost + TR(' злато врагът ще пусне героя с цялата му армия. Той ще чака в таверна. ') + (p && p.res.gold < cost ? TR('Нямаш толкова злато.') : TR('Приемаш ли?')), buttons: [{ label: TR('Не'), value: false }, { label: TR('Предай се'), value: true, cls: 'danger' }] });
+      if (ok && this.state === 'input') { if (!this.b.doSurrender(side)) { UI.toast(TR('Предаването не е възможно.')); return; } this.resolveInput({}); }
     }
     tap(e) {
       const rect = this.canvas.getBoundingClientRect();
@@ -652,7 +652,7 @@
       const target = b.occupant(x, y);
       if (this.state === 'tactics') {
         if (target && target.side === b.tacticsSide) { this.tacticsStack = target; return; }
-        if (this.tacticsStack && !target) { if (!b.placeStack(this.tacticsStack, x, y)) UI.toast(T('Не може там.')); }
+        if (this.tacticsStack && !target) { if (!b.placeStack(this.tacticsStack, x, y)) UI.toast(TR('Не може там.')); }
         return;
       }
       if (this.state !== 'input') return;
@@ -666,7 +666,7 @@
       }
       if (target && target.side !== cur.side) {
         const opt = this.attackOpts.find((o) => o.target === target && o.ranged) || this.attackOpts.find((o) => o.target === target);
-        if (!opt) { UI.toast(T('Не можеш да стигнеш до тази цел.')); return; }
+        if (!opt) { UI.toast(TR('Не можеш да стигнеш до тази цел.')); return; }
         if (opt.ranged) b.doShoot(cur, target); else b.doAttack(cur, target, opt.from.x, opt.from.y);
         this.resolveInput({}); return;
       }
@@ -681,9 +681,9 @@
         const cost = b.spellCost(side, sp);
         const dis = cost > sd.mana;
         const lvl = b.schoolLevel(sd, sp);
-        content.appendChild(UI.el('div', { class: 'spell school-' + sp.school + (dis ? ' dis' : ''), onclick: () => { if (dis) return; wrap.remove(); this.beginCast(side, sp); } }, UI.el('b', null, sp.name), UI.el('small', null, D.SCHOOL_NAME[sp.school] + ' · ' + cost + T(' мана') + (lvl ? ' · ' + D.SKILL_LEVEL_NAME[lvl] : '')), UI.el('div', { class: 'tiny' }, sp.desc)));
+        content.appendChild(UI.el('div', { class: 'spell school-' + sp.school + (dis ? ' dis' : ''), onclick: () => { if (dis) return; wrap.remove(); this.beginCast(side, sp); } }, UI.el('b', null, sp.name), UI.el('small', null, D.SCHOOL_NAME[sp.school] + ' · ' + cost + TR(' мана') + (lvl ? ' · ' + D.SKILL_LEVEL_NAME[lvl] : '')), UI.el('div', { class: 'tiny' }, sp.desc)));
       });
-      const wrap = UI.el('div', { class: 'modal-wrap' }, UI.el('div', { class: 'modal', style: 'max-width:640px' }, UI.el('h2', null, T('Книга с магии (мана ') + sd.mana + ')'), content, UI.el('div', { class: 'buttons' }, UI.el('button', { onclick: () => wrap.remove() }, T('Затвори')))));
+      const wrap = UI.el('div', { class: 'modal-wrap' }, UI.el('div', { class: 'modal', style: 'max-width:640px' }, UI.el('h2', null, TR('Книга с магии (мана ') + sd.mana + ')'), content, UI.el('div', { class: 'buttons' }, UI.el('button', { onclick: () => wrap.remove() }, TR('Затвори')))));
       document.getElementById('overlay').appendChild(wrap);
     }
     beginCast(side, sp) {
@@ -694,7 +694,7 @@
         this.playEvents().then(() => { if (b.finished) this.resolveInput({}); else { this.prepareInput(b.current); this.renderBar(); } });
         return;
       }
-      this.castSpell = sp; this.renderBar(); this.hint(T('Избери цел за „') + sp.name + T('“ (докосни хекс)'));
+      this.castSpell = sp; this.renderBar(); this.hint(TR('Избери цел за „') + sp.name + TR('“ (докосни хекс)'));
     }
     prepareInput(cur) { this.reach = this.b.reach(cur); this.attackOpts = this.b.attackOptions(cur, this.reach); }
     waitInput(cur) {
@@ -738,9 +738,9 @@
       const humanSide = this.humans.length === 1 ? this.humans[0] : -1;
       const humanWon = humanSide >= 0 && ((res.winner === 'att') === (humanSide === 0));
       if (humanSide >= 0) MK.Audio.battleEnd(humanWon);
-      const cas = (side) => b.stacks.filter((s) => s.side === side && s.origCount - s.count > 0).map((s) => (s.origCount - s.count) + ' ' + s.c.name).join(', ') || T('няма');
-      const title = humanSide < 0 ? T('Битката приключи') : humanWon ? T('Победа!') : res.surrendered !== undefined ? T('Предаване') : res.retreated !== undefined ? T('Отстъпление') : T('Поражение');
-      await UI.dialog({ title, content: UI.el('div', null, UI.el('p', null, (res.winner === 'att' ? T('Нападателите') : T('Защитниците')) + T(' печелят след ') + res.rounds + T(' рунда.')), UI.el('p', { class: 'tiny' }, T('Загуби на нападателите: ') + cas(0)), UI.el('p', { class: 'tiny' }, T('Загуби на защитниците: ') + cas(1))) });
+      const cas = (side) => b.stacks.filter((s) => s.side === side && s.origCount - s.count > 0).map((s) => (s.origCount - s.count) + ' ' + s.c.name).join(', ') || TR('няма');
+      const title = humanSide < 0 ? TR('Битката приключи') : humanWon ? TR('Победа!') : res.surrendered !== undefined ? TR('Предаване') : res.retreated !== undefined ? TR('Отстъпление') : TR('Поражение');
+      await UI.dialog({ title, content: UI.el('div', null, UI.el('p', null, (res.winner === 'att' ? TR('Нападателите') : TR('Защитниците')) + TR(' печелят след ') + res.rounds + TR(' рунда.')), UI.el('p', { class: 'tiny' }, TR('Загуби на нападателите: ') + cas(0)), UI.el('p', { class: 'tiny' }, TR('Загуби на защитниците: ') + cas(1))) });
     }
     destroy() {
       this.running = false; cancelAnimationFrame(this.raf);
