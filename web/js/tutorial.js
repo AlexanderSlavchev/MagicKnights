@@ -57,6 +57,11 @@
   function place(step, game) {
     const modal = document.querySelector('#overlay .modal-wrap');
     Tut.ov.classList.toggle('yield', !!modal && !!step.when);
+    // цел на картата извън екрана → камерата отива при нея (иначе играчът не може да я докосне)
+    if (step.target && step.target.tile && game.renderer) {
+      const t = step.target.tile;
+      if (t) { if (game.renderer.z !== (t.z || 0)) game.renderer.z = t.z || 0; if (!game.renderer.isVisible(t.x, t.y)) game.renderer.center(t.x, t.y); }
+    }
     const rect = targetRect(step.target, game);
     const sp = Tut.spot, tip = Tut.tip;
     Tut.rect = rect;
@@ -182,7 +187,7 @@
       Tut.active = true; Tut.step = -1; Tut.steps = buildSteps(game);
       next(game);
       // следене: условия и позиция на прожектора
-      const tick = () => { if (!Tut.active) return; const step = Tut.steps[Tut.step]; if (step && step.when && step.when()) { next(game); } };
+      const tick = () => { if (!Tut.active) return; const step = Tut.steps[Tut.step]; if (!step) return; if (step.when && step.when()) { next(game); return; } if (step.target && step.target.tile === null && step.when) { next(game); } };
       Tut.timer = setInterval(tick, 250);
       const loop = () => { if (!Tut.active) return; const step = Tut.steps[Tut.step]; if (step) place(step, game); Tut.raf = requestAnimationFrame(loop); }; loop();
     },
