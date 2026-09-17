@@ -30,7 +30,7 @@
       };
       walk(D, 0); walk(MK.CAMPAIGNS || [], 0);
       // статични етикети в HTML
-      document.querySelectorAll('[data-i18n]').forEach((el) => { const k = el.getAttribute('data-i18n'); if (dict[k]) el.textContent = dict[k]; });
+      document.querySelectorAll('[data-i18n]').forEach((el) => { const k = el.getAttribute('data-i18n'); if (dict[k]) el.textContent = dict[k]; if (el.title && dict[el.title]) el.title = dict[el.title]; });
     }
   };
   MK.i18n.load(lang);
