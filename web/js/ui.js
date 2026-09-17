@@ -388,17 +388,24 @@
       }
       right.appendChild(el('div', { class: 'tiny', style: 'margin:4px 0' }, T('Докосни стек, после друг слот — размяна или сливане. Два пъти същия — разделяне и информация.')));
       right.appendChild(el('h3', { style: 'margin-top:8px' }, T('Артефакти')));
-      const arts = el('div', { class: 'arts' });
+      // „Кукла“ като в класиките: гравиран рицар, слотовете са по местата на тялото
+      const doll = el('div', { class: 'doll' });
+      doll.innerHTML = KNIGHT_SVG;
+      const POS = { head: [50, 6], neck: [50, 23], shoulders: [78, 20], weapon: [18, 42], shield: [82, 44], torso: [50, 42], ring0: [22, 66], ring1: [78, 66], feet: [50, 88], misc0: [8, 92], misc1: [26, 92], misc2: [74, 92], misc3: [92, 92] };
+      let ringN = 0, miscN = 0;
       D.SLOTS.forEach((slot, i) => {
         const aid = h.arts[i];
-        const a = el('div', { class: 'art' + (aid ? ' filled' : ''), title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + (art.set ? T(', част от „') + D.ART_SETS[art.set].name + '“' : '') + ')', buttons: [{ label: T('В раницата'), value: 'bp' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } }, aid ? artGlyph(D.artById[aid]) : '', el('small', null, D.SLOT_NAME[slot].slice(0, 4)));
-        arts.appendChild(a);
+        const key = slot === 'ring' ? 'ring' + (ringN++) : slot === 'misc' ? 'misc' + (miscN++) : slot;
+        const [px, py] = POS[key];
+        const a = el('div', { class: 'art slot-' + slot + (aid ? ' filled' : ''), style: 'left:' + px + '%;top:' + py + '%', title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + (art.set ? T(', част от „') + D.ART_SETS[art.set].name + '“' : '') + ')', buttons: [{ label: T('В раницата'), value: 'bp' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } });
+        if (aid) a.appendChild(artIcon(D.artById[aid])); else a.appendChild(el('span', { class: 'slot-glyph' }, artGlyph({ slot })));
+        doll.appendChild(a);
       });
-      right.appendChild(arts);
+      right.appendChild(doll);
       if (h.backpack.length) {
         right.appendChild(el('h3', { style: 'margin-top:8px' }, T('Раница')));
         const bp = el('div', { class: 'arts' });
-        h.backpack.forEach((aid, bi) => bp.appendChild(el('div', { class: 'art filled', title: D.artById[aid].name, onclick: () => { const art = D.artById[aid]; dialog({ title: art.name, text: art.desc, buttons: [{ label: T('Сложи'), value: 'eq', cls: 'primary' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'eq') { w.equipFromBackpack(h, bi); render(); } }); } }, artGlyph(D.artById[aid]))));
+        h.backpack.forEach((aid, bi) => bp.appendChild(el('div', { class: 'art filled', title: D.artById[aid].name, onclick: () => { const art = D.artById[aid]; dialog({ title: art.name, text: art.desc, buttons: [{ label: T('Сложи'), value: 'eq', cls: 'primary' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'eq') { w.equipFromBackpack(h, bi); render(); } }); } }, artIcon(D.artById[aid]))));
         right.appendChild(bp);
       }
       cols.appendChild(right);
@@ -408,6 +415,19 @@
     render();
   }
   const fmtSign = (n) => (n > 0 ? '+' + n : String(n));
+  /* Икона на артефакт: рисуваната картинка (artifacts/<id>) или емотикон по слота */
+  function artIcon(a) { const u = MK.Img.url('artifacts/' + a.id); return u ? el('img', { src: u, alt: '', class: 'art-img' }) : el('span', null, artGlyph(a)); }
+  /* Гравиран рицар за куклата с артефактите */
+  const KNIGHT_SVG = '<svg class="knight" viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+    + '<defs><linearGradient id="kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a4a2e"/><stop offset="1" stop-color="#2a2114"/></linearGradient></defs>'
+    + '<g fill="url(#kg)" stroke="#8a6e3a" stroke-width="0.8" stroke-linejoin="round" opacity="0.9">'
+    + '<path d="M50 6 c-7 0 -11 5 -11 12 v6 c0 6 5 10 11 10 s11 -4 11 -10 v-6 c0 -7 -4 -12 -11 -12z"/>' // шлем
+    + '<path d="M42 20 h16 v3 h-16z" fill="#1a1408"/>' // визьор
+    + '<path d="M36 36 c-8 2 -14 6 -16 12 l-6 24 h10 l4 -16 l2 30 h40 l2 -30 l4 16 h10 l-6 -24 c-2 -6 -8 -10 -16 -12 c-5 3 -9 4 -14 4 s-9 -1 -14 -4z"/>' // торс и ръце
+    + '<path d="M50 50 l-8 6 v12 l8 6 l8 -6 v-12z" fill="#3a2e18"/>' // нагръдник
+    + '<path d="M34 86 l2 34 h10 l3 -30 h2 l3 30 h10 l2 -34z"/>' // крака
+    + '<path d="M36 120 h10 v5 h-12z M54 120 h10 v5 h-12z" fill="#1a1408"/>' // ботуши
+    + '</g></svg>';
   function artGlyph(a) { return { head: '⛑', neck: '📿', shoulders: '🧥', weapon: '🗡', shield: '🛡', torso: '🥋', ring: '💍', feet: '👢', misc: '🔮' }[a.slot] || '✦'; }
 
   // ---------------------------------------------------------------- ниво нагоре
