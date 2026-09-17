@@ -17,13 +17,13 @@ FORCE = '--force' in sys.argv
 RULES = {
     'creatures': (448, True, 85), 'heroes': (448, True, 85), 'towns': (640, True, 85), 'buildings': (320, True, 85),
     'objects': (320, True, 85), 'decor': (512, True, 85), 'terrain': (512, False, 88), 'battle': (768, True, 85),
-    'artifacts': (128, True, 85), 'spells': (128, False, 85), 'ui': (128, True, 90),
+    'artifacts': (128, True, 85), 'spells': (128, False, 85), 'ui': (128, True, 90), 'siege': (512, True, 85),
 }
 SPECIAL = {  # конкретни файлове с друг размер (w, h) или само дълга страна
     'heroes/*_portrait': (256, False, 85), 'towns/*_screen': (1600, False, 80), 'battle/bg_*': (1600, False, 80),
     'battle/obstacles': (1024, True, 85), 'terrain/water_frames': (1024, False, 88), 'terrain/road': (512, False, 88),
     'decor/mountain_*': (768, True, 85), 'objects/mine_*': (384, True, 85), 'ui/frame_wood': (512, True, 90),
-    'ui/panel_dark': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
+    'ui/panel_dark': (512, False, 85), 'siege/*_moat': (512, False, 88), 'siege/*_keep': (640, True, 85), 'siege/*_tower': (560, True, 85), 'siege/*_wall': (512, False, 85), 'siege/*_wall_damaged': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
 }
 
 def rule(rel):

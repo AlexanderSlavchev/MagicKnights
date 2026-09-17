@@ -115,10 +115,47 @@
       });
     }
     /* Стена, порта и кули на ред y (само при обсада): 3/4 перспектива, каменна текстура, зъбери, щети; стрелци на кулите */
+    /* Рисувани части на обсадата за фракцията на града (img/siege/<фракция>_*) или null */
+    siegeArt() {
+      const t = this.b.ctx.town; if (!t) return null;
+      const f = t.faction; if (!MK.Img.has('siege/' + f + '_wall')) return null;
+      const get = (k) => MK.Img.get('siege/' + f + '_' + k);
+      const art = { wall: get('wall'), wall_damaged: get('wall_damaged'), rubble: get('rubble'), gate: get('gate'), gate_broken: get('gate_broken'), tower: get('tower'), keep: get('keep'), tower_ruin: get('tower_ruin'), moat: get('moat') };
+      return art.wall && art.gate && art.tower ? art : null;
+    }
     drawWallRow(y, T) {
       const b = this.b; if (!b.siege) return;
       const g = this.ctx, r = this.r, sq = this.squash || 1;
       const WX = 10, gateI = Hex.idx(WX, 5);
+      const art = this.siegeArt();
+      if (art) {
+        // рисувани стени: всеки сегмент е колона с основа в долния край на хекса; портата е по-широка; кулите — по-високи
+        const drawPart = (im, cx, cy, wMul, anchor) => { if (!im) return; const w = Math.sqrt(3) * r * wMul, h = w * im.height / im.width; const base = cy + r * sq * 0.95; g.drawImage(im, cx - w / 2, base - h, w, h); return { top: base - h, base, w, h }; };
+        const hpBar = (cx, base, hp, maxHp) => { if (!maxHp) return; const dmg = 1 - hp / maxHp; g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(cx - r * 0.5, base + r * 0.05, r, r * 0.12); g.fillStyle = dmg > 0.5 ? '#ff8a60' : '#ffd870'; g.fillRect(cx - r * 0.5, base + r * 0.05, r * (hp / maxHp), r * 0.12); };
+        for (let x = 0; x < Hex.W; x++) {
+          const i = Hex.idx(x, y);
+          const isGate = i === gateI;
+          if (b.walls.has(i) || (isGate && b.isGateIntact())) {
+            const [cx, cy] = this.hexCenter(x, y); const hp = b.wallHp[i] || 0, maxHp = b.siege + (isGate ? 1 : 0);
+            const im = isGate ? art.gate : hp < maxHp && art.wall_damaged ? art.wall_damaged : art.wall;
+            const q = drawPart(im, cx, cy, isGate ? 1.55 : 1.08);
+            // знаме в цвета на защитника на портата
+            if (isGate && q) { const col = this.sideColor(1); const fx = cx, fy = q.top + r * 0.1; g.strokeStyle = '#3a2a10'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - r * 1.0); g.stroke(); g.fillStyle = col; g.beginPath(); g.moveTo(fx, fy - r); g.lineTo(fx + r * 0.5 + Math.sin(T * 3) * r * 0.06, fy - r * 0.82); g.lineTo(fx, fy - r * 0.6); g.closePath(); g.fill(); }
+            if (q) hpBar(cx, q.base, hp, maxHp);
+          } else if (isGate && b.siege && !b.isGateIntact()) { const [cx, cy] = this.hexCenter(x, y); drawPart(art.gate_broken || art.rubble, cx, cy, 1.55); }
+          else if (b.rubble.has(i) && x === WX) { const [cx, cy] = this.hexCenter(x, y); drawPart(art.rubble, cx, cy, 1.15); }
+        }
+        b.towers.forEach((tw) => {
+          if (tw.y !== y) return;
+          const [cx, cy] = this.hexCenter(tw.x, tw.y); const big = tw.x === 13;
+          if (tw.destroyed) { drawPart(art.tower_ruin || art.rubble, cx, cy, big ? 1.6 : 1.3); return; }
+          const q = drawPart(big ? (art.keep || art.tower) : art.tower, cx, cy, big ? 1.7 : 1.25);
+          // стрелец на върха на кулата
+          const t = b.ctx.town; const c = t ? D.creatureOf(t.faction + '2' + (t.buildings && t.buildings.dw2u ? 'u' : '')) : null;
+          if (c && q) { const spr = G.creatureSprite(c, 128, true); const sz = r * 1.2; g.drawImage(spr, cx - sz / 2 + (big ? -r * 0.1 : 0), q.top + q.h * 0.1 - sz * 1.4 + Math.sin(T * 1.7 + cx) * r * 0.02, sz, sz * 1.4); }
+        });
+        return;
+      }
       const stone = MK.Img.get('terrain/rough');
       const seg = (cx, cy, kind, hp, maxHp) => {
         const w = Math.sqrt(3) * r * 1.02, hgt = r * 2.4, top = cy - hgt + r * sq * 0.9, base = cy + r * sq * 0.9;
@@ -258,7 +295,7 @@
         if (b.rubble.has(i)) { g.fillStyle = 'rgba(60,54,48,0.7)'; g.fill(); for (let k = 0; k < 5; k++) { const rr = G.hashN(i, k, 1); g.fillStyle = MK.shade('#8a8070', 0.7 + rr * 0.6); g.beginPath(); g.ellipse(cx + (rr - 0.5) * r, cy + (G.hashN(i, k, 2) - 0.5) * r, r * 0.22, r * 0.14, rr * 3, 0, Math.PI * 2); g.fill(); } continue; }
         if (b.obstacles.has(i)) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fill(); g.drawImage(G.decor(b.terrain === 6 || b.terrain === 4 || b.terrain === 7 || b.terrain === 9 ? 2 : b.terrain === 3 ? 3 : b.terrain === 8 ? 5 : 1, (x * 3 + y) & 7, 96, b.terrain), cx - r * 1.05, cy + r * 0.95 - r * 3.36, r * 2.1, r * 3.36); continue; }
         g.fillStyle = (x + y) & 1 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'; g.fill();
-        if (b.moat.has(i)) { const wimg = MK.Img.get('terrain/water'); if (wimg) { g.save(); g.clip(); g.globalAlpha = 0.85; g.drawImage(wimg, ((x * 7) % 4) * wimg.width / 4, ((y * 5) % 4) * wimg.height / 4, wimg.width / 4, wimg.height / 4, cx - r, cy - r * sq, r * 2, r * 2 * sq); g.restore(); g.strokeStyle = 'rgba(20,40,80,0.7)'; g.lineWidth = Math.max(1, r * 0.06); g.stroke(); } else { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); } g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
+        if (b.moat.has(i)) { const sa = this.siegeArt(); const wimg = sa && sa.moat ? sa.moat : MK.Img.get('terrain/water'); if (wimg && sa && sa.moat) { g.save(); g.clip(); g.drawImage(wimg, wimg.width * 0.25, wimg.height * 0.25, wimg.width * 0.5, wimg.height * 0.5, cx - r, cy - r * sq, r * 2, r * 2 * sq); g.restore(); g.strokeStyle = 'rgba(20,40,80,0.7)'; g.lineWidth = Math.max(1, r * 0.06); g.stroke(); } else if (wimg) { g.save(); g.clip(); g.globalAlpha = 0.85; g.drawImage(wimg, ((x * 7) % 4) * wimg.width / 4, ((y * 5) % 4) * wimg.height / 4, wimg.width / 4, wimg.height / 4, cx - r, cy - r * sq, r * 2, r * 2 * sq); g.restore(); g.strokeStyle = 'rgba(20,40,80,0.7)'; g.lineWidth = Math.max(1, r * 0.06); g.stroke(); } else { const mg = g.createRadialGradient(cx, cy, 0, cx, cy, r); mg.addColorStop(0, 'rgba(40,90,160,0.75)'); mg.addColorStop(1, 'rgba(20,50,110,0.6)'); g.fillStyle = mg; g.fill(); } g.fillStyle = 'rgba(255,255,255,' + (0.15 + 0.1 * Math.sin(T * 2 + x + y)) + ')'; g.fillRect(cx - r * 0.5, cy - r * 0.1 + Math.sin(T * 3 + x) * r * 0.1, r, r * 0.06); }
         if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y) && MK.Img.get('ui/hex_move')) { g.globalAlpha = 0.55; g.drawImage(MK.Img.get('ui/hex_move'), cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; }
         else if (reach && reach.has(i) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { const rg = g.createRadialGradient(cx, cy, r * 0.2, cx, cy, r); rg.addColorStop(0, 'rgba(120,255,80,0.08)'); rg.addColorStop(1, 'rgba(60,200,40,0.24)'); g.fillStyle = rg; g.fill(); g.strokeStyle = 'rgba(150,255,100,0.6)'; g.lineWidth = Math.max(1, r * 0.045); g.stroke(); }
         if (tactics && this.tacticsStack && b.tacticsAllowed(this.tacticsStack.side, x) && b.canStand(this.tacticsStack, x, y)) { g.fillStyle = 'rgba(255,216,112,0.18)'; g.fill(); }

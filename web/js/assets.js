@@ -73,6 +73,7 @@
     [ctx.attacker.hero, ctx.defender.hero].forEach((h) => { if (h) { set.add('heroes/' + h.cls + '_mounted'); set.add('heroes/' + h.cls + '_portrait'); } });
     const D = MK.data; if (ctx.terrain !== undefined && D.TERRAIN[ctx.terrain]) set.add('battle/bg_' + D.TERRAIN[ctx.terrain === 0 ? 3 : ctx.terrain].key);
     Object.keys(files).forEach((k) => { if (/^(ui|battle)\//.test(k)) set.add(k); });
+    if (ctx.town) Object.keys(files).forEach((k) => { if (k.startsWith('siege/' + ctx.town.faction + '_')) set.add(k); });
     return [...set].filter(has);
   }
   function preload() {
