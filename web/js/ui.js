@@ -392,7 +392,8 @@
       const doll = el('div', { class: 'doll' });
       const dollImg = MK.Img.url('ui/doll_knight');
       if (dollImg) doll.appendChild(el('img', { src: dollImg, class: 'knight-img', alt: '' })); else doll.innerHTML = KNIGHT_SVG;
-      const POS = { head: [50, 6], neck: [50, 23], shoulders: [78, 20], weapon: [18, 42], shield: [82, 44], torso: [50, 42], ring0: [22, 66], ring1: [78, 66], feet: [50, 88], misc0: [8, 92], misc1: [26, 92], misc2: [74, 92], misc3: [92, 92] };
+      // позиции (% от куклата) по рисувания рицар: шлем, шия, наметало на рамото, оръжие/щит в ръцете, нагръдник, пръстени на ръкавиците, ботуши, разни отдолу
+      const POS = { head: [50, 5], neck: [50, 18], shoulders: [77, 17], weapon: [17, 38], shield: [83, 38], torso: [50, 33], ring0: [19, 52], ring1: [81, 52], feet: [50, 86], misc0: [9, 90], misc1: [27, 90], misc2: [73, 90], misc3: [91, 90] };
       let ringN = 0, miscN = 0;
       D.SLOTS.forEach((slot, i) => {
         const aid = h.arts[i];
