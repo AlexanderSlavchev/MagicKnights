@@ -331,3 +331,11 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .tut-tip::before { content: ''; position: absolute; left: 24px; top: -10px; border: 10px solid transparent; border-top: none; border-bottom-color: var(--gold); }
 .tut-tip.above::before { top: auto; bottom: -10px; border-bottom: none; border-top: 10px solid var(--gold); }
 .tut-ov.yield { pointer-events: none; } .tut-ov.yield .tut-spot, .tut-ov.yield .tut-hand { display: none !important; } .tut-ov.yield .tut-tip { opacity: 0.35; }
+
+.tut-progress { height: 5px; background: rgba(0,0,0,0.5); border-radius: 3px; margin-bottom: 8px; overflow: hidden; }
+.tut-progress i { display: block; height: 100%; background: linear-gradient(90deg, #b98a2e, var(--gold-2)); border-radius: 3px; transition: width 0.4s; }
+.tut-cheer { position: fixed; left: 50%; top: 40%; z-index: 80; pointer-events: none; transform: translate(-50%, -50%); }
+.tut-cheer-text { font-size: 40px; font-weight: 900; color: var(--gold-2); text-shadow: 0 3px 0 #4a3210, 0 0 24px rgba(255,216,112,0.9); animation: cheerPop 1.2s cubic-bezier(0.2, 1.6, 0.4, 1) forwards; white-space: nowrap; }
+@keyframes cheerPop { 0% { transform: scale(0.3); opacity: 0; } 30% { transform: scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(1) translateY(-30px); opacity: 0; } }
+.tut-cheer i { position: absolute; left: 0; top: 0; width: 10px; height: 14px; border-radius: 2px; animation: confetti 1.2s ease-out forwards; }
+@keyframes confetti { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }

@@ -82,6 +82,7 @@
     const step = Tut.steps[Tut.step]; if (!step) return;
     ensureOverlay();
     const tip = Tut.tip; tip.innerHTML = '';
+    const bar = MK.UI.el('div', { class: 'tut-progress' }); const pct = Math.round(100 * Tut.step / Math.max(1, Tut.steps.length - 1)); bar.appendChild(MK.UI.el('i', { style: 'width:' + pct + '%' })); tip.appendChild(bar);
     const port = MK.Img.url('heroes/cleric_portrait');
     tip.appendChild(MK.UI.el('div', { class: 'tut-head' }, port ? MK.UI.el('img', { src: port, class: 'tut-avatar', alt: '' }) : MK.UI.el('span', { class: 'tut-avatar emoji' }, '🧙'), MK.UI.el('div', null, MK.UI.el('div', { class: 'tut-who' }, TR('Съветникът')), MK.UI.el('div', { class: 'tut-num' }, (Tut.step + 1) + ' / ' + Tut.steps.length))));
     tip.appendChild(MK.UI.el('div', { class: 'tut-text' }, step.text));
@@ -93,7 +94,17 @@
     place(step, game);
   }
 
+  /* Празнуване на изпълнена стъпка: конфети, „Браво!“, звук; при етап — награда */
+  function celebrate(game, step) {
+    if (!step || !step.when) return;
+    MK.Audio.sfx('treasure');
+    const box = MK.UI.el('div', { class: 'tut-cheer' }, MK.UI.el('div', { class: 'tut-cheer-text' }, step.cheer || TR('Браво!')));
+    for (let i = 0; i < 26; i++) { const c = MK.UI.el('i'); c.style.setProperty('--dx', (Math.random() * 2 - 1) * 260 + 'px'); c.style.setProperty('--dy', (Math.random() * -1) * 260 - 60 + 'px'); c.style.setProperty('--r', Math.random() * 720 + 'deg'); c.style.background = ['#ffd870', '#ff7a5c', '#7ad7ff', '#9fe39f', '#ff9de2'][i % 5]; box.appendChild(c); }
+    document.body.appendChild(box); setTimeout(() => box.remove(), 1300);
+    if (step.reward) { const p = game.world.players[game.human]; p.res.gold += step.reward; MK.UI.reward({ icon: MK.UI.el('img', { src: MK.Img.url('ui/icon_gold') || '', alt: '' }), amount: step.reward, title: MK.data.RES_NAME.gold, cls: 'res', ms: 1500 }); game.updateHUD(); }
+  }
   function next(game) {
+    celebrate(game, Tut.steps[Tut.step]);
     Tut.step++;
     if (Tut.step >= Tut.steps.length) { stop(game, false); return; }
     const step = Tut.steps[Tut.step];
@@ -112,31 +123,50 @@
     const hero = () => w.heroes[p.heroes[0]];
     const town = () => w.towns[p.towns[0]];
     const S = [];
-    S.push({ text: TR('Добре дошъл в MagicKnights! Това е кратък урок — ще ти показвам какво е всяко нещо и къде да натиснеш. Може да го спреш по всяко време.') });
-    S.push({ text: TR('Това е твоят герой. Героите водят армиите ти по картата. Докосни го, за да го избереш.'), target: { get tile() { const h = hero(); return h ? { x: h.x, y: h.y, z: h.z || 0 } : null; } }, when: () => game.selected && game.selected.id === hero().id });
-    S.push({ text: TR('Горе виждаш ресурсите си: злато, дърво, руда и редките — живак, сяра, кристал, скъпоценни камъни. С тях строиш сгради и наемаш войска.'), target: '#resbar' });
-    S.push({ text: TR('Долу е подсказката: показва какво ще стане при докосване. Първо докосване на плочка показва пътя и дните, второ — тръгваш.'), target: '#hint' });
-    S.push({ text: TR('Наблизо има ресурс. Докосни го веднъж, за да видиш пътя, и още веднъж, за да го вземеш.'), target: { get tile() { const o = game._tutRes; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => { const o = game._tutRes; return !o || !w.objectAt(o.x, o.y, 0); }, setup: (g) => { ensureTutorialObjects(g); } });
-    S.push({ text: TR('Вляво е панелът: миникарта, героите и градовете ти. Докосни иконата на града, за да влезеш в него.'), target: '#town-list', when: () => !!document.querySelector('.screen.town') });
-    S.push({ text: TR('Това е градът ти. Сградите на панорамата са кликаеми. Докосни управата (или бутона „Строеж“) и построй нещо — например Пазар или следващото жилище.'), target: '.screen.town', hand: '.town-tabs button:first-child', when: () => town() && Object.keys(town().buildings).length > game._tutBuildCount, setup: () => { game._tutBuildCount = Object.keys(town().buildings).length; } });
-    S.push({ text: TR('Всяка седмица в жилищата се появяват нови същества. Докосни жилището (или „Набор“) и наеми войска — тя отива при героя, ако е в града, иначе в гарнизона.'), target: '.screen.town', hand: '.town-tabs button:nth-child(2)', when: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); return cnt(t.garrison) + cnt(h.army) > game._tutArmy; }, setup: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); game._tutArmy = cnt(t.garrison) + cnt(h.army); } });
+    const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0);
+    S.push({ text: TR('Добре дошъл в MagicKnights! Аз съм Съветникът и ще те водя. Ще правим истински неща — а за всяка задача има награда. Готов ли си?') });
+    S.push({ text: TR('Това е твоят герой. Героите водят армиите ти по картата. Докосни го, за да го избереш.'), target: { get tile() { const h = hero(); return h ? { x: h.x, y: h.y, z: h.z || 0 } : null; } }, when: () => game.selected && game.selected.id === hero().id, cheer: TR('Героят е избран!') });
+    S.push({ text: TR('Гледай — ще покажа как се движи кончето. Пътят се рисува със стрелки, а числото показва за колко дни се стига.'), demo: true, when: () => game._tutDemoDone, waitText: TR('Гледай…'), setup: (g) => { demoMove(g); } });
+    S.push({ text: TR('Сега ти: наблизо има дърво. Докосни го веднъж, за да видиш пътя, и още веднъж, за да го вземеш.'), target: { get tile() { const o = game._tutRes; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => { const o = game._tutRes; return !o || !w.objectAt(o.x, o.y, 0); }, setup: (g) => { ensureTutorialObjects(g); }, cheer: TR('Първата плячка!'), reward: 500 });
+    S.push({ text: TR('Горе са ресурсите ти. Златото е най-важно — плаща войската; дървото и рудата са за сгради; редките са за силните същества и магиите.'), target: '#resbar' });
+    S.push({ text: TR('Ей там има мина. Стъпи на нея, за да я завладееш — от утре ще ти носи ресурси всеки ден.'), target: { get tile() { const o = game._tutMine; return o ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => { const o = game._tutMine; return !o || o.owner === game.human; }, setup: (g) => { ensureTutorialObjects(g); }, cheer: TR('Мината е твоя!'), reward: 500 });
+    S.push({ text: TR('Вляво е панелът: миникарта, герои и градове. Докосни иконата на града, за да влезеш в него.'), target: '#town-list', when: () => !!document.querySelector('.screen.town'), cheer: TR('Добре дошъл у дома!') });
+    S.push({ text: TR('Това е градът ти. Сградите на панорамата са кликаеми. Докосни „Строеж“ и построй нещо — Пазар или следващото жилище.'), target: '.screen.town', hand: '.town-tabs button:first-child', when: () => town() && Object.keys(town().buildings).length > game._tutBuildCount, setup: () => { game._tutBuildCount = Object.keys(town().buildings).length; }, cheer: TR('Строител!'), reward: 300 });
+    S.push({ text: TR('Всяка седмица в жилищата се появяват нови същества. Докосни „Набор“ и наеми войска — колкото повече, толкова по-силен си в бой.'), target: '.screen.town', hand: '.town-tabs button:nth-child(2)', when: () => cnt(town().garrison) + cnt(hero().army) > game._tutArmy, setup: () => { game._tutArmy = cnt(town().garrison) + cnt(hero().army); }, cheer: TR('Армията расте!') });
+    S.push({ text: TR('Таверната предлага втори герой. Двама герои = два пъти повече плячка. Докосни „Таверна“ и наеми един (златото е от мен).'), target: '.screen.town', hand: '.town-tabs button:nth-child(4)', when: () => p.heroes.length > 1, setup: () => { p.res.gold += 3000; if (!town().buildings.tavern) town().buildings.tavern = true; }, cheer: TR('Втори герой!') });
     S.push({ text: TR('Затвори града с ✕ и се върни на картата.'), target: '.screen.town header button:last-child', when: () => !document.querySelector('.screen.town') });
-    S.push({ text: TR('Задръж пръста върху нещо на картата (същество, град, обект), за да видиш подробности — колко са, какво дават.') });
-    S.push({ text: TR('Когато си свършил за деня, натисни „Ход“. Компютърът играе своя ход, после идва нов ден с нови точки за движение.'), target: '#btn-end', when: () => w.day > game._tutDay, setup: () => { game._tutDay = w.day; } });
-    S.push({ text: TR('Наблизо има малка група пазачи. Докосни ги — първо се показва прозорец с двете армии, после избираш „В бой!“ (ръчна битка) или „Бърз бой“. Избери „В бой!“.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !$('battle').hidden, setup: (g) => { ensureTutorialObjects(g); } });
-    S.push({ text: TR('Това е избраната ти единица (светещ хекс) и подсказката вляво. Съветникът ще мълчи, докато се биеш.'), target: '#battle' });
-    S.push({ text: TR('Бойно поле. Единиците се редуват по скорост. Зелените хексове са докъдето може да стигне текущата единица. Докосни враг — светват хексовете, откъдето можеш да го удариш; докосни един от тях.'), target: '#battle', when: () => $('battle').hidden });
-    S.push({ text: TR('Победа носи опит: сборът от живота на убитите врагове. С опит героят вдига нива и получава умения. Мините дават ресурси всеки ден — завладей ги, като стъпиш на тях.') });
-    S.push({ text: TR('Това е всичко за начало. Целта: превземи градовете на противниците. Успех!'), last: true });
+    S.push({ text: TR('Подарък: артефакт! Отвори героя (бутона „Герой“) — артефактите се слагат по тялото на рицаря и дават бонуси.'), target: '#btn-hero', when: () => !!document.querySelector('.screen .doll'), setup: () => { const h = hero(); if (!h.arts.some(Boolean) && !h.backpack.length) w.equipArtifact(h, 'shield_oak'); }, cheer: TR('Екипиран!') });
+    S.push({ text: TR('Затвори екрана на героя.'), target: '.screen header button:last-child', when: () => !document.querySelector('.screen .doll') });
+    S.push({ text: TR('Задръж пръста върху нещо на картата (същество, град, обект), за да видиш подробности. Пробвай върху пазачите ей там.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !!document.querySelector('#overlay .modal') || game._tutSeenInfo, setup: (g) => { ensureTutorialObjects(g); }, cheer: TR('Знанието е сила!') });
+    S.push({ text: TR('Когато си свършил за деня, натисни „Ход“. Компютърът играе, после идва нов ден с нови точки за движение.'), target: '#btn-end', when: () => w.day > game._tutDay, setup: () => { game._tutDay = w.day; document.querySelectorAll('#overlay .modal-wrap').forEach((m) => m.remove()); }, cheer: TR('Нов ден!') });
+    S.push({ text: TR('Време за бой! Докосни пазачите — избери „В бой!“, за да ти покажа бойното поле.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !$('battle').hidden, setup: (g) => { ensureTutorialObjects(g); const h = hero(); if (!h.spells.includes('magic_arrow')) h.spells.push('magic_arrow'); h.mana = Math.max(h.mana, 10); } });
+    S.push({ text: TR('Бойно поле! Единиците се редуват по скорост. Зелените хексове са докъдето стига текущата. Опитай магия: „Магия“ → Магическа стрела → врага. После ги довърши с меча: докосни враг и избери откъде да го удариш.'), target: '#battle', when: () => $('battle').hidden, cheer: TR('Победа!'), reward: 700 });
+    S.push({ text: TR('Опитът от битката вдига ниво! Избери умение — те правят героя уникален.'), target: '#btn-level', when: () => !hero().pendingLevels, setup: () => { const h = hero(); if (!h.pendingLevels) w.gainXp(h, 1000); game.updateHUD(); }, cheer: TR('Ново ниво!') });
+    S.push({ text: TR('Това е играта: ход по ход събираш, строиш, наемаш и се биеш, докато превземеш всички вражески градове. Ето финалната награда — и те чакат шест кампании с истории.'), last: true, reward: 1000 });
     return S;
   }
 
+  /* Демонстрация: героят тръгва сам по къс път, за да се види конят, стрелките и дните */
+  async function demoMove(game) {
+    const w = game.world, p = w.players[game.human], h = w.heroes[p.heroes[0]];
+    game._tutDemoDone = false;
+    let target = null;
+    for (let r = 2; r <= 3 && !target; r++) for (let dy = -r; dy <= r && !target; dy++) for (let dx = -r; dx <= r && !target; dx++) { const x = h.x + dx, y = h.y + dy; if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (w.inb(x, y) && !w.isWater(x, y, 0) && !w.lv(0).block[w.idx(x, y)] && !w.objectAt(x, y, 0) && !w.heroAt(x, y, 0)) { const pp = MK.Path.findPath(w, h, x, y); if (pp && pp.total <= h.movement) target = { x, y, pp }; } }
+    if (!target) { game._tutDemoDone = true; return; }
+    game.selectHero(h, true);
+    game.renderer.pathPreview = target.pp;
+    await new Promise((r) => setTimeout(r, 1400));
+    try { await game.moveSelected(game.renderer.pathPreview); } catch (e) { /* noop */ }
+    await new Promise((r) => setTimeout(r, 400));
+    game._tutDemoDone = true;
+  }
   /* Обекти за урока: ресурс и слаба група пазачи до героя (ако вече ги няма) */
   function ensureTutorialObjects(game) {
     const w = game.world, p = w.players[game.human], h = w.heroes[p.heroes[0]]; if (!h) return;
     const free = (x, y) => w.inb(x, y) && !w.isWater(x, y, 0) && !w.lv(0).block[w.idx(x, y)] && !w.objectAt(x, y, 0) && !w.heroAt(x, y, 0);
     const spot = (r0, r1) => { for (let r = r0; r <= r1; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = h.x + dx, y = h.y + dy; if (Math.max(Math.abs(dx), Math.abs(dy)) === r && free(x, y) && MK.Path.findPath(w, h, x, y)) return { x, y }; } return null; };
     if (!game._tutRes || !w.objectAt(game._tutRes.x, game._tutRes.y, 0)) { const s = spot(1, 3); if (s) { game._tutRes = w.addObject({ type: 'resource', res: 'wood', amount: 8, x: s.x, y: s.y, z: 0 }); p.fog[0][w.idx(s.x, s.y)] = 1; } }
+    if (!game._tutMine) { let best = null, bd = Infinity; w.map.objects.forEach((o) => { if (o.type === 'mine' && (o.z || 0) === 0 && o.owner !== game.human) { const d = Math.hypot(o.x - h.x, o.y - h.y); if (d < bd && MK.Path.findPath(w, h, o.x, o.y)) { bd = d; best = o; } } }); if (best) { delete best.guard; game._tutMine = best; p.fog[0][w.idx(best.x, best.y)] = 1; } }
     if (!game._tutMon || !w.objectAt(game._tutMon.x, game._tutMon.y, 0)) { const s = spot(2, 4); if (s) { game._tutMon = w.addObject({ type: 'monster', creature: p.faction + '1', count: 3, disposition: 10, x: s.x, y: s.y, z: 0 }); p.fog[0][w.idx(s.x, s.y)] = 1; } }
   }
 

@@ -220,6 +220,7 @@
     /* Задържане / десен бутон: бърза информация за това, което е на плочката (както в HotA) */
     onLongPress(tx, ty) {
       const w = this.world; if (!w || !w.inb(tx, ty)) return;
+      this._tutSeenInfo = true;
       const z = this.renderer.z, p = w.players[this.human];
       if (!p.fog[z][w.idx(tx, ty)]) { UI.toast(T('Неизследвана земя.')); return; }
       const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z);
