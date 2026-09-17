@@ -3,6 +3,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
+  const T = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data;
 
   // ------------------------------------------------------------ армии
@@ -113,7 +114,7 @@
     week() { return Math.floor((this.day - 1) / 7) + 1; }
     dayOfWeek() { return ((this.day - 1) % 7) + 1; }
     month() { return Math.floor((this.day - 1) / 28) + 1; }
-    dateText() { return 'Месец ' + this.month() + ', седмица ' + (Math.floor(((this.day - 1) % 28) / 7) + 1) + ', ден ' + this.dayOfWeek(); }
+    dateText() { return T('Месец ') + this.month() + T(', седмица ') + (Math.floor(((this.day - 1) % 28) / 7) + 1) + T(', ден ') + this.dayOfWeek(); }
 
     // ---------------------------------------------------------- мъгла
     revealAround(pi, x, y, z, r) {
@@ -170,13 +171,13 @@
     isCoastal(t) { for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (this.isWater(t.x + dx, t.y + dy, t.z)) return true; return false; }
     canBuild(t, id) {
       const b = D.buildingFor(t.faction, id);
-      if (t.buildings[id]) return { ok: false, why: 'Вече е построено.' };
-      if (t.builtToday) return { ok: false, why: 'Днес вече е строено в този град.' };
-      for (const r of b.req) if (!t.buildings[r]) return { ok: false, why: 'Нужно е: ' + D.buildingFor(t.faction, r).name + '.' };
-      if (id === 'shipyard' && !this.isCoastal(t)) return { ok: false, why: 'Градът не е до вода.' };
+      if (t.buildings[id]) return { ok: false, why: T('Вече е построено.') };
+      if (t.builtToday) return { ok: false, why: T('Днес вече е строено в този град.') };
+      for (const r of b.req) if (!t.buildings[r]) return { ok: false, why: T('Нужно е: ') + D.buildingFor(t.faction, r).name + '.' };
+      if (id === 'shipyard' && !this.isCoastal(t)) return { ok: false, why: T('Градът не е до вода.') };
       const p = this.players[t.owner];
-      if (id === 'hall4' && p.towns.some((tid) => this.towns[tid].buildings.hall4)) return { ok: false, why: 'Вече имаш Капитолий.' };
-      for (const k in b.cost) if ((p.res[k] || 0) < b.cost[k]) return { ok: false, why: 'Недостатъчно ' + D.RES_NAME[k].toLowerCase() + '.' };
+      if (id === 'hall4' && p.towns.some((tid) => this.towns[tid].buildings.hall4)) return { ok: false, why: T('Вече имаш Капитолий.') };
+      for (const k in b.cost) if ((p.res[k] || 0) < b.cost[k]) return { ok: false, why: T('Недостатъчно ') + D.RES_NAME[k].toLowerCase() + '.' };
       return { ok: true };
     }
     build(t, id) {
@@ -195,7 +196,7 @@
     /* Кораб до котва (град или корабостроителница на картата) за 1000 злато и 10 дърво */
     buildBoatAt(anchor, owner, radius) {
       const p = this.players[owner];
-      if (p.res.gold < 1000 || p.res.wood < 10) return { ok: false, why: 'Нужни са 1000 злато и 10 дърво.' };
+      if (p.res.gold < 1000 || p.res.wood < 10) return { ok: false, why: T('Нужни са 1000 злато и 10 дърво.') };
       let best = null, bd = Infinity;
       const R = radius || 3;
       for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
@@ -203,13 +204,13 @@
         if (!this.isWater(x, y, anchor.z || 0) || this.objectAt(x, y, anchor.z || 0) || this.heroAt(x, y, anchor.z || 0)) continue;
         const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { x, y }; }
       }
-      if (!best) return { ok: false, why: 'Няма свободна вода наблизо.' };
+      if (!best) return { ok: false, why: T('Няма свободна вода наблизо.') };
       p.res.gold -= 1000; p.res.wood -= 10;
       this.addObject({ type: 'boat', x: best.x, y: best.y, z: anchor.z || 0, owner });
       return { ok: true, x: best.x, y: best.y };
     }
     buildBoat(t) {
-      if (!t.buildings.shipyard) return { ok: false, why: 'Няма корабостроителница.' };
+      if (!t.buildings.shipyard) return { ok: false, why: T('Няма корабостроителница.') };
       return this.buildBoatAt(t, t.owner, 3);
     }
     generateGuildSpells(t, level) {
@@ -234,13 +235,13 @@
     maxAffordable(p, cid) { const c = D.creatureOf(cid); let n = Infinity; for (const k in c.cost) n = Math.min(n, Math.floor((p.res[k] || 0) / c.cost[k])); return n === Infinity ? 0 : n; }
     recruit(t, tier, upg, n, targetArmy) {
       const p = this.players[t.owner];
-      if (upg && !t.buildings['dw' + tier + 'u']) return { ok: false, why: 'Няма подобрено жилище.' };
+      if (upg && !t.buildings['dw' + tier + 'u']) return { ok: false, why: T('Няма подобрено жилище.') };
       n = Math.min(n, t.avail[tier]);
-      if (n <= 0) return { ok: false, why: 'Няма налични същества.' };
+      if (n <= 0) return { ok: false, why: T('Няма налични същества.') };
       const cid = t.faction + tier + (upg ? 'u' : '');
       n = Math.min(n, this.maxAffordable(p, cid));
-      if (n <= 0) return { ok: false, why: 'Недостатъчно ресурси.' };
-      if (!Army.canAdd(targetArmy, cid)) return { ok: false, why: 'Няма свободно място в армията.' };
+      if (n <= 0) return { ok: false, why: T('Недостатъчно ресурси.') };
+      if (!Army.canAdd(targetArmy, cid)) return { ok: false, why: T('Няма свободно място в армията.') };
       this.pay(p, this.recruitCost(cid, n));
       t.avail[tier] -= n;
       Army.add(targetArmy, cid, n);
@@ -255,9 +256,9 @@
     }
     upgradeStack(t, army, i) {
       const cost = this.upgradeCost(t, army, i);
-      if (!cost) return { ok: false, why: 'Тук не може да се подобри.' };
+      if (!cost) return { ok: false, why: T('Тук не може да се подобри.') };
       const p = this.players[t.owner];
-      if (!this.canAfford(p, cost)) return { ok: false, why: 'Недостатъчно ресурси.' };
+      if (!this.canAfford(p, cost)) return { ok: false, why: T('Недостатъчно ресурси.') };
       this.pay(p, cost); army[i].c = D.upgradeOf(D.creatureOf(army[i].c)).id;
       return { ok: true };
     }
@@ -311,9 +312,9 @@
     }
     hireHero(t, i) {
       const p = this.players[t.owner];
-      if (p.heroes.length >= 8) return { ok: false, why: 'Не може повече от 8 герои.' };
-      if (p.res.gold < 2500) return { ok: false, why: 'Нужни са 2500 злато.' };
-      if (t.visitor) return { ok: false, why: 'В града вече има герой.' };
+      if (p.heroes.length >= 8) return { ok: false, why: T('Не може повече от 8 герои.') };
+      if (p.res.gold < 2500) return { ok: false, why: T('Нужни са 2500 злато.') };
+      if (t.visitor) return { ok: false, why: T('В града вече има герой.') };
       const proto = this.tavernHeroes(t)[i];
       if (!proto) return { ok: false };
       p.res.gold -= 2500;
@@ -492,7 +493,7 @@
           this.resetMovement(h);
         });
         p.res.gold += gold;
-        if (p.towns.length === 0) { p.daysWithoutTown++; if (p.daysWithoutTown > 7) this.eliminate(p, 'Седем дни без град — кралството се разпада.'); }
+        if (p.towns.length === 0) { p.daysWithoutTown++; if (p.daysWithoutTown > 7) this.eliminate(p, T('Седем дни без град — кралството се разпада.')); }
         else p.daysWithoutTown = 0;
       });
       if (newWeek) {
@@ -503,21 +504,21 @@
           if (o.guard && !o.guard.stacks) o.guard.count += Math.max(1, Math.floor(o.guard.count * 0.1));
         });
         this.weekName = this.rollWeekName();
-        this.log('Нова седмица: ' + this.weekName, 'week');
+        this.log(T('Нова седмица: ') + this.weekName, 'week');
       }
-      if (newMonth) this.log('Нов месец!', 'week');
+      if (newMonth) this.log(T('Нов месец!'), 'week');
     }
-    rollWeekName() { return this.rng.pick(['на гарвана', 'на лисицата', 'на елена', 'на бухала', 'на вълка', 'на мечката', 'на щуреца', 'на дъба', 'на реката', 'на мъглата', 'на меда', 'на желязото']); }
+    rollWeekName() { return this.rng.pick([T('на гарвана'), T('на лисицата'), T('на елена'), T('на бухала'), T('на вълка'), T('на мечката'), T('на щуреца'), T('на дъба'), T('на реката'), T('на мъглата'), T('на меда'), T('на желязото')]); }
     eliminate(p, why) {
       if (!p.alive) return;
       p.alive = false;
       p.heroes.slice().forEach((id) => this.removeHero(this.heroes[id]));
       p.towns.slice().forEach((tid) => { this.towns[tid].owner = -1; });
       p.towns = [];
-      this.events.push({ type: 'eliminated', player: p.id, text: (p.human ? D.PLAYER_COLORS[p.id].name + ' играч е победен. ' : D.PLAYER_COLORS[p.id].name + ' играч е победен. ') + (why || '') });
+      this.events.push({ type: 'eliminated', player: p.id, text: (p.human ? D.PLAYER_COLORS[p.id].name + T(' играч е победен. ') : D.PLAYER_COLORS[p.id].name + T(' играч е победен. ')) + (why || '') });
     }
     checkVictory() {
-      this.players.forEach((p) => { if (p.alive && !p.towns.length && !p.heroes.length) this.eliminate(p, 'Нито градове, нито герои.'); });
+      this.players.forEach((p) => { if (p.alive && !p.towns.length && !p.heroes.length) this.eliminate(p, T('Нито градове, нито герои.')); });
       const alive = this.players.filter((p) => p.alive);
       if (alive.length === 1) return alive[0];
       if (alive.length > 1 && alive.every((p) => p.human) === false && alive.filter((p) => p.human).length === 0) return alive[0];
@@ -534,8 +535,8 @@
       const other = this.heroAt(x, y, z);
       const goalCost = MK.Path.tileCost(this, h, x, y, diag, true);
       if (cost === Infinity) cost = goalCost;
-      if (cost === Infinity) return { stop: true, why: 'Непроходимо.' };
-      if (h.movement < cost) return { stop: true, why: 'Няма точки за движение.' };
+      if (cost === Infinity) return { stop: true, why: T('Непроходимо.') };
+      if (h.movement < cost) return { stop: true, why: T('Няма точки за движение.') };
       if (h.inTown) { const t = this.towns[h.inTown]; if (t.visitor === h.id) t.visitor = null; h.inTown = null; }
       if (other && other !== h) {
         h.movement -= cost;
@@ -545,11 +546,11 @@
       }
       // Кораб: качване / слизане
       if (!h.boat && this.isWater(x, y, z)) {
-        if (!target || target.type !== 'boat') return { stop: true, why: 'Вода.' };
+        if (!target || target.type !== 'boat') return { stop: true, why: T('Вода.') };
         this.removeObject(target);
         h.x = x; h.y = y; h.boat = true; h.movement = 0; h.maxMovement = this.computeMaxMovement(h);
         this.revealAround(h.owner, x, y, z, this.sightRadius(h));
-        return { event: { type: 'visit', obj: target, text: h.name + ' се качва на кораба. Плаването започва утре.', kind: 'boat' } };
+        return { event: { type: 'visit', obj: target, text: h.name + T(' се качва на кораба. Плаването започва утре.'), kind: 'boat' } };
       }
       if (h.boat && !this.isWater(x, y, z)) {
         if (target && target.type === 'monster') { h.movement -= cost; return { event: this.startBattle(h, { type: 'monster', obj: target }) }; }
@@ -559,7 +560,7 @@
           h.x = x; h.y = y; h.boat = false; h.movement = 0; h.maxMovement = this.computeMaxMovement(h);
           this.revealAround(h.owner, x, y, z, this.sightRadius(h));
           const ev = target ? this.visit(h, target) : null;
-          return { event: ev || { type: 'visit', obj: null, text: h.name + ' слиза на сушата.', kind: 'boat' } };
+          return { event: ev || { type: 'visit', obj: null, text: h.name + T(' слиза на сушата.'), kind: 'boat' } };
         }
       }
       if (target && target.guard && !h.boat) {
@@ -577,7 +578,7 @@
       if (target && target.type === 'town') {
         const t = this.towns[target.townId];
         if (t.owner === h.owner) {
-          if (t.visitor && t.visitor !== h.id) return { stop: true, why: 'В града вече има герой.' };
+          if (t.visitor && t.visitor !== h.id) return { stop: true, why: T('В града вече има герой.') };
           if (h.boat) { this.addObject({ type: 'boat', x: h.x, y: h.y, z, owner: h.owner }); h.boat = false; }
           h.movement -= cost; h.x = x; h.y = y; h.inTown = t.id; t.visitor = h.id; h.maxMovement = this.computeMaxMovement(h);
           this.revealAround(h.owner, x, y, z, this.sightRadius(h));
@@ -601,16 +602,16 @@
       if (str <= 0) return null;
       const ratio = my / str;
       // Бягство: много по-силна армия и плахи същества
-      if (ratio >= 5 && o.disposition <= 3 && dip === 0) { this.removeObject(o); return { type: 'visit', obj: o, text: o.count + ' × ' + c.name + ' бягат от армията ти.', kind: 'flee' }; }
+      if (ratio >= 5 && o.disposition <= 3 && dip === 0) { this.removeObject(o); return { type: 'visit', obj: o, text: o.count + ' × ' + c.name + T(' бягат от армията ти.'), kind: 'flee' }; }
       if (!dip || ratio < [99, 3, 2, 1.5][dip] || o.disposition > 7 || !Army.canAdd(h.army, o.creature)) return null;
       const free = dip === 3 && ratio >= 2 || (dip >= 2 && ratio >= 4);
       const cost = free ? 0 : Math.round(o.count * c.cost.gold * (1 - 0.2 * dip));
       const join = () => { Army.add(h.army, o.creature, o.count); p.res.gold -= cost; this.removeObject(o); };
       const options = [];
-      if (cost === 0 || p.res.gold >= cost) options.push({ label: cost ? 'Приеми за ' + cost + ' злато' : 'Приеми (безплатно)', apply: join });
-      options.push({ label: 'Откажи и нападни', apply: () => { this.events.unshift(this.startBattle(h, { type: 'monster', obj: o })); } });
-      options.push({ label: 'Откажи и се оттегли', apply: () => {} });
-      return { type: 'choice', obj: o, title: 'Дипломация', text: o.count + ' × ' + c.name + ' искат да се присъединят към ' + h.name + (cost ? ' срещу ' + cost + ' злато.' : ' безплатно.'), options, aiPick: () => (cost === 0 || p.res.gold - cost > 3000 ? 0 : 1) };
+      if (cost === 0 || p.res.gold >= cost) options.push({ label: cost ? T('Приеми за ') + cost + T(' злато') : T('Приеми (безплатно)'), apply: join });
+      options.push({ label: T('Откажи и нападни'), apply: () => { this.events.unshift(this.startBattle(h, { type: 'monster', obj: o })); } });
+      options.push({ label: T('Откажи и се оттегли'), apply: () => {} });
+      return { type: 'choice', obj: o, title: T('Дипломация'), text: o.count + ' × ' + c.name + T(' искат да се присъединят към ') + h.name + (cost ? T(' срещу ') + cost + T(' злато.') : T(' безплатно.')), options, aiPick: () => (cost === 0 || p.res.gold - cost > 3000 ? 0 : 1) };
     }
 
     // ---------------------------------------------------------- посещения
@@ -623,99 +624,99 @@
         case 'chest': case 'sea_chest': {
           const r = this.rng.int(0, 2); const gold = [1000, 1500, 2000][r] + (o.type === 'sea_chest' ? 500 : 0), xp = [500, 1000, 1500][r];
           this.removeObject(o);
-          return { type: 'choice', obj: o, title: o.type === 'chest' ? 'Сандък със съкровище' : 'Морски сандък', text: 'Намираш сандък. Какво ще вземеш?', options: [
-            { label: gold + ' злато', apply: () => { p.res.gold += gold; } },
-            { label: xp + ' опит', apply: () => { this.gainXp(h, xp); } }
+          return { type: 'choice', obj: o, title: o.type === 'chest' ? T('Сандък със съкровище') : T('Морски сандък'), text: T('Намираш сандък. Какво ще вземеш?'), options: [
+            { label: gold + T(' злато'), apply: () => { p.res.gold += gold; } },
+            { label: xp + T(' опит'), apply: () => { this.gainXp(h, xp); } }
           ], aiPick: () => (h.level < 6 ? 1 : 0) };
         }
         case 'shipwreck': {
-          if (o.empty) return msg('Останките са претърсени.');
+          if (o.empty) return msg(T('Останките са претърсени.'));
           o.empty = true;
-          if (this.rng.chance(0.3)) { const a = this.rng.pick(D.ARTIFACTS.filter((a) => a.cls <= 2)); this.equipArtifact(h, a.id); return msg('Сред останките намираш ' + a.name + '. ' + a.desc, 'artifact'); }
-          const g = this.rng.int(10, 20) * 100; p.res.gold += g; return msg('Сред останките намираш ' + g + ' злато.', 'pickup');
+          if (this.rng.chance(0.3)) { const a = this.rng.pick(D.ARTIFACTS.filter((a) => a.cls <= 2)); this.equipArtifact(h, a.id); return msg(T('Сред останките намираш ') + a.name + '. ' + a.desc, 'artifact'); }
+          const g = this.rng.int(10, 20) * 100; p.res.gold += g; return msg(T('Сред останките намираш ') + g + T(' злато.'), 'pickup');
         }
         case 'dragon_utopia': {
-          if (o.empty || !o.loot) return msg('Драконовата утопия е празна — съкровището вече е взето.', 'stat');
+          if (o.empty || !o.loot) return msg(T('Драконовата утопия е празна — съкровището вече е взето.'), 'stat');
           const L = o.loot; o.empty = true; p.res.gold += L.gold;
           const names = L.arts.map((aid) => { this.equipArtifact(h, aid); return D.artById[aid].name; });
-          return msg('Драконите са победени! В леговището намираш ' + L.gold + ' злато' + (names.length ? ' и артефактите: ' + names.join(', ') : '') + '.', 'artifact');
+          return msg(T('Драконите са победени! В леговището намираш ') + L.gold + T(' злато') + (names.length ? T(' и артефактите: ') + names.join(', ') : '') + '.', 'artifact');
         }
-        case 'artifact': { const a = D.artById[o.art]; this.removeObject(o); this.equipArtifact(h, o.art); return msg('Намираш артефакт: ' + a.name + '. ' + a.desc, 'artifact'); }
-        case 'mine': { if (o.owner === h.owner) return null; o.owner = h.owner; const m = D.MINES.find((m) => m.res === o.res); return msg(m.name + ' е вече твоя: +' + m.amount + ' ' + D.RES_NAME[o.res].toLowerCase() + ' на ден.', 'flag'); }
+        case 'artifact': { const a = D.artById[o.art]; this.removeObject(o); this.equipArtifact(h, o.art); return msg(T('Намираш артефакт: ') + a.name + '. ' + a.desc, 'artifact'); }
+        case 'mine': { if (o.owner === h.owner) return null; o.owner = h.owner; const m = D.MINES.find((m) => m.res === o.res); return msg(m.name + T(' е вече твоя: +') + m.amount + ' ' + D.RES_NAME[o.res].toLowerCase() + T(' на ден.'), 'flag'); }
         case 'shipyard': {
           const near = this.map.objects.some((b) => b.type === 'boat' && (b.z || 0) === (o.z || 0) && Math.abs(b.x - o.x) <= 2 && Math.abs(b.y - o.y) <= 2);
           const canPay = p.res.gold >= 1000 && p.res.wood >= 10;
-          return { type: 'choice', obj: o, title: 'Корабостроителница', text: 'Тук може да се построи кораб за 1000 злато и 10 дърво.' + (near ? ' На брега вече има кораб.' : '') + (canPay ? '' : ' Нямаш достатъчно ресурси.'), options: [
-            { label: 'Построй кораб (1000 злато, 10 дърво)', disabled: !canPay || near, apply: () => { const r = this.buildBoatAt(o, h.owner, 2); this.events.push({ type: 'msg', text: r.ok ? 'Корабът е готов и чака на брега.' : r.why }); } },
-            { label: 'Откажи', apply: () => {} }
+          return { type: 'choice', obj: o, title: T('Корабостроителница'), text: T('Тук може да се построи кораб за 1000 злато и 10 дърво.') + (near ? T(' На брега вече има кораб.') : '') + (canPay ? '' : T(' Нямаш достатъчно ресурси.')), options: [
+            { label: T('Построй кораб (1000 злато, 10 дърво)'), disabled: !canPay || near, apply: () => { const r = this.buildBoatAt(o, h.owner, 2); this.events.push({ type: 'msg', text: r.ok ? T('Корабът е готов и чака на брега.') : r.why }); } },
+            { label: T('Откажи'), apply: () => {} }
           ], aiPick: () => (!near && canPay && !this.players[h.owner].heroes.some((id) => this.heroes[id].boat) ? 0 : 1) };
         }
-        case 'lighthouse': { if (o.owner === h.owner) return null; o.owner = h.owner; p.heroes.forEach((id) => { const hh = this.heroes[id]; if (hh.boat) hh.maxMovement = this.computeMaxMovement(hh); }); return msg('Фарът е твой: +500 движение по вода за корабите ти.', 'flag'); }
+        case 'lighthouse': { if (o.owner === h.owner) return null; o.owner = h.owner; p.heroes.forEach((id) => { const hh = this.heroes[id]; if (hh.boat) hh.maxMovement = this.computeMaxMovement(hh); }); return msg(T('Фарът е твой: +500 движение по вода за корабите ти.'), 'flag'); }
         case 'dwelling': { o.owner = h.owner; return { type: 'dwelling', obj: o, hero: h }; }
-        case 'windmill': { if (o.takenWeek === this.week()) return msg('Мелницата вече е дала своето тази седмица.'); o.takenWeek = this.week(); const res = this.rng.pick(['mercury', 'sulfur', 'crystal', 'gems', 'ore', 'wood']); const n = this.rng.int(3, 6); p.res[res] += n; return msg('Мелничарят ти дава ' + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup'); }
-        case 'watermill': { if (o.takenWeek === this.week()) return msg('Водната мелница вече е платила тази седмица.'); o.takenWeek = this.week(); const g = this.week() === 1 ? 500 : 1000; p.res.gold += g; return msg('Водната мелница ти носи ' + g + ' злато.', 'pickup'); }
-        case 'learning': if (!once('learn' + o.id)) return msg('Камъкът вече ти е дал знанието си.'); this.gainXp(h, 1000); return msg('Камъкът на познанието те дарява с 1000 опит.', 'xp');
-        case 'obelisk': if (p.visited['ob' + o.id]) return msg('Древни знаци, които вече си разчел.'); p.visited['ob' + o.id] = true; this.gainXp(h, 250); return msg('Разчиташ древните знаци. +250 опит.', 'xp');
-        case 'rally': if (!once('rally' + o.id + 'w' + this.week())) return msg('Знамето вече те е вдъхновило тази седмица.'); h.moraleTmp = 1; h.luckTmp = 1; h.movement += 400; return msg('Знамето на сбора: +1 морал, +1 късмет за следващата битка и +400 движение.', 'buff');
-        case 'mercenary': if (!once('merc' + o.id)) return msg('Наемниците вече са те обучили.'); h.att++; return msg('Наемниците те обучават: +1 атака.', 'stat');
-        case 'tower_def': if (!once('tdef' + o.id)) return msg('Стражите вече са те обучили.'); h.def++; return msg('Стражите те учат да се защитаваш: +1 защита.', 'stat');
-        case 'star_axis': if (!once('star' + o.id)) return msg('Звездите вече са ти говорили.'); h.pow++; return msg('Звездите ти шепнат: +1 сила.', 'stat');
-        case 'garden': if (!once('gard' + o.id)) return msg('Градината вече ти е дала прозрение.'); h.know++; h.mana = Math.min(this.maxMana(h), h.mana + 10); return msg('Прозрение в градината: +1 познание.', 'stat');
-        case 'campfire': { const g = this.rng.int(4, 6) * 100, res = this.rng.pick(['wood', 'ore', 'mercury', 'sulfur', 'crystal', 'gems']), n = this.rng.int(4, 6); p.res.gold += g; p.res[res] += n; this.removeObject(o); return msg('Край огъня намираш ' + g + ' злато и ' + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup'); }
+        case 'windmill': { if (o.takenWeek === this.week()) return msg(T('Мелницата вече е дала своето тази седмица.')); o.takenWeek = this.week(); const res = this.rng.pick(['mercury', 'sulfur', 'crystal', 'gems', 'ore', 'wood']); const n = this.rng.int(3, 6); p.res[res] += n; return msg(T('Мелничарят ти дава ') + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup'); }
+        case 'watermill': { if (o.takenWeek === this.week()) return msg(T('Водната мелница вече е платила тази седмица.')); o.takenWeek = this.week(); const g = this.week() === 1 ? 500 : 1000; p.res.gold += g; return msg(T('Водната мелница ти носи ') + g + T(' злато.'), 'pickup'); }
+        case 'learning': if (!once('learn' + o.id)) return msg(T('Камъкът вече ти е дал знанието си.')); this.gainXp(h, 1000); return msg(T('Камъкът на познанието те дарява с 1000 опит.'), 'xp');
+        case 'obelisk': if (p.visited['ob' + o.id]) return msg(T('Древни знаци, които вече си разчел.')); p.visited['ob' + o.id] = true; this.gainXp(h, 250); return msg(T('Разчиташ древните знаци. +250 опит.'), 'xp');
+        case 'rally': if (!once('rally' + o.id + 'w' + this.week())) return msg(T('Знамето вече те е вдъхновило тази седмица.')); h.moraleTmp = 1; h.luckTmp = 1; h.movement += 400; return msg(T('Знамето на сбора: +1 морал, +1 късмет за следващата битка и +400 движение.'), 'buff');
+        case 'mercenary': if (!once('merc' + o.id)) return msg(T('Наемниците вече са те обучили.')); h.att++; return msg(T('Наемниците те обучават: +1 атака.'), 'stat');
+        case 'tower_def': if (!once('tdef' + o.id)) return msg(T('Стражите вече са те обучили.')); h.def++; return msg(T('Стражите те учат да се защитаваш: +1 защита.'), 'stat');
+        case 'star_axis': if (!once('star' + o.id)) return msg(T('Звездите вече са ти говорили.')); h.pow++; return msg(T('Звездите ти шепнат: +1 сила.'), 'stat');
+        case 'garden': if (!once('gard' + o.id)) return msg(T('Градината вече ти е дала прозрение.')); h.know++; h.mana = Math.min(this.maxMana(h), h.mana + 10); return msg(T('Прозрение в градината: +1 познание.'), 'stat');
+        case 'campfire': { const g = this.rng.int(4, 6) * 100, res = this.rng.pick(['wood', 'ore', 'mercury', 'sulfur', 'crystal', 'gems']), n = this.rng.int(4, 6); p.res.gold += g; p.res[res] += n; this.removeObject(o); return msg(T('Край огъня намираш ') + g + T(' злато и ') + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup'); }
         case 'shrine1': case 'shrine2': case 'shrine3': {
           const s = D.spellById[o.spell];
-          if (o.type === 'shrine3' && this.skillLevel(h, 'wisdom') < 1) return msg('Магията „' + s.name + '“ е твърде сложна без Мъдрост.');
-          if (h.spells.includes(s.id)) return msg('Вече знаеш магията „' + s.name + '“.');
-          h.spells.push(s.id); return msg('Научаваш магията „' + s.name + '“.', 'spell');
+          if (o.type === 'shrine3' && this.skillLevel(h, 'wisdom') < 1) return msg(T('Магията „') + s.name + T('“ е твърде сложна без Мъдрост.'));
+          if (h.spells.includes(s.id)) return msg(T('Вече знаеш магията „') + s.name + '“.');
+          h.spells.push(s.id); return msg(T('Научаваш магията „') + s.name + '“.', 'spell');
         }
         case 'tree_knowledge': {
-          if (!once('tree' + o.id)) return msg('Дървото вече те е научило.');
+          if (!once('tree' + o.id)) return msg(T('Дървото вече те е научило.'));
           const gold = o.price === 'gold', have = gold ? p.res.gold >= 2000 : p.res.gems >= 10;
-          if (!have) { h.visited['tree' + o.id] = false; return msg('Дървото иска ' + (gold ? '2000 злато' : '10 скъпоценни камъка') + ', а ти нямаш.'); }
+          if (!have) { h.visited['tree' + o.id] = false; return msg(T('Дървото иска ') + (gold ? T('2000 злато') : T('10 скъпоценни камъка')) + T(', а ти нямаш.')); }
           const nextXp = D.LEVEL_XP[h.level + 1] - h.xp;
-          return { type: 'choice', obj: o, title: 'Дърво на познанието', text: 'Дървото ще те издигне с едно ниво срещу ' + (gold ? '2000 злато' : '10 скъпоценни камъка') + '.', options: [
-            { label: 'Плати', apply: () => { if (gold) p.res.gold -= 2000; else p.res.gems -= 10; this.gainXp(h, Math.max(1, nextXp)); } },
-            { label: 'Отказ', apply: () => { h.visited['tree' + o.id] = false; } }
+          return { type: 'choice', obj: o, title: T('Дърво на познанието'), text: T('Дървото ще те издигне с едно ниво срещу ') + (gold ? T('2000 злато') : T('10 скъпоценни камъка')) + '.', options: [
+            { label: T('Плати'), apply: () => { if (gold) p.res.gold -= 2000; else p.res.gems -= 10; this.gainXp(h, Math.max(1, nextXp)); } },
+            { label: T('Отказ'), apply: () => { h.visited['tree' + o.id] = false; } }
           ], aiPick: () => 0 };
         }
-        case 'magic_well': { if (h.visited['well' + o.id] === this.day) return msg('Днес вече пи от кладенеца.'); h.visited['well' + o.id] = this.day; h.mana = Math.max(h.mana, this.maxMana(h)); return msg('Кладенецът възстановява маната ти.', 'buff'); }
+        case 'magic_well': { if (h.visited['well' + o.id] === this.day) return msg(T('Днес вече пи от кладенеца.')); h.visited['well' + o.id] = this.day; h.mana = Math.max(h.mana, this.maxMana(h)); return msg(T('Кладенецът възстановява маната ти.'), 'buff'); }
         case 'wagon': {
-          if (o.empty) return msg('Каруцата е празна.');
+          if (o.empty) return msg(T('Каруцата е празна.'));
           o.empty = true;
-          if (this.rng.chance(0.5)) { const a = this.rng.pick(D.ARTIFACTS.filter((a) => a.cls <= 2)); this.equipArtifact(h, a.id); return msg('В каруцата намираш ' + a.name + '. ' + a.desc, 'artifact'); }
-          const res = this.rng.pick(['wood', 'ore', 'mercury', 'sulfur', 'crystal', 'gems']), n = this.rng.int(3, 8); p.res[res] += n; return msg('В каруцата намираш ' + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup');
+          if (this.rng.chance(0.5)) { const a = this.rng.pick(D.ARTIFACTS.filter((a) => a.cls <= 2)); this.equipArtifact(h, a.id); return msg(T('В каруцата намираш ') + a.name + '. ' + a.desc, 'artifact'); }
+          const res = this.rng.pick(['wood', 'ore', 'mercury', 'sulfur', 'crystal', 'gems']), n = this.rng.int(3, 8); p.res[res] += n; return msg(T('В каруцата намираш ') + n + ' ' + D.RES_NAME[res].toLowerCase() + '.', 'pickup');
         }
-        case 'fountain': if (!once('fount' + o.id + 'd' + this.day)) return null; h.luckTmp = Math.max(h.luckTmp, 1); return msg('Изворът те дарява с късмет: +1 за следващата битка.', 'buff');
-        case 'idol': if (!once('idol' + o.id + 'd' + this.day)) return null; h.moraleTmp = Math.max(h.moraleTmp, 1); if (this.dayOfWeek() === 7) h.luckTmp = Math.max(h.luckTmp, 1); return msg('Идолът повдига духа: +1 морал' + (this.dayOfWeek() === 7 ? ' и +1 късмет' : '') + ' за следващата битка.', 'buff');
-        case 'stables': if (h.moveTmpWeek === this.week()) return msg('Конете ти вече са отпочинали.'); h.moveTmpWeek = this.week(); h.moveTmp = 400; h.movement += 400; h.maxMovement += 400; return msg('Свежи коне: +400 движение до края на седмицата.', 'buff');
-        case 'sanctuary': return msg('Убежище. Тук никой не може да те нападне.');
+        case 'fountain': if (!once('fount' + o.id + 'd' + this.day)) return null; h.luckTmp = Math.max(h.luckTmp, 1); return msg(T('Изворът те дарява с късмет: +1 за следващата битка.'), 'buff');
+        case 'idol': if (!once('idol' + o.id + 'd' + this.day)) return null; h.moraleTmp = Math.max(h.moraleTmp, 1); if (this.dayOfWeek() === 7) h.luckTmp = Math.max(h.luckTmp, 1); return msg(T('Идолът повдига духа: +1 морал') + (this.dayOfWeek() === 7 ? T(' и +1 късмет') : '') + T(' за следващата битка.'), 'buff');
+        case 'stables': if (h.moveTmpWeek === this.week()) return msg(T('Конете ти вече са отпочинали.')); h.moveTmpWeek = this.week(); h.moveTmp = 400; h.movement += 400; h.maxMovement += 400; return msg(T('Свежи коне: +400 движение до края на седмицата.'), 'buff');
+        case 'sanctuary': return msg(T('Убежище. Тук никой не може да те нападне.'));
         case 'school_war': case 'school_magic': {
-          if (!once('school' + o.id)) return msg('Вече си учил тук.');
-          if (p.res.gold < 1000) { h.visited['school' + o.id] = false; return msg('Обучението струва 1000 злато.'); }
+          if (!once('school' + o.id)) return msg(T('Вече си учил тук.'));
+          if (p.res.gold < 1000) { h.visited['school' + o.id] = false; return msg(T('Обучението струва 1000 злато.')); }
           const war = o.type === 'school_war';
-          return { type: 'choice', obj: o, title: D.OBJECTS[o.type].name, text: 'Срещу 1000 злато учителите ще подобрят едно от уменията ти.', options: [
-            { label: '+1 ' + (war ? 'атака' : 'сила'), apply: () => { p.res.gold -= 1000; if (war) h.att++; else h.pow++; } },
-            { label: '+1 ' + (war ? 'защита' : 'познание'), apply: () => { p.res.gold -= 1000; if (war) h.def++; else h.know++; } },
-            { label: 'Отказ', apply: () => { h.visited['school' + o.id] = false; } }
+          return { type: 'choice', obj: o, title: D.OBJECTS[o.type].name, text: T('Срещу 1000 злато учителите ще подобрят едно от уменията ти.'), options: [
+            { label: '+1 ' + (war ? T('атака') : T('сила')), apply: () => { p.res.gold -= 1000; if (war) h.att++; else h.pow++; } },
+            { label: '+1 ' + (war ? T('защита') : T('познание')), apply: () => { p.res.gold -= 1000; if (war) h.def++; else h.know++; } },
+            { label: T('Отказ'), apply: () => { h.visited['school' + o.id] = false; } }
           ], aiPick: () => (p.res.gold > 5000 ? 0 : 2) };
         }
         case 'library': {
-          if (!once('lib' + o.id)) return msg('Прочел си всичко тук.');
-          if (p.res.gold < 500) { h.visited['lib' + o.id] = false; return msg('Достъпът струва 500 злато.'); }
+          if (!once('lib' + o.id)) return msg(T('Прочел си всичко тук.'));
+          if (p.res.gold < 500) { h.visited['lib' + o.id] = false; return msg(T('Достъпът струва 500 злато.')); }
           p.res.gold -= 500; let n = 0; D.SPELLS.filter((s) => s.level === 1).forEach((s) => { if (!h.spells.includes(s.id)) { h.spells.push(s.id); n++; } });
-          return msg('Научаваш ' + n + ' нови магии от 1-во ниво.', 'spell');
+          return msg(T('Научаваш ') + n + T(' нови магии от 1-во ниво.'), 'spell');
         }
         case 'monolith': case 'gate': case 'whirlpool': {
           const pair = this.objById(o.pair);
-          if (!pair || this.heroAt(pair.x, pair.y, pair.z)) return msg('Порталът мълчи.');
+          if (!pair || this.heroAt(pair.x, pair.y, pair.z)) return msg(T('Порталът мълчи.'));
           h.x = pair.x; h.y = pair.y; h.z = pair.z || 0;
           this.revealAround(h.owner, h.x, h.y, h.z, this.sightRadius(h));
           if (o.type === 'whirlpool') { // водовъртежът отнася част от най-слабия стек
             let wi = -1, wv = Infinity; h.army.forEach((s, i) => { if (s) { const v = s.n * D.fightValue(D.creatureOf(s.c)); if (v < wv) { wv = v; wi = i; } } });
-            if (wi >= 0 && h.army[wi].n > 1 && Army.count(h.army) > 1) { const lost = Math.floor(h.army[wi].n / 2); h.army[wi].n -= lost; return msg('Водовъртежът те изхвърля другаде. Загубени: ' + lost + ' × ' + D.creatureOf(h.army[wi].c).name + '.', 'buff'); }
-            return msg('Водовъртежът те изхвърля на друго място.', 'buff');
+            if (wi >= 0 && h.army[wi].n > 1 && Army.count(h.army) > 1) { const lost = Math.floor(h.army[wi].n / 2); h.army[wi].n -= lost; return msg(T('Водовъртежът те изхвърля другаде. Загубени: ') + lost + ' × ' + D.creatureOf(h.army[wi].c).name + '.', 'buff'); }
+            return msg(T('Водовъртежът те изхвърля на друго място.'), 'buff');
           }
-          return msg(o.type === 'gate' ? (h.z ? 'Слизаш в подземието.' : 'Излизаш на повърхността.') : 'Монолитът те пренася през пространството.', 'buff');
+          return msg(o.type === 'gate' ? (h.z ? T('Слизаш в подземието.') : T('Излизаш на повърхността.')) : T('Монолитът те пренася през пространството.'), 'buff');
         }
       }
       return null;
@@ -757,14 +758,14 @@
       const attWon = r.winner === 'att';
       if (attWon && attHero) {
         const xp = this.gainXp(attHero, r.attHpKilled);
-        events.push({ type: 'battleResult', win: true, hero: attHero, xp, text: 'Победа! ' + attHero.name + ' получава ' + xp + ' опит.' });
+        events.push({ type: 'battleResult', win: true, hero: attHero, xp, text: T('Победа! ') + attHero.name + T(' получава ') + xp + T(' опит.') });
         this.necromancy(attHero, r.attKills);
       } else if (!attWon && defHero) {
         const xp = this.gainXp(defHero, r.defHpKilled);
-        events.push({ type: 'battleResult', win: false, hero: defHero, xp, text: defHero.name + ' отблъсква нападението и получава ' + xp + ' опит.' });
+        events.push({ type: 'battleResult', win: false, hero: defHero, xp, text: defHero.name + T(' отблъсква нападението и получава ') + xp + T(' опит.') });
         this.necromancy(defHero, r.defKills);
       } else if (!attWon) {
-        events.push({ type: 'battleResult', win: false, hero: attHero, xp: 0, text: attHero ? attHero.name + ' е разбит.' : 'Нападението е отблъснато.' });
+        events.push({ type: 'battleResult', win: false, hero: attHero, xp: 0, text: attHero ? attHero.name + T(' е разбит.') : T('Нападението е отблъснато.') });
       }
       const loserHero = attWon ? defHero : attHero, winnerHero = attWon ? attHero : defHero;
       const loserSide = attWon ? 1 : 0;
@@ -776,11 +777,11 @@
         if (r.surrendered === loserSide) {
           const p = this.players[loserHero.owner]; p.res.gold -= r.surrenderCost || 0;
           this.retreatHero(loserHero, true);
-          events.push({ type: 'msg', text: loserHero.name + ' се предава срещу ' + (r.surrenderCost || 0) + ' злато и запазва армията си. Ще го намериш в таверна.' });
+          events.push({ type: 'msg', text: loserHero.name + T(' се предава срещу ') + (r.surrenderCost || 0) + T(' злато и запазва армията си. Ще го намериш в таверна.') });
         } else if (r.retreated === loserSide) {
           loserHero.army = Army.empty();
           this.retreatHero(loserHero, false);
-          events.push({ type: 'msg', text: loserHero.name + ' отстъпва и ще може да бъде нает отново в таверна.' });
+          events.push({ type: 'msg', text: loserHero.name + T(' отстъпва и ще може да бъде нает отново в таверна.') });
         } else {
           if (winnerHero) this.transferArtifacts(loserHero, winnerHero);
           this.removeHero(loserHero);
@@ -798,7 +799,7 @@
       const lvl = this.skillLevel(h, 'necromancy');
       if (!lvl || !kills) return;
       const n = Math.floor(kills * [0, 0.1, 0.2, 0.3][lvl] * this.skillMult(h, 'necromancy'));
-      if (n > 0) { const cid = h.army.some((s) => s && s.c === 'necropolis1u') ? 'necropolis1u' : 'necropolis1'; if (!Army.add(h.army, cid, n)) this.events.push({ type: 'msg', text: 'Некромантия: ' + n + ' скелети се присъединяват към ' + h.name + '.' }); }
+      if (n > 0) { const cid = h.army.some((s) => s && s.c === 'necropolis1u') ? 'necropolis1u' : 'necropolis1'; if (!Army.add(h.army, cid, n)) this.events.push({ type: 'msg', text: T('Некромантия: ') + n + T(' скелети се присъединяват към ') + h.name + '.' }); }
     }
     transferArtifacts(from, to) {
       if (!to) return;
@@ -839,7 +840,7 @@
       };
     }
     static fromJSON(j) {
-      if (j.v !== 2) throw new Error('Стар формат на сейва.');
+      if (j.v !== 2) throw new Error(T('Стар формат на сейва.'));
       const w = new World();
       Object.assign(w, { seed: j.seed, difficulty: j.difficulty, template: j.template, day: j.day, curPlayer: j.curPlayer, nextId: j.nextId, weekName: j.weekName, heroes: j.heroes, towns: j.towns });
       w.rng = new MK.RNG(j.seed); w.rng.s = j.rngState;

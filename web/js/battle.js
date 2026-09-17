@@ -5,6 +5,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
+  const T = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data;
   const W = 15, H = 11;
 
@@ -254,7 +255,7 @@
             const destroyed = this.wallHp[i] <= 0;
             if (destroyed) { this.walls.delete(i); this.rubble.add(i); }
             this.pushEv({ type: 'catapult', idx: i, destroyed, gate: i === GATE });
-            this.logLine('Катапултът удря ' + (i === GATE ? 'портата' : 'стената') + (destroyed ? ' и я разбива!' : '.'));
+            this.logLine(T('Катапултът удря ') + (i === GATE ? T('портата') : T('стената')) + (destroyed ? T(' и я разбива!') : '.'));
           }
         }
       }
@@ -266,7 +267,7 @@
         const dmg = Math.floor(t.dmg * (1 + this.sides[1].def * 0.05) * (this.siege === 3 ? 1.5 : 1));
         const r = this.applyDamage(tgt, dmg);
         this.pushEv({ type: 'tower', from: t, target: tgt.id, dmg, kills: r.kills });
-        this.logLine('Кулата стреля по ' + tgt.c.name + ': ' + dmg + ' щети' + (r.kills ? ', убити ' + r.kills : '') + '.');
+        this.logLine(T('Кулата стреля по ') + tgt.c.name + ': ' + dmg + T(' щети') + (r.kills ? T(', убити ') + r.kills : '') + '.');
       });
       this.checkEnd();
       const order = this.stacks.filter((s) => s.alive).sort((a, b) => {
@@ -291,7 +292,7 @@
         if (s.c.abilities.manaDrain) { const es = this.sides[1 - s.side]; if (es.hero && es.mana > 0) { es.mana = Math.max(0, es.mana - s.c.abilities.manaDrain); this.pushEv({ type: 'manaDrain', stack: s.id }); } }
         if (!s.waited) {
           const m = this.morale(s);
-          if (m < 0 && this.rng.chance(-m / 24)) { s.acted = true; this.pushEv({ type: 'morale', stack: s.id, good: false }); this.logLine(s.c.name + ' се колебае от лош морал.'); continue; }
+          if (m < 0 && this.rng.chance(-m / 24)) { s.acted = true; this.pushEv({ type: 'morale', stack: s.id, good: false }); this.logLine(s.c.name + T(' се колебае от лош морал.')); continue; }
         }
         this.current = s;
         return s;
@@ -306,7 +307,7 @@
         if (m > 0 && this.rng.chance(m / 24)) {
           s.goodMoraleUsed = true;
           this.pushEv({ type: 'morale', stack: s.id, good: true });
-          this.logLine('Висок морал! ' + s.c.name + ' действа отново.');
+          this.logLine(T('Висок морал! ') + s.c.name + T(' действа отново.'));
           this.queue.unshift(s);
         }
       }
@@ -429,7 +430,7 @@
         const n = Math.max(1, Math.floor(s.origCount * 0.2));
         s.alive = true; s.count = n; s.hp = s.maxHp; s.ref.n = n; s.effects = {};
         this.pushEv({ type: 'rebirth', stack: s.id, count: n });
-        this.logLine(s.c.name + ' се преражда от пепелта: ' + n + '!');
+        this.logLine(s.c.name + T(' се преражда от пепелта: ') + n + '!');
       }
     }
     killCreatures(s, n) { if (n <= 0 || !s.alive) return 0; n = Math.min(n, s.count); const dmg = (n - 1) * s.maxHp + s.hp; return this.applyDamage(s, dmg).kills; }
@@ -461,10 +462,10 @@
       const r = this.calcDamage(att, def, opts);
       const a = this.applyDamage(def, r.dmg);
       this.pushEv({ type: 'hit', from: att.id, to: def.id, dmg: a.dmg, kills: a.kills, luck: r.luck, ranged: !!opts.ranged, retaliation: !!opts.retaliation, deathBlow: r.deathBlow });
-      this.logLine((opts.retaliation ? 'Ответен удар: ' : opts.ranged ? 'Изстрел: ' : '') + att.c.name + ' → ' + def.c.name + ': ' + a.dmg + ' щети' + (a.kills ? ', убити ' + a.kills : '') + (r.luck > 0 ? ' (късмет!)' : r.luck < 0 ? ' (лош късмет)' : '') + (r.deathBlow ? ' (смъртоносен удар!)' : '') + '.');
+      this.logLine((opts.retaliation ? T('Ответен удар: ') : opts.ranged ? T('Изстрел: ') : '') + att.c.name + ' → ' + def.c.name + ': ' + a.dmg + T(' щети') + (a.kills ? T(', убити ') + a.kills : '') + (r.luck > 0 ? T(' (късмет!)') : r.luck < 0 ? T(' (лош късмет)') : '') + (r.deathBlow ? T(' (смъртоносен удар!)') : '') + '.');
       const ab = att.c.abilities;
       if (!opts.ranged && ab.lifeDrain && a.dmg > 0) { const h = this.heal(att, a.dmg, true); if (h > 0) this.pushEv({ type: 'heal', stack: att.id, amount: h }); }
-      if (!opts.ranged && def.c.abilities.fireShield && att.alive && !att.c.abilities.fireImmune) { const back = Math.floor(a.dmg * def.c.abilities.fireShield / 100); if (back > 0) { const rb = this.applyDamage(att, back); this.pushEv({ type: 'hit', from: def.id, to: att.id, dmg: rb.dmg, kills: rb.kills, fire: true }); this.logLine('Огнен щит: ' + back + ' щети на ' + att.c.name + '.'); } }
+      if (!opts.ranged && def.c.abilities.fireShield && att.alive && !att.c.abilities.fireImmune) { const back = Math.floor(a.dmg * def.c.abilities.fireShield / 100); if (back > 0) { const rb = this.applyDamage(att, back); this.pushEv({ type: 'hit', from: def.id, to: att.id, dmg: rb.dmg, kills: rb.kills, fire: true }); this.logLine(T('Огнен щит: ') + back + T(' щети на ') + att.c.name + '.'); } }
       if (def.alive) {
         if (ab.curseHit && this.rng.chance(ab.curseHit / 100)) this.addEffect(def, 'curse', 0, 3);
         if (ab.blindHit && !opts.retaliation && !def.c.abilities.undead && !def.c.abilities.mindImmune && !def.c.abilities.blindImmune && this.rng.chance(ab.blindHit / 100)) this.addEffect(def, 'blind', 1, 2);
@@ -475,7 +476,7 @@
         if (ab.deathStare && !opts.retaliation && !opts.ranged && !def.c.abilities.undead && !def.c.abilities.mindImmune) {
           let n = 0; for (let i = 0; i < Math.min(att.count, 100); i++) if (this.rng.chance(ab.deathStare / 100)) n++;
           n = Math.min(n, Math.ceil(att.count / 10));
-          if (n > 0) { const k = this.killCreatures(def, n); this.pushEv({ type: 'stare', stack: def.id, kills: k }); this.logLine('Смъртоносен поглед: ' + k + ' × ' + def.c.name + ' падат.'); }
+          if (n > 0) { const k = this.killCreatures(def, n); this.pushEv({ type: 'stare', stack: def.id, kills: k }); this.logLine(T('Смъртоносен поглед: ') + k + ' × ' + def.c.name + T(' падат.')); }
         }
       }
       return a;
@@ -580,14 +581,14 @@
     }
     affects(spell, s, casterSide) {
       const ab = s.c.abilities;
-      if (ab.spellImmune && spell.level <= ab.spellImmune) return { ok: false, why: 'имунитет' };
-      if (ab.fireImmune && spell.school === 'fire') return { ok: false, why: 'огнен имунитет' };
-      if (s.effects.antimagic && spell.level <= s.effects.antimagic.val) return { ok: false, why: 'антимагия' };
-      if (spell.onlyUndead && !ab.undead) return { ok: false, why: 'само немъртви' };
-      if (spell.onlyLiving && ab.undead) return { ok: false, why: 'немъртвите са неуязвими' };
-      if ((ab.undead || ab.mindImmune) && (spell.effect === 'blind' || spell.effect === 'mirth' || spell.effect === 'sorrow')) return { ok: false, why: 'няма ум за омагьосване' };
-      if (ab.blindImmune && spell.effect === 'blind') return { ok: false, why: 'имунитет' };
-      if ((spell.effect === 'curse' || spell.effect === 'weakness') && this.hasSet(s.side, 'dawn')) return { ok: false, why: 'Доспехите на зората' };
+      if (ab.spellImmune && spell.level <= ab.spellImmune) return { ok: false, why: T('имунитет') };
+      if (ab.fireImmune && spell.school === 'fire') return { ok: false, why: T('огнен имунитет') };
+      if (s.effects.antimagic && spell.level <= s.effects.antimagic.val) return { ok: false, why: T('антимагия') };
+      if (spell.onlyUndead && !ab.undead) return { ok: false, why: T('само немъртви') };
+      if (spell.onlyLiving && ab.undead) return { ok: false, why: T('немъртвите са неуязвими') };
+      if ((ab.undead || ab.mindImmune) && (spell.effect === 'blind' || spell.effect === 'mirth' || spell.effect === 'sorrow')) return { ok: false, why: T('няма ум за омагьосване') };
+      if (ab.blindImmune && spell.effect === 'blind') return { ok: false, why: T('имунитет') };
+      if ((spell.effect === 'curse' || spell.effect === 'weakness') && this.hasSet(s.side, 'dawn')) return { ok: false, why: T('Доспехите на зората') };
       return { ok: true };
     }
     resists(spell, s, casterSide) {
@@ -633,11 +634,11 @@
     doCast(side, spellId, x, y) {
       const sd = this.sides[side];
       const spell = D.spellById[spellId];
-      if (!this.canCast(side) || !sd.spells.includes(spellId)) return { ok: false, why: 'Не може да се направи магия сега.' };
+      if (!this.canCast(side) || !sd.spells.includes(spellId)) return { ok: false, why: T('Не може да се направи магия сега.') };
       const cost = this.spellCost(side, spell);
-      if (sd.mana < cost) return { ok: false, why: 'Недостатъчно мана.' };
+      if (sd.mana < cost) return { ok: false, why: T('Недостатъчно мана.') };
       const targets = this.spellTargets(side, spell, x, y);
-      if (!targets || !targets.length) return { ok: false, why: 'Невалидна цел.' };
+      if (!targets || !targets.length) return { ok: false, why: T('Невалидна цел.') };
       const lvl = this.schoolLevel(sd, spell);
       sd.mana -= cost; this.casted[side] = true;
       if (sd.hero) sd.hero.mana = sd.mana;
@@ -649,15 +650,15 @@
         castTargets = order;
       }
       this.pushEv({ type: 'cast', side, spell: spellId, x, y, targets: castTargets });
-      this.logLine((sd.hero ? sd.hero.name : 'Героят') + ' прави магия „' + spell.name + '“.');
+      this.logLine((sd.hero ? sd.hero.name : T('Героят')) + T(' прави магия „') + spell.name + '“.');
       const affectedList = [];
       const hitDmg = (t, dmg) => {
         const a = this.affects(spell, t, side);
         if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; }
-        if (this.resists(spell, t, side)) { this.pushEv({ type: 'resist', stack: t.id }); this.logLine(t.c.name + ' устоява на магията.'); return; }
+        if (this.resists(spell, t, side)) { this.pushEv({ type: 'resist', stack: t.id }); this.logLine(t.c.name + T(' устоява на магията.')); return; }
         const r = this.applyDamage(t, dmg);
         this.pushEv({ type: 'spellHit', stack: t.id, dmg: r.dmg, kills: r.kills });
-        this.logLine('„' + spell.name + '“ → ' + t.c.name + ': ' + r.dmg + ' щети' + (r.kills ? ', убити ' + r.kills : '') + '.');
+        this.logLine('„' + spell.name + '“ → ' + t.c.name + ': ' + r.dmg + T(' щети') + (r.kills ? T(', убити ') + r.kills : '') + '.');
         affectedList.push(t);
       };
       switch (spell.kind) {
@@ -695,7 +696,7 @@
         }
         case 'res': {
           const amount = this.spellPower(sd, spell);
-          targets.forEach((t) => { const a = this.affects(spell, t, side); if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; } const h = this.heal(t, amount, true); this.pushEv({ type: 'heal', stack: t.id, amount: h, resurrect: true }); this.logLine(t.c.name + ': възстановени ' + h + ' точки живот.'); affectedList.push(t); });
+          targets.forEach((t) => { const a = this.affects(spell, t, side); if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; } const h = this.heal(t, amount, true); this.pushEv({ type: 'heal', stack: t.id, amount: h, resurrect: true }); this.logLine(t.c.name + T(': възстановени ') + h + T(' точки живот.')); affectedList.push(t); });
           break;
         }
         case 'special': { targets.forEach((t) => { for (const k in t.effects) if (k !== 'bound') delete t.effects[k]; this.pushEv({ type: 'dispel', stack: t.id }); affectedList.push(t); }); break; }

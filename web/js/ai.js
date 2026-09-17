@@ -4,6 +4,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
+  const T = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data;
   const Army = MK.Army;
 

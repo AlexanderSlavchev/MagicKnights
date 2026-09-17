@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
+  const T = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data;
   const G = MK.Gfx;
 
@@ -55,9 +56,9 @@
   /* Банер за нов ден / нова седмица през средата на екрана */
   function dayBanner(day, week, dow, newWeek) {
     const b = el('div', { class: 'day-banner' + (newWeek ? ' week' : '') },
-      el('div', { class: 'db-top' }, newWeek ? 'Нова седмица' : 'Нов ден'),
-      el('div', { class: 'db-main' }, newWeek ? 'Седмица ' + week : 'Ден ' + day),
-      el('div', { class: 'db-sub' }, newWeek ? 'Ден ' + day + ' · съществата в градовете са нараснали' : 'Седмица ' + week + ', ден ' + dow));
+      el('div', { class: 'db-top' }, newWeek ? T('Нова седмица') : T('Нов ден')),
+      el('div', { class: 'db-main' }, newWeek ? T('Седмица ') + week : T('Ден ') + day),
+      el('div', { class: 'db-sub' }, newWeek ? T('Ден ') + day + T(' · съществата в градовете са нараснали') : T('Седмица ') + week + T(', ден ') + dow));
     document.body.appendChild(b);
     setTimeout(() => b.classList.add('out'), newWeek ? 2300 : 1700);
     setTimeout(() => b.remove(), newWeek ? 2800 : 2200);
@@ -78,7 +79,7 @@
       if (opts.text) m.appendChild(el('p', null, opts.text));
       if (opts.content) m.appendChild(opts.content);
       const bs = el('div', { class: 'buttons' });
-      (opts.buttons || [{ label: 'Добре', value: true }]).forEach((b) => bs.appendChild(el('button', { class: b.cls || '', disabled: b.disabled ? 'disabled' : null, onclick: () => { wrap.remove(); resolve(b.value); } }, b.label)));
+      (opts.buttons || [{ label: T('Добре'), value: true }]).forEach((b) => bs.appendChild(el('button', { class: b.cls || '', disabled: b.disabled ? 'disabled' : null, onclick: () => { wrap.remove(); resolve(b.value); } }, b.label)));
       m.appendChild(bs);
       wrap.appendChild(m); overlay().appendChild(wrap);
     });
@@ -94,47 +95,50 @@
     const logo = MK.Img.url('ui/logo');
     if (logo) s.appendChild(el('img', { src: logo, class: 'logo', alt: 'MagicKnights' }));
     s.appendChild(el('div', { class: 'title' + (logo ? ' with-logo' : '') }, 'MagicKnights'));
-    s.appendChild(el('div', { class: 'subtitle' }, 'Герои, замъци и битки на хексове — класическата стратегия наново, за телефона ти.'));
+    s.appendChild(el('div', { class: 'subtitle' }, T('Герои, замъци и битки на хексове — класическата стратегия наново, за телефона ти.')));
     s.appendChild(el('div', { class: 'stack' },
-      el('button', { class: 'primary', onclick: () => showSetup(game) }, 'Нова игра'),
-      el('button', { onclick: () => showCampaign(game) }, 'Кампания'),
-      el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, 'Продължи'),
-      el('button', { onclick: () => showHelp() }, 'Как се играе'),
-      game.world ? el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, 'Назад към играта') : null
+      el('button', { class: 'primary', onclick: () => showSetup(game) }, T('Нова игра')),
+      el('button', { onclick: () => showCampaign(game) }, T('Кампания')),
+      el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, T('Продължи')),
+      el('button', { onclick: () => showHelp() }, T('Как се играе')),
+      game.world ? el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, T('Назад към играта')) : null
     ));
     s.appendChild(audioPanel());
-    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, 'Версия 0.3 · Фази 1–3 · 11 фракции, подземие, кораби, кампания · Музиката е оригинална'));
+    s.appendChild(el('div', { class: 'tiny', style: 'margin-top:20px' }, T('Версия 0.3 · Фази 1–3 · 11 фракции, подземие, кораби, кампания · Музиката е оригинална')));
   }
   function audioPanel() {
     const A = MK.Audio, box = el('div', { class: 'audio-panel' });
-    const mute = el('button', { class: 'small', onclick: () => { A.toggleMuted(); mute.textContent = A.settings.muted ? '🔇 Без звук' : '🔊 Звук'; } }, A.settings.muted ? '🔇 Без звук' : '🔊 Звук');
+    const mute = el('button', { class: 'small', onclick: () => { A.toggleMuted(); mute.textContent = A.settings.muted ? T('🔇 Без звук') : T('🔊 Звук'); } }, A.settings.muted ? T('🔇 Без звук') : T('🔊 Звук'));
     const slider = (label, val, on) => { const i = el('input', { type: 'range', min: 0, max: 100, value: Math.round(val * 100) }); i.addEventListener('input', () => on(i.value / 100)); return el('label', { class: 'tiny' }, label, i); };
     box.appendChild(mute);
-    box.appendChild(slider('Музика', A.settings.music, (v) => A.setMusic(v)));
-    box.appendChild(slider('Ефекти', A.settings.sfx, (v) => A.setSfx(v)));
+    // език
+    const sel = el('select', { class: 'lang' }); MK.i18n.LANGS.forEach(([c, n]) => { const o = el('option', { value: c }, n); if (c === MK.i18n.lang) o.selected = true; sel.appendChild(o); }); sel.addEventListener('change', () => MK.i18n.set(sel.value));
+    box.appendChild(el('label', { class: 'tiny' }, '🌐', sel));
+    box.appendChild(slider(T('Музика'), A.settings.music, (v) => A.setMusic(v)));
+    box.appendChild(slider(T('Ефекти'), A.settings.sfx, (v) => A.setSfx(v)));
     return box;
   }
   function showHelp() {
-    dialog({ title: 'Как се играе', content: el('div', null,
-      el('p', null, 'Всеки ход местиш героите си по картата, събираш ресурси, превземаш мини и градове и се биеш с пазачите. Докосни плочка, за да видиш пътя, докосни я пак, за да тръгнеш. Плъзгане мести картата, щипка — мащабира.'),
-      el('p', null, 'В града строиш по една сграда на ден и набираш същества всяка седмица. Героят вдига ниво от опит и избира умения.'),
-      el('p', null, 'Битката е на хексове: ходът е по скорост. Докосни хекс — местиш се; докосни враг в обхват — нападаш. Стрелците стрелят от разстояние (наполовина щети над 10 хекса и в близък бой). Веднъж на рунд героят може да направи магия.'),
-      el('p', null, 'Щетите: всяка точка атака над защитата на врага дава +5%, всяка точка защита над атаката — −2.5%. Морал може да даде втори ход, късмет — двойни щети.'),
-      el('p', null, 'Победа: превземи всички вражески градове и разбий героите им. Седем дни без град — загуба.')
+    dialog({ title: T('Как се играе'), content: el('div', null,
+      el('p', null, T('Всеки ход местиш героите си по картата, събираш ресурси, превземаш мини и градове и се биеш с пазачите. Докосни плочка, за да видиш пътя, докосни я пак, за да тръгнеш. Плъзгане мести картата, щипка — мащабира.')),
+      el('p', null, T('В града строиш по една сграда на ден и набираш същества всяка седмица. Героят вдига ниво от опит и избира умения.')),
+      el('p', null, T('Битката е на хексове: ходът е по скорост. Докосни хекс — местиш се; докосни враг в обхват — нападаш. Стрелците стрелят от разстояние (наполовина щети над 10 хекса и в близък бой). Веднъж на рунд героят може да направи магия.')),
+      el('p', null, T('Щетите: всяка точка атака над защитата на врага дава +5%, всяка точка защита над атаката — −2.5%. Морал може да даде втори ход, късмет — двойни щети.')),
+      el('p', null, T('Победа: превземи всички вражески градове и разбий героите им. Седем дни без град — загуба.'))
     ) });
   }
 
   // ---------------------------------------------------------------- нова игра
   function factionPicker(value, onPick, allowRandom) {
     const row = el('div', { class: 'opt-row', style: 'gap:4px' });
-    if (allowRandom) row.appendChild(el('button', { class: 'small' + (value === 'random' ? ' sel' : ''), onclick: () => onPick('random') }, '🎲 Случайна'));
+    if (allowRandom) row.appendChild(el('button', { class: 'small' + (value === 'random' ? ' sel' : ''), onclick: () => onPick('random') }, T('🎲 Случайна')));
     D.FACTIONS.forEach((f) => row.appendChild(el('button', { class: 'small' + (value === f.id ? ' sel' : ''), style: 'border-color:' + f.color, title: f.desc, onclick: () => onPick(f.id) }, f.name)));
     return row;
   }
   function showSetup(game) {
     const s = screen('menu');
     const st = { size: 's', difficulty: 1, template: 'balanced', players: [{ type: 'human', faction: 'kingdom' }, { type: 'ai', faction: 'random' }, { type: 'none', faction: 'random' }, { type: 'none', faction: 'random' }] };
-    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, 'Нова игра'));
+    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, T('Нова игра')));
     const body = el('div', { class: 'modal', style: 'max-width:620px' });
     const optRow = (label, options, get, set) => {
       const row = el('div', { class: 'opt-row' }, el('label', null, label));
@@ -143,30 +147,30 @@
     };
     const render = () => {
       body.innerHTML = '';
-      body.appendChild(optRow('Карта', D.MAP_SIZES.map((m) => ({ v: m.id, l: m.name + ' (' + m.size + ')' })), () => st.size, (v) => { st.size = v; }));
-      body.appendChild(optRow('Шаблон', D.TEMPLATES.map((t) => ({ v: t.id, l: t.name, t: t.desc })), () => st.template, (v) => { st.template = v; }));
-      body.appendChild(el('div', { class: 'tiny', style: 'margin:-2px 0 6px 116px' }, D.TEMPLATE(st.template).desc + (D.TEMPLATE(st.template).underground && st.size === 's' ? ' Подземие има от средна карта нагоре.' : '')));
-      body.appendChild(optRow('Трудност', D.DIFFICULTY.map((d) => ({ v: d.id, l: d.name })), () => st.difficulty, (v) => { st.difficulty = v; }));
-      body.appendChild(el('h3', { style: 'margin:10px 0 6px;color:#ffd870' }, 'Играчи (до 4, повече от един човек = hot-seat на едно устройство)'));
+      body.appendChild(optRow(T('Карта'), D.MAP_SIZES.map((m) => ({ v: m.id, l: m.name + ' (' + m.size + ')' })), () => st.size, (v) => { st.size = v; }));
+      body.appendChild(optRow(T('Шаблон'), D.TEMPLATES.map((t) => ({ v: t.id, l: t.name, t: t.desc })), () => st.template, (v) => { st.template = v; }));
+      body.appendChild(el('div', { class: 'tiny', style: 'margin:-2px 0 6px 116px' }, D.TEMPLATE(st.template).desc + (D.TEMPLATE(st.template).underground && st.size === 's' ? T(' Подземие има от средна карта нагоре.') : '')));
+      body.appendChild(optRow(T('Трудност'), D.DIFFICULTY.map((d) => ({ v: d.id, l: d.name })), () => st.difficulty, (v) => { st.difficulty = v; }));
+      body.appendChild(el('h3', { style: 'margin:10px 0 6px;color:#ffd870' }, T('Играчи (до 4, повече от един човек = hot-seat на едно устройство)')));
       st.players.forEach((pl, i) => {
         const card = el('div', { class: 'panel', style: 'margin-bottom:6px;border-color:' + D.PLAYER_COLORS[i].col });
-        const types = [{ v: 'human', l: '🧑 Човек' }, { v: 'ai', l: '🤖 Компютър' }];
-        if (i > 0) types.push({ v: 'none', l: '— Няма' });
+        const types = [{ v: 'human', l: T('🧑 Човек') }, { v: 'ai', l: T('🤖 Компютър') }];
+        if (i > 0) types.push({ v: 'none', l: T('— Няма') });
         card.appendChild(optRow(D.PLAYER_COLORS[i].name, types, () => pl.type, (v) => { pl.type = v; }));
         if (pl.type !== 'none') card.appendChild(factionPicker(pl.faction, (f) => { pl.faction = f; render(); }, true));
         body.appendChild(card);
       });
       const humans = st.players.filter((p) => p.type === 'human').length, active = st.players.filter((p) => p.type !== 'none').length;
       body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' },
-        el('button', { onclick: () => showMenu(game) }, 'Назад'),
+        el('button', { onclick: () => showMenu(game) }, T('Назад')),
         el('button', { class: 'primary', disabled: humans >= 1 && active >= 2 ? null : 'disabled', onclick: () => {
           const players = st.players.filter((p) => p.type !== 'none').map((p) => ({ faction: p.faction === 'random' ? D.FACTIONS[Math.floor(Math.random() * D.FACTIONS.length)].id : p.faction, human: p.type === 'human' }));
           // първият човек винаги е играч 0 (за подредба на ходовете)
           players.sort((a, b) => (b.human ? 1 : 0) - (a.human ? 1 : 0));
           game.newGame({ size: D.MAP_SIZES.find((m) => m.id === st.size).size, difficulty: st.difficulty, players, template: D.TEMPLATE(st.template), seed: (Math.random() * 4294967295) >>> 0 });
-        } }, humans > 1 ? 'Започни (hot-seat)' : 'Започни')
+        } }, humans > 1 ? T('Започни (hot-seat)') : T('Започни'))
       ));
-      if (!(humans >= 1 && active >= 2)) body.appendChild(el('div', { class: 'tiny center' }, 'Нужен е поне един човек и поне двама играчи.'));
+      if (!(humans >= 1 && active >= 2)) body.appendChild(el('div', { class: 'tiny center' }, T('Нужен е поне един човек и поне двама играчи.')));
     };
     render();
     s.appendChild(body);
@@ -176,17 +180,17 @@
   function showCampaign(game) {
     MK.Audio.campaign();
     const s = screen('menu');
-    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, 'Кампании'));
+    s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, T('Кампании')));
     const body = el('div', { class: 'modal', style: 'max-width:640px' });
     MK.CAMPAIGNS.forEach((C) => {
       const prog = MK.Campaign.load(C.id), n = C.scenarios.length, done = Math.min(prog.done, n);
       const row = el('div', { class: 'row', style: 'cursor:pointer', onclick: () => showCampaignScenarios(game, C.id) });
       row.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: C.faction, owner: -1 }, 96, null), 56, 56));
-      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done >= n ? '✔ ' : '') + C.title), el('div', { class: 'sub' }, C.intro.split('. ')[0] + '.'), el('div', { class: 'tiny' }, D.factionById(C.faction).name + ' · ' + n + ' сценария · ' + C.difficulty + ' · завършени ' + done + '/' + n)));
-      row.appendChild(el('button', { class: 'small' + (done < n ? ' primary' : '') }, done >= n ? 'Отново' : done ? 'Продължи' : 'Играй'));
+      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done >= n ? '✔ ' : '') + C.title), el('div', { class: 'sub' }, C.intro.split('. ')[0] + '.'), el('div', { class: 'tiny' }, D.factionById(C.faction).name + ' · ' + n + T(' сценария · ') + C.difficulty + T(' · завършени ') + done + '/' + n)));
+      row.appendChild(el('button', { class: 'small' + (done < n ? ' primary' : '') }, done >= n ? T('Отново') : done ? T('Продължи') : T('Играй')));
       body.appendChild(row);
     });
-    body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' }, el('button', { onclick: () => showMenu(game) }, 'Назад')));
+    body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' }, el('button', { onclick: () => showMenu(game) }, T('Назад'))));
     s.appendChild(body);
   }
   function showCampaignScenarios(game, cid) {
@@ -196,22 +200,22 @@
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, C.title));
     const body = el('div', { class: 'modal', style: 'max-width:640px' });
     body.appendChild(el('p', null, C.intro));
-    if (prog.hero) body.appendChild(el('p', { class: 'tiny' }, 'Пренасян герой: ' + prog.hero.name + ', ниво ' + prog.hero.level + ' (' + D.CLASSES[prog.hero.cls].name + ').'));
+    if (prog.hero) body.appendChild(el('p', { class: 'tiny' }, T('Пренасян герой: ') + prog.hero.name + T(', ниво ') + prog.hero.level + ' (' + D.CLASSES[prog.hero.cls].name + ').'));
     C.scenarios.forEach((sc, i) => {
       const done = i < prog.done, avail = i === prog.done;
       const row = el('div', { class: 'row' });
-      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done ? '✔ ' : avail ? '▶ ' : '🔒 ') + sc.id + '. ' + sc.title), el('div', { class: 'sub' }, sc.text), el('div', { class: 'tiny' }, MK.Campaign.goalText(sc) + ' · ' + D.MAP_SIZES.find((m) => m.size === sc.size).name + ' карта · ' + D.TEMPLATE(sc.template).name + ' · ' + D.DIFFICULTY[sc.difficulty].name + ' · ' + D.factionById(sc.playerFaction).name + ' срещу ' + sc.opponents.map((f) => D.factionById(f).name).join(', '))));
-      row.appendChild(el('button', { class: 'small' + (avail ? ' primary' : ''), disabled: avail || done ? null : 'disabled', onclick: () => game.startCampaign(cid, i) }, done ? 'Отново' : 'Играй'));
+      row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, (done ? '✔ ' : avail ? '▶ ' : '🔒 ') + sc.id + '. ' + sc.title), el('div', { class: 'sub' }, sc.text), el('div', { class: 'tiny' }, MK.Campaign.goalText(sc) + ' · ' + D.MAP_SIZES.find((m) => m.size === sc.size).name + T(' карта · ') + D.TEMPLATE(sc.template).name + ' · ' + D.DIFFICULTY[sc.difficulty].name + ' · ' + D.factionById(sc.playerFaction).name + T(' срещу ') + sc.opponents.map((f) => D.factionById(f).name).join(', '))));
+      row.appendChild(el('button', { class: 'small' + (avail ? ' primary' : ''), disabled: avail || done ? null : 'disabled', onclick: () => game.startCampaign(cid, i) }, done ? T('Отново') : T('Играй')));
       body.appendChild(row);
     });
     body.appendChild(el('div', { class: 'buttons', style: 'display:flex;gap:8px;margin-top:10px' },
-      el('button', { onclick: () => showCampaign(game) }, 'Назад'),
-      el('button', { class: 'danger', onclick: () => { MK.Campaign.reset(cid); showCampaignScenarios(game, cid); } }, 'Изтрий напредъка')
+      el('button', { onclick: () => showCampaign(game) }, T('Назад')),
+      el('button', { class: 'danger', onclick: () => { MK.Campaign.reset(cid); showCampaignScenarios(game, cid); } }, T('Изтрий напредъка'))
     ));
     s.appendChild(body);
   }
   function passDevice(game, p) {
-    return dialog({ title: 'Ред на ' + p.colorName.toLowerCase() + ' играч', text: 'Подай устройството на ' + p.colorName.toLowerCase() + ' играч (' + D.factionById(p.faction).name + '). Другите да не гледат!', buttons: [{ label: 'Готов съм', value: true, cls: 'primary' }] });
+    return dialog({ title: T('Ред на ') + p.colorName.toLowerCase() + T(' играч'), text: T('Подай устройството на ') + p.colorName.toLowerCase() + T(' играч (') + D.factionById(p.faction).name + T('). Другите да не гледат!'), buttons: [{ label: T('Готов съм'), value: true, cls: 'primary' }] });
   }
 
   // ---------------------------------------------------------------- HUD
@@ -238,13 +242,13 @@
       const it = el('div', { class: 'item', title: t.name, onclick: () => { game.renderer.center(t.x, t.y); showTown(game, t); } });
       it.appendChild(spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44));
       // както в класиките: чук = днес може да се строи, задраскан чук = вече е строено; зелена точка = има същества за наемане
-      it.appendChild(el('span', { class: 'badge' + (t.builtToday ? ' built' : ''), title: t.builtToday ? 'Днес вече е строено' : 'Може да се строи' }, '🔨'));
+      it.appendChild(el('span', { class: 'badge' + (t.builtToday ? ' built' : ''), title: t.builtToday ? T('Днес вече е строено') : T('Може да се строи') }, '🔨'));
       const canRecruit = t.avail.some((n, tier) => tier > 0 && n > 0 && t.buildings['dw' + tier] && w.maxAffordable(p, t.faction + tier + (t.buildings['dw' + tier + 'u'] ? 'u' : '')) > 0);
-      if (canRecruit) it.appendChild(el('span', { class: 'badge recruit', title: 'Има същества за наемане' }, '●'));
+      if (canRecruit) it.appendChild(el('span', { class: 'badge recruit', title: T('Има същества за наемане') }, '●'));
       tl.appendChild(it);
     });
     document.getElementById('hint').textContent = game.hint || '';
-    const lb = document.getElementById('btn-level'); if (lb) { lb.hidden = !w.hasUnderground(); lb.textContent = game.renderer.z ? '⬆ Горе' : '⬇ Долу'; }
+    const lb = document.getElementById('btn-level'); if (lb) { lb.hidden = !w.hasUnderground(); lb.textContent = game.renderer.z ? T('⬆ Горе') : T('⬇ Долу'); }
     game.renderer.drawMinimap(document.getElementById('minimap'), w, p);
   }
 
@@ -279,65 +283,65 @@
     const lbl = el('b', { style: 'font-size:22px;color:#ffd870;min-width:60px;text-align:center' }, String(n));
     const range = el('input', { type: 'range', min: 1, max: sl.n - 1, value: n, style: 'flex:1' });
     range.addEventListener('input', () => { n = +range.value; lbl.textContent = String(n); });
-    const content = el('div', null, el('p', null, c.name + ' × ' + sl.n + '. Колко да отделиш в нов слот?'), el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl));
-    dialog({ title: 'Разделяне', content, buttons: [{ label: 'Отказ', value: false }, { label: 'Инфо за съществото', value: 'info' }, { label: 'Раздели', value: true, cls: 'primary' }] }).then((v) => {
+    const content = el('div', null, el('p', null, c.name + ' × ' + sl.n + T('. Колко да отделиш в нов слот?')), el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl));
+    dialog({ title: T('Разделяне'), content, buttons: [{ label: T('Отказ'), value: false }, { label: T('Инфо за съществото'), value: 'info' }, { label: T('Раздели'), value: true, cls: 'primary' }] }).then((v) => {
       if (v === 'info') { creatureInfo(c); }
-      else if (v) { const j = army.findIndex((s) => !s); if (j >= 0) MK.Army.split(army, i, army, j, n); else toast('Няма свободен слот.'); }
+      else if (v) { const j = army.findIndex((s) => !s); if (j >= 0) MK.Army.split(army, i, army, j, n); else toast(T('Няма свободен слот.')); }
       state.sel = null; rerender();
     });
   }
   function abilityText(c) {
     const a = c.abilities; const out = [];
-    if (a.shooter) out.push('стрелец (' + c.shots + ' изстрела)'); if (a.flying) out.push('лети'); if (a.noMeleePenalty) out.push('без наказание в близък бой');
-    if (a.doubleAttack) out.push('двоен удар'); if (a.doubleShot) out.push('двоен изстрел'); if (a.noRetaliation) out.push('без ответен удар'); if (a.retaliations) out.push(a.retaliations > 10 ? 'неограничени ответни удари' : a.retaliations + ' ответни удара');
-    if (a.lifeDrain) out.push('изпива живот'); if (a.regenerate) out.push('регенерира'); if (a.breath) out.push('дъх (удря 2 хекса)'); if (a.jousting) out.push('атака +5% на хекс разбег');
-    if (a.magicRes) out.push(a.magicRes + '% магическа съпротива'); if (a.spellImmune) out.push('имунитет за магии до ' + a.spellImmune + ' ниво'); if (a.undead) out.push('немъртъв'); if (a.moraleAura) out.push('+1 морал на съюзниците');
-    if (a.fearAura) out.push('−1 морал на врага'); if (a.curseHit) out.push(a.curseHit + '% проклятие при удар'); if (a.blindHit) out.push(a.blindHit + '% ослепяване при удар'); if (a.resurrect) out.push('възкресява'); if (a.deathBlow) out.push(a.deathBlow + '% смъртоносен удар');
-    if (a.ageHit) out.push(a.ageHit + '% състаряване'); if (a.ignoreDef) out.push('пренебрегва ' + a.ignoreDef + '% от защитата'); if (a.ignoreAtt) out.push('намалява атаката на врага с ' + a.ignoreAtt + '%'); if (a.deathStare) out.push('смъртоносен поглед ' + a.deathStare + '%'); if (a.fireImmune) out.push('огнен имунитет'); if (a.mindImmune) out.push('имунитет за ум'); if (a.rebirth) out.push('прераждане'); if (a.fireShield) out.push('огнен щит ' + a.fireShield + '%'); if (a.badLuckAura) out.push('−1 късмет на врага'); if (a.goodMorale) out.push('винаги добър морал'); if (a.thunderHit) out.push(a.thunderHit + '% гръмотевичен удар'); if (a.weakHit) out.push('отслабва при удар'); if (a.dispelHit) out.push('разсейва магии при удар'); if (a.blindImmune) out.push('не може да бъде ослепен'); if (a.noObstaclePenalty) out.push('стреля през стени без наказание');
-    if (c.wide) out.push('заема два хекса'); if (a.manaDrain) out.push('изпива мана'); if (a.deathCloud) out.push('облак на смъртта'); if (a.bindHit) out.push('оплита корени'); if (a.resAura) out.push('20% съпротива за съседите'); if (a.allAround) out.push('удря всички съседи'); if (a.manaCost) out.push('+' + a.manaCost + ' цена на вражеските магии');
+    if (a.shooter) out.push(T('стрелец (') + c.shots + T(' изстрела)')); if (a.flying) out.push(T('лети')); if (a.noMeleePenalty) out.push(T('без наказание в близък бой'));
+    if (a.doubleAttack) out.push(T('двоен удар')); if (a.doubleShot) out.push(T('двоен изстрел')); if (a.noRetaliation) out.push(T('без ответен удар')); if (a.retaliations) out.push(a.retaliations > 10 ? T('неограничени ответни удари') : a.retaliations + T(' ответни удара'));
+    if (a.lifeDrain) out.push(T('изпива живот')); if (a.regenerate) out.push(T('регенерира')); if (a.breath) out.push(T('дъх (удря 2 хекса)')); if (a.jousting) out.push(T('атака +5% на хекс разбег'));
+    if (a.magicRes) out.push(a.magicRes + T('% магическа съпротива')); if (a.spellImmune) out.push(T('имунитет за магии до ') + a.spellImmune + T(' ниво')); if (a.undead) out.push(T('немъртъв')); if (a.moraleAura) out.push(T('+1 морал на съюзниците'));
+    if (a.fearAura) out.push(T('−1 морал на врага')); if (a.curseHit) out.push(a.curseHit + T('% проклятие при удар')); if (a.blindHit) out.push(a.blindHit + T('% ослепяване при удар')); if (a.resurrect) out.push(T('възкресява')); if (a.deathBlow) out.push(a.deathBlow + T('% смъртоносен удар'));
+    if (a.ageHit) out.push(a.ageHit + T('% състаряване')); if (a.ignoreDef) out.push(T('пренебрегва ') + a.ignoreDef + T('% от защитата')); if (a.ignoreAtt) out.push(T('намалява атаката на врага с ') + a.ignoreAtt + '%'); if (a.deathStare) out.push(T('смъртоносен поглед ') + a.deathStare + '%'); if (a.fireImmune) out.push(T('огнен имунитет')); if (a.mindImmune) out.push(T('имунитет за ум')); if (a.rebirth) out.push(T('прераждане')); if (a.fireShield) out.push(T('огнен щит ') + a.fireShield + '%'); if (a.badLuckAura) out.push(T('−1 късмет на врага')); if (a.goodMorale) out.push(T('винаги добър морал')); if (a.thunderHit) out.push(a.thunderHit + T('% гръмотевичен удар')); if (a.weakHit) out.push(T('отслабва при удар')); if (a.dispelHit) out.push(T('разсейва магии при удар')); if (a.blindImmune) out.push(T('не може да бъде ослепен')); if (a.noObstaclePenalty) out.push(T('стреля през стени без наказание'));
+    if (c.wide) out.push(T('заема два хекса')); if (a.manaDrain) out.push(T('изпива мана')); if (a.deathCloud) out.push(T('облак на смъртта')); if (a.bindHit) out.push(T('оплита корени')); if (a.resAura) out.push(T('20% съпротива за съседите')); if (a.allAround) out.push(T('удря всички съседи')); if (a.manaCost) out.push('+' + a.manaCost + T(' цена на вражеските магии'));
     return out.join(', ') || '—';
   }
   /* Описание на числеността по класическата скала + точен брой */
-  const countWord = (n) => (n < 5 ? 'няколко' : n < 10 ? 'малко' : n < 20 ? 'глутница' : n < 50 ? 'много' : n < 100 ? 'орда' : n < 250 ? 'множество' : n < 500 ? 'легион' : 'безброй');
+  const countWord = (n) => (n < 5 ? T('няколко') : n < 10 ? T('малко') : n < 20 ? T('глутница') : n < 50 ? T('много') : n < 100 ? T('орда') : n < 250 ? T('множество') : n < 500 ? T('легион') : T('безброй'));
   function stackInfo(n, disposition, exact) {
     const rng = D.countRange(n);
-    if (!exact) return el('p', { class: 'sub' }, el('b', null, rng.word.charAt(0).toUpperCase() + rng.word.slice(1) + ' (' + rng.text + ')'), disposition === undefined ? '' : disposition <= 3 ? ' · страхливи (може да избягат или да се присъединят)' : disposition <= 7 ? ' · може да се присъединят срещу заплащане' : ' · враждебни (никога не се присъединяват)');
+    if (!exact) return el('p', { class: 'sub' }, el('b', null, rng.word.charAt(0).toUpperCase() + rng.word.slice(1) + ' (' + rng.text + ')'), disposition === undefined ? '' : disposition <= 3 ? T(' · страхливи (може да избягат или да се присъединят)') : disposition <= 7 ? T(' · може да се присъединят срещу заплащане') : T(' · враждебни (никога не се присъединяват)'));
     const word = countWord(n);
-    const mood = disposition === undefined ? '' : disposition <= 3 ? ' · страхливи (може да избягат или да се присъединят)' : disposition <= 7 ? ' · може да се присъединят срещу заплащане' : ' · враждебни (никога не се присъединяват)';
-    return el('p', { class: 'sub' }, el('b', null, n + ' на брой'), ' (' + word + ')' + mood);
+    const mood = disposition === undefined ? '' : disposition <= 3 ? T(' · страхливи (може да избягат или да се присъединят)') : disposition <= 7 ? T(' · може да се присъединят срещу заплащане') : T(' · враждебни (никога не се присъединяват)');
+    return el('p', { class: 'sub' }, el('b', null, n + T(' на брой')), ' (' + word + ')' + mood);
   }
   function guardInfo(game, o) {
     const g = o.guard, stacks = g.stacks || [{ creature: g.creature, count: g.count }];
-    const content = el('div', null, el('p', { class: 'sub' }, 'Пазачи: победи ги, за да вземеш ' + game.objName(o).split(' — ')[0].toLowerCase() + '.'));
-    stacks.forEach((s) => { const c = D.creatureOf(s.creature); content.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => creatureInfo(c, stackInfo(s.count)) }, spriteCanvas(G.creatureSprite(c, 128), 44, 52), el('div', { class: 'grow' }, el('div', { class: 'name' }, D.countRange(s.count).text + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier + ' · атака ' + c.att + ' · защита ' + c.def + ' · щети ' + c.dmin + '–' + c.dmax + ' · живот ' + c.hp)))); });
+    const content = el('div', null, el('p', { class: 'sub' }, T('Пазачи: победи ги, за да вземеш ') + game.objName(o).split(' — ')[0].toLowerCase() + '.'));
+    stacks.forEach((s) => { const c = D.creatureOf(s.creature); content.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => creatureInfo(c, stackInfo(s.count)) }, spriteCanvas(G.creatureSprite(c, 128), 44, 52), el('div', { class: 'grow' }, el('div', { class: 'name' }, D.countRange(s.count).text + ' × ' + c.name), el('div', { class: 'tiny' }, T('ниво ') + c.tier + T(' · атака ') + c.att + T(' · защита ') + c.def + T(' · щети ') + c.dmin + '–' + c.dmax + T(' · живот ') + c.hp)))); });
     return dialog({ title: game.objName(o).split(' — ')[0], content });
   }
   function heroQuickInfo(game, h) {
     const w = game.world, mine = h.owner === game.human;
     const army = h.army.filter(Boolean);
     const content = el('div', null,
-      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.portrait(h, 96, w.players[h.owner].color), 56, 56), el('div', null, el('div', { class: 'sub' }, D.CLASSES[h.cls].name + ' · ниво ' + h.level + ' · ' + w.players[h.owner].colorName.toLowerCase() + ' играч'), el('div', { class: 'tiny' }, 'Атака ' + h.att + ' · Защита ' + h.def + ' · Сила ' + h.pow + ' · Знание ' + h.know))),
-      el('p', { class: 'sub', style: 'margin-top:8px' }, 'Армия:'),
-      ...(army.length ? army.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
+      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.portrait(h, 96, w.players[h.owner].color), 56, 56), el('div', null, el('div', { class: 'sub' }, D.CLASSES[h.cls].name + T(' · ниво ') + h.level + ' · ' + w.players[h.owner].colorName.toLowerCase() + T(' играч')), el('div', { class: 'tiny' }, T('Атака ') + h.att + T(' · Защита ') + h.def + T(' · Сила ') + h.pow + T(' · Знание ') + h.know))),
+      el('p', { class: 'sub', style: 'margin-top:8px' }, T('Армия:')),
+      ...(army.length ? army.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, T('ниво ') + c.tier))); }) : [el('p', { class: 'tiny' }, T('няма'))])
     );
-    return dialog({ title: h.name, content, buttons: mine ? [{ label: 'Отвори', value: 'open', cls: 'primary' }, { label: 'Затвори', value: false }] : undefined }).then((v) => { if (v === 'open') showHero(game, h); });
+    return dialog({ title: h.name, content, buttons: mine ? [{ label: T('Отвори'), value: 'open', cls: 'primary' }, { label: T('Затвори'), value: false }] : undefined }).then((v) => { if (v === 'open') showHero(game, h); });
   }
   function townQuickInfo(game, t) {
     const w = game.world, mine = t.owner === game.human, gar = t.garrison.filter(Boolean);
     const content = el('div', null,
-      el('div', { class: 'sub' }, D.factionById(t.faction).name + ' · ' + (t.owner >= 0 ? w.players[t.owner].colorName.toLowerCase() + ' играч' : 'неутрален') + ' · ' + ['без укрепления', 'форт', 'цитадела', 'замък'][w.fortLevel(t)]),
-      t.visitor && w.heroes[t.visitor] ? el('div', { class: 'row', style: 'cursor:pointer', onclick: () => heroQuickInfo(game, w.heroes[t.visitor]) }, spriteCanvas(G.portrait(w.heroes[t.visitor], 96, w.players[w.heroes[t.visitor].owner].color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Герой: ' + w.heroes[t.visitor].name), el('div', { class: 'tiny' }, 'ниво ' + w.heroes[t.visitor].level))) : null,
-      el('p', { class: 'sub', style: 'margin-top:8px' }, 'Гарнизон:'),
-      ...(gar.length ? gar.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, 'ниво ' + c.tier))); }) : [el('p', { class: 'tiny' }, 'няма')])
+      el('div', { class: 'sub' }, D.factionById(t.faction).name + ' · ' + (t.owner >= 0 ? w.players[t.owner].colorName.toLowerCase() + T(' играч') : T('неутрален')) + ' · ' + [T('без укрепления'), T('форт'), T('цитадела'), T('замък')][w.fortLevel(t)]),
+      t.visitor && w.heroes[t.visitor] ? el('div', { class: 'row', style: 'cursor:pointer', onclick: () => heroQuickInfo(game, w.heroes[t.visitor]) }, spriteCanvas(G.portrait(w.heroes[t.visitor], 96, w.players[w.heroes[t.visitor].owner].color), 36, 36), el('div', { class: 'grow' }, el('div', { class: 'name' }, T('Герой: ') + w.heroes[t.visitor].name), el('div', { class: 'tiny' }, T('ниво ') + w.heroes[t.visitor].level))) : null,
+      el('p', { class: 'sub', style: 'margin-top:8px' }, T('Гарнизон:')),
+      ...(gar.length ? gar.map((s) => { const c = D.creatureOf(s.c); return el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(c, 128), 36, 42), el('div', { class: 'grow' }, el('div', { class: 'name' }, (mine ? s.n : D.countRange(s.n).text) + ' × ' + c.name), el('div', { class: 'tiny' }, T('ниво ') + c.tier))); }) : [el('p', { class: 'tiny' }, T('няма'))])
     );
-    return dialog({ title: t.name, content, buttons: mine ? [{ label: 'Влез', value: 'open', cls: 'primary' }, { label: 'Затвори', value: false }] : undefined }).then((v) => { if (v === 'open') showTown(game, t); });
+    return dialog({ title: t.name, content, buttons: mine ? [{ label: T('Влез'), value: 'open', cls: 'primary' }, { label: T('Затвори'), value: false }] : undefined }).then((v) => { if (v === 'open') showTown(game, t); });
   }
   function creatureInfo(c, extra) {
     const f = D.factionById(c.faction);
     const content = el('div', null,
-      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.creatureSprite(c, 128), 72, 84), el('div', null, el('div', { class: 'sub' }, (f ? f.name : 'Неутрални') + ' · ниво ' + c.tier + (c.upg ? ' (подобрено)' : '')), el('div', { class: 'cost' }, costHtml(c.cost)))),
-      el('div', { class: 'stats', style: 'margin:8px 0' }, el('div', null, el('b', null, c.att), el('small', null, 'Атака')), el('div', null, el('b', null, c.def), el('small', null, 'Защита')), el('div', null, el('b', null, c.dmin + '–' + c.dmax), el('small', null, 'Щети')), el('div', null, el('b', null, c.hp), el('small', null, 'Живот')), el('div', null, el('b', null, c.spd), el('small', null, 'Скорост')), el('div', null, el('b', null, c.growth), el('small', null, 'Растеж'))),
-      el('p', { class: 'tiny' }, 'Способности: ' + abilityText(c)),
+      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.creatureSprite(c, 128), 72, 84), el('div', null, el('div', { class: 'sub' }, (f ? f.name : T('Неутрални')) + T(' · ниво ') + c.tier + (c.upg ? T(' (подобрено)') : '')), el('div', { class: 'cost' }, costHtml(c.cost)))),
+      el('div', { class: 'stats', style: 'margin:8px 0' }, el('div', null, el('b', null, c.att), el('small', null, T('Атака'))), el('div', null, el('b', null, c.def), el('small', null, T('Защита'))), el('div', null, el('b', null, c.dmin + '–' + c.dmax), el('small', null, T('Щети'))), el('div', null, el('b', null, c.hp), el('small', null, T('Живот'))), el('div', null, el('b', null, c.spd), el('small', null, T('Скорост'))), el('div', null, el('b', null, c.growth), el('small', null, T('Растеж')))),
+      el('p', { class: 'tiny' }, T('Способности: ') + abilityText(c)),
       extra || null
     );
     return dialog({ title: c.name, content });
@@ -351,50 +355,50 @@
     const render = () => {
       s.innerHTML = '';
       const p = w.players[h.owner];
-      s.appendChild(el('header', null, spriteCanvas(G.portrait(h, 96, p.color), 44, 44), el('h1', null, h.name + ' — ' + D.CLASSES[h.cls].name + ', ниво ' + h.level), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
+      s.appendChild(el('header', null, spriteCanvas(G.portrait(h, 96, p.color), 44, 44), el('h1', null, h.name + ' — ' + D.CLASSES[h.cls].name + T(', ниво ') + h.level), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
       const body = el('div', { class: 'body' });
       const cols = el('div', { class: 'cols' });
       // характеристики
       const left = el('div', { class: 'panel' });
       left.appendChild(el('div', { class: 'stats' }, ...D.PRIMARY.map((k) => el('div', { title: D.PRIMARY_NAME[k] }, el('b', null, w.stat(h, k)), el('small', null, D.PRIMARY_NAME[k])))));
       const nxt = D.LEVEL_XP[h.level + 1] || h.xp, cur = D.LEVEL_XP[h.level];
-      left.appendChild(el('div', { class: 'tiny', style: 'margin:6px 0 2px' }, 'Опит ' + h.xp + ' / ' + nxt + ' · Мана ' + h.mana + '/' + w.maxMana(h) + ' · Движение ' + h.movement + '/' + h.maxMovement));
+      left.appendChild(el('div', { class: 'tiny', style: 'margin:6px 0 2px' }, T('Опит ') + h.xp + ' / ' + nxt + T(' · Мана ') + h.mana + '/' + w.maxMana(h) + T(' · Движение ') + h.movement + '/' + h.maxMovement));
       left.appendChild(el('div', { class: 'xpbar' }, el('div', { style: 'width:' + Math.round(100 * (h.xp - cur) / Math.max(1, nxt - cur)) + '%' })));
-      left.appendChild(el('div', { class: 'tiny', style: 'margin-top:6px' }, 'Морал ' + fmtSign(w.heroMorale(h)) + ' · Късмет ' + fmtSign(w.heroLuck(h)) + (h.boat ? ' · на кораб' : '') + (h.z ? ' · в подземието' : '')));
-      if (h.spec) left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Специалност: ' + (h.spec.kind === 'creature' ? D.creatureOf(h.spec.id).name : h.spec.kind === 'skill' ? D.SKILLS[h.spec.id].name : h.spec.kind === 'spell' ? D.spellById[h.spec.id].name : D.RES_NAME[h.spec.id])), el('div', { class: 'sub' }, D.specialtyText(h.spec)))));
+      left.appendChild(el('div', { class: 'tiny', style: 'margin-top:6px' }, T('Морал ') + fmtSign(w.heroMorale(h)) + T(' · Късмет ') + fmtSign(w.heroLuck(h)) + (h.boat ? T(' · на кораб') : '') + (h.z ? T(' · в подземието') : '')));
+      if (h.spec) left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, T('Специалност: ') + (h.spec.kind === 'creature' ? D.creatureOf(h.spec.id).name : h.spec.kind === 'skill' ? D.SKILLS[h.spec.id].name : h.spec.kind === 'spell' ? D.spellById[h.spec.id].name : D.RES_NAME[h.spec.id])), el('div', { class: 'sub' }, D.specialtyText(h.spec)))));
       w.heroSets(h).forEach((set) => left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name', style: 'color:#ffd870' }, '✦ ' + set.name), el('div', { class: 'sub' }, set.desc)))));
-      if (h.pendingLevels) left.appendChild(el('button', { class: 'primary', style: 'margin-top:8px;width:100%', onclick: () => game.processLevelUps(h).then(render) }, 'Ново ниво! Избери умение'));
-      left.appendChild(el('h3', { style: 'margin-top:10px' }, 'Умения'));
+      if (h.pendingLevels) left.appendChild(el('button', { class: 'primary', style: 'margin-top:8px;width:100%', onclick: () => game.processLevelUps(h).then(render) }, T('Ново ниво! Избери умение')));
+      left.appendChild(el('h3', { style: 'margin-top:10px' }, T('Умения')));
       const sk = Object.keys(h.skills);
-      if (!sk.length) left.appendChild(el('div', { class: 'tiny' }, 'Няма'));
+      if (!sk.length) left.appendChild(el('div', { class: 'tiny' }, T('Няма')));
       sk.forEach((k) => left.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, D.SKILLS[k].name + ' — ' + D.SKILL_LEVEL_NAME[h.skills[k]]), el('div', { class: 'sub' }, D.SKILLS[k].desc(h.skills[k]))))));
-      left.appendChild(el('h3', { style: 'margin-top:10px' }, 'Магии (' + h.spells.length + ')'));
-      if (!h.spells.length) left.appendChild(el('div', { class: 'tiny' }, 'Героят не знае магии. Посети магьосническа гилдия или светилище.'));
+      left.appendChild(el('h3', { style: 'margin-top:10px' }, T('Магии (') + h.spells.length + ')'));
+      if (!h.spells.length) left.appendChild(el('div', { class: 'tiny' }, T('Героят не знае магии. Посети магьосническа гилдия или светилище.')));
       const sb = el('div', { class: 'spellbook' });
-      h.spells.map((id) => D.spellById[id]).sort((a, b) => a.level - b.level).forEach((sp) => sb.appendChild(el('div', { class: 'spell school-' + sp.school, onclick: () => dialog({ title: sp.name, text: sp.desc + ' Ниво ' + sp.level + ', ' + D.SCHOOL_NAME[sp.school] + ', цена ' + sp.cost + ' мана.' }) }, el('b', null, sp.name), el('small', null, 'ниво ' + sp.level + ' · ' + sp.cost + ' мана'))));
+      h.spells.map((id) => D.spellById[id]).sort((a, b) => a.level - b.level).forEach((sp) => sb.appendChild(el('div', { class: 'spell school-' + sp.school, onclick: () => dialog({ title: sp.name, text: sp.desc + T(' Ниво ') + sp.level + ', ' + D.SCHOOL_NAME[sp.school] + T(', цена ') + sp.cost + T(' мана.') }) }, el('b', null, sp.name), el('small', null, T('ниво ') + sp.level + ' · ' + sp.cost + T(' мана')))));
       left.appendChild(sb);
       cols.appendChild(left);
       // армия и артефакти
       const right = el('div', { class: 'panel' });
-      right.appendChild(el('h3', null, 'Армия'));
+      right.appendChild(el('h3', null, T('Армия')));
       right.appendChild(armyRow(game, h.army, state.sel, (a, i) => armyPick(state, a, i, render, game)));
       if (other) {
-        right.appendChild(el('h3', { style: 'margin-top:8px' }, other.name + (other.garrison ? ' — гарнизон' : '')));
+        right.appendChild(el('h3', { style: 'margin-top:8px' }, other.name + (other.garrison ? T(' — гарнизон') : '')));
         right.appendChild(armyRow(game, other.army, state.sel, (a, i) => armyPick(state, a, i, render, game)));
       }
-      right.appendChild(el('div', { class: 'tiny', style: 'margin:4px 0' }, 'Докосни стек, после друг слот — размяна или сливане. Два пъти същия — разделяне и информация.'));
-      right.appendChild(el('h3', { style: 'margin-top:8px' }, 'Артефакти'));
+      right.appendChild(el('div', { class: 'tiny', style: 'margin:4px 0' }, T('Докосни стек, после друг слот — размяна или сливане. Два пъти същия — разделяне и информация.')));
+      right.appendChild(el('h3', { style: 'margin-top:8px' }, T('Артефакти')));
       const arts = el('div', { class: 'arts' });
       D.SLOTS.forEach((slot, i) => {
         const aid = h.arts[i];
-        const a = el('div', { class: 'art' + (aid ? ' filled' : ''), title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + (art.set ? ', част от „' + D.ART_SETS[art.set].name + '“' : '') + ')', buttons: [{ label: 'В раницата', value: 'bp' }, { label: 'Добре', value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } }, aid ? artGlyph(D.artById[aid]) : '', el('small', null, D.SLOT_NAME[slot].slice(0, 4)));
+        const a = el('div', { class: 'art' + (aid ? ' filled' : ''), title: aid ? D.artById[aid].name : D.SLOT_NAME[slot], onclick: () => { if (!aid) return; const art = D.artById[aid]; dialog({ title: art.name, text: art.desc + ' (' + D.SLOT_NAME[art.slot] + ', ' + D.ART_CLASS_NAME[art.cls] + (art.set ? T(', част от „') + D.ART_SETS[art.set].name + '“' : '') + ')', buttons: [{ label: T('В раницата'), value: 'bp' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'bp') { w.unequip(h, i); render(); } }); } }, aid ? artGlyph(D.artById[aid]) : '', el('small', null, D.SLOT_NAME[slot].slice(0, 4)));
         arts.appendChild(a);
       });
       right.appendChild(arts);
       if (h.backpack.length) {
-        right.appendChild(el('h3', { style: 'margin-top:8px' }, 'Раница'));
+        right.appendChild(el('h3', { style: 'margin-top:8px' }, T('Раница')));
         const bp = el('div', { class: 'arts' });
-        h.backpack.forEach((aid, bi) => bp.appendChild(el('div', { class: 'art filled', title: D.artById[aid].name, onclick: () => { const art = D.artById[aid]; dialog({ title: art.name, text: art.desc, buttons: [{ label: 'Сложи', value: 'eq', cls: 'primary' }, { label: 'Добре', value: true }] }).then((v) => { if (v === 'eq') { w.equipFromBackpack(h, bi); render(); } }); } }, artGlyph(D.artById[aid]))));
+        h.backpack.forEach((aid, bi) => bp.appendChild(el('div', { class: 'art filled', title: D.artById[aid].name, onclick: () => { const art = D.artById[aid]; dialog({ title: art.name, text: art.desc, buttons: [{ label: T('Сложи'), value: 'eq', cls: 'primary' }, { label: T('Добре'), value: true }] }).then((v) => { if (v === 'eq') { w.equipFromBackpack(h, bi); render(); } }); } }, artGlyph(D.artById[aid]))));
         right.appendChild(bp);
       }
       cols.appendChild(right);
@@ -409,15 +413,15 @@
   // ---------------------------------------------------------------- ниво нагоре
   function levelUpDialog(game, h, roll) {
     const content = el('div', null);
-    content.appendChild(el('p', null, h.name + ' достига ниво ' + (h.level - h.pendingLevels + 1) + '. ' + D.PRIMARY_NAME[roll.stat] + ' +1.'));
+    content.appendChild(el('p', null, h.name + T(' достига ниво ') + (h.level - h.pendingLevels + 1) + '. ' + D.PRIMARY_NAME[roll.stat] + ' +1.'));
     return new Promise((resolve) => {
-      if (!roll.offers.length) { dialog({ title: 'Ново ниво', content }).then(() => resolve(null)); return; }
-      content.appendChild(el('p', null, 'Избери умение:'));
+      if (!roll.offers.length) { dialog({ title: T('Ново ниво'), content }).then(() => resolve(null)); return; }
+      content.appendChild(el('p', null, T('Избери умение:')));
       const wrap = el('div', { class: 'modal-wrap' });
-      const m = el('div', { class: 'modal' }, el('h2', null, 'Ново ниво'), content);
+      const m = el('div', { class: 'modal' }, el('h2', null, T('Ново ниво')), content);
       roll.offers.forEach((sk) => {
         const lvl = (h.skills[sk] || 0) + 1;
-        m.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => { wrap.remove(); resolve(sk); } }, el('div', { class: 'grow' }, el('div', { class: 'name' }, D.SKILLS[sk].name + ' — ' + D.SKILL_LEVEL_NAME[lvl]), el('div', { class: 'sub' }, D.SKILLS[sk].desc(lvl))), el('button', { class: 'small primary' }, 'Избери')));
+        m.appendChild(el('div', { class: 'row', style: 'cursor:pointer', onclick: () => { wrap.remove(); resolve(sk); } }, el('div', { class: 'grow' }, el('div', { class: 'name' }, D.SKILLS[sk].name + ' — ' + D.SKILL_LEVEL_NAME[lvl]), el('div', { class: 'sub' }, D.SKILLS[sk].desc(lvl))), el('button', { class: 'small primary' }, T('Избери'))));
       });
       wrap.appendChild(m); overlay().appendChild(wrap);
     });
@@ -437,7 +441,7 @@
       fort: [50, 44, 40], hall: [50, 66, 24], mage: [82, 50, 20], tavern: [17, 84, 18], market: [80, 88, 20], silo: [93, 70, 13], well: [38, 92, 9], shipyard: [7, 62, 16],
       dw1: [12, 46, 14], dw2: [30, 56, 15], dw3: [70, 64, 15], dw4: [90, 30, 14], dw5: [30, 76, 17], dw6: [62, 82, 17], dw7: [50, 100, 24]
     };
-    const PANES = { build: 'Строеж', recruit: 'Набор', mage: 'Гилдия', tavern: 'Таверна', market: 'Пазар' };
+    const PANES = { build: T('Строеж'), recruit: T('Набор'), mage: T('Гилдия'), tavern: T('Таверна'), market: T('Пазар') };
     const paneAvailable = (id) => !((id === 'mage' && !w.mageLevel(t)) || (id === 'tavern' && !t.buildings.tavern) || (id === 'market' && !t.buildings.market));
     /* Списък на видимите сгради: {slot, id, name, img, pane} */
     const builtList = () => {
@@ -456,7 +460,7 @@
     const render = () => {
       s.innerHTML = '';
       const f = D.factionById(t.faction);
-      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? ' · строено днес' : '')), el('div', { class: 'tiny', style: 'margin-left:auto' }, 'Доход ' + w.townIncome(t) + '/ден'), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
+      s.appendChild(el('header', null, spriteCanvas(G.objectSprite({ type: 'town', faction: t.faction, owner: t.owner }, 96, w), 44, 44), el('h1', null, t.name + ' — ' + f.name + (t.builtToday ? T(' · строено днес') : '')), el('div', { class: 'tiny', style: 'margin-left:auto' }, T('Доход ') + w.townIncome(t) + T('/ден')), el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, '✕')));
       // Панорама с кликаеми сгради
       const view = el('div', { class: 'town-view' });
       if (bgUrl) view.style.backgroundImage = 'url(' + bgUrl + ')';
@@ -473,13 +477,13 @@
       s.appendChild(view);
       // Долен панел: армии и бързи бутони
       const bottom = el('div', { class: 'town-bottom' + (state.drawer ? ' open' : '') });
-      const handle = el('button', { class: 'drawer-handle', onclick: () => { state.drawer = !state.drawer; bottom.classList.toggle('open', state.drawer); handle.textContent = state.drawer ? '▼ Скрий армиите' : '▲ Армии' + (visitor() ? ' и герой' : ''); } }, state.drawer ? '▼ Скрий армиите' : '▲ Армии' + (visitor() ? ' и герой' : ''));
+      const handle = el('button', { class: 'drawer-handle', onclick: () => { state.drawer = !state.drawer; bottom.classList.toggle('open', state.drawer); handle.textContent = state.drawer ? T('▼ Скрий армиите') : T('▲ Армии') + (visitor() ? T(' и герой') : ''); } }, state.drawer ? T('▼ Скрий армиите') : T('▲ Армии') + (visitor() ? T(' и герой') : ''));
       let ty0 = null; bottom.addEventListener('touchstart', (e) => { ty0 = e.touches[0].clientY; }, { passive: true }); bottom.addEventListener('touchend', (e) => { if (ty0 === null) return; const dy = e.changedTouches[0].clientY - ty0; ty0 = null; if (dy < -30 && !state.drawer) handle.click(); else if (dy > 30 && state.drawer) handle.click(); }, { passive: true });
       bottom.appendChild(handle);
       const ap = el('div', { class: 'panel town-armies' });
-      ap.appendChild(el('div', { class: 'row' }, el('div', { class: 'tiny', style: 'min-width:64px' }, 'Гарнизон'), armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game))));
+      ap.appendChild(el('div', { class: 'row' }, el('div', { class: 'tiny', style: 'min-width:64px' }, T('Гарнизон')), armyRow(game, t.garrison, state.sel, (a, i) => armyPick(state, a, i, render, game))));
       const v = visitor();
-      if (v) ap.appendChild(el('div', { class: 'row' }, el('div', { style: 'cursor:pointer', title: v.name + ', ниво ' + v.level, onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, spriteCanvas(G.portrait(v, 96, p.color), 40, 40)), armyRow(game, v.army, state.sel, (a, i) => armyPick(state, a, i, render, game))));
+      if (v) ap.appendChild(el('div', { class: 'row' }, el('div', { style: 'cursor:pointer', title: v.name + T(', ниво ') + v.level, onclick: () => showHero(game, v, { name: t.name, army: t.garrison, garrison: true }) }, spriteCanvas(G.portrait(v, 96, p.color), 40, 40)), armyRow(game, v.army, state.sel, (a, i) => armyPick(state, a, i, render, game))));
       bottom.appendChild(ap);
       const tabs = el('div', { class: 'tabs town-tabs' });
       Object.keys(PANES).forEach((id) => tabs.appendChild(el('button', { class: 'small', disabled: paneAvailable(id) ? null : 'disabled', onclick: () => openPane(id) }, PANES[id])));
@@ -490,7 +494,7 @@
     };
     /* Отваря меню на сграда като прозорец върху панорамата; при промяна се опреснява */
     const openPane = (id, it) => {
-      if (!paneAvailable(id)) { toast(id === 'mage' ? 'Няма магьосническа гилдия.' : id === 'tavern' ? 'Няма таверна.' : 'Няма пазар.'); return; }
+      if (!paneAvailable(id)) { toast(id === 'mage' ? T('Няма магьосническа гилдия.') : id === 'tavern' ? T('Няма таверна.') : T('Няма пазар.')); return; }
       if (state.open) { state.open.close(); }
       const pane = el('div', { class: 'panel', style: 'max-height:60vh;overflow-y:auto' });
       const wrap = el('div', { class: 'modal-wrap' });
@@ -511,9 +515,9 @@
       wrap.appendChild(m); overlay().appendChild(wrap);
     };
     const renderBuild = (pane) => {
-      pane.appendChild(el('h3', null, 'Построено: ' + Object.keys(t.buildings).map((id) => D.buildingFor(t.faction, id).name).join(', ')));
-      pane.appendChild(el('div', { class: 'tiny', style: 'margin-bottom:6px' }, 'Доход на града: ' + w.townIncome(t) + ' злато на ден. Растеж: форт ' + ['няма', 'Форт', 'Цитадела (+50%)', 'Замък (+100%)'][w.fortLevel(t)] + '.'));
-      if (t.buildings.shipyard) pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Кораб'), el('div', { class: 'sub' }, 'Корабостроителницата спуска кораб на най-близката вода.'), costHtml({ gold: 1000, wood: 10 }, p.res)), el('button', { class: 'small primary', disabled: p.res.gold >= 1000 && p.res.wood >= 10 ? null : 'disabled', onclick: () => { const r = w.buildBoat(t); toast(r.ok ? 'Корабът е готов.' : r.why); render(); } }, 'Построй кораб')));
+      pane.appendChild(el('h3', null, T('Построено: ') + Object.keys(t.buildings).map((id) => D.buildingFor(t.faction, id).name).join(', ')));
+      pane.appendChild(el('div', { class: 'tiny', style: 'margin-bottom:6px' }, T('Доход на града: ') + w.townIncome(t) + T(' злато на ден. Растеж: форт ') + [T('няма'), T('Форт'), T('Цитадела (+50%)'), T('Замък (+100%)')][w.fortLevel(t)] + '.'));
+      if (t.buildings.shipyard) pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, T('Кораб')), el('div', { class: 'sub' }, T('Корабостроителницата спуска кораб на най-близката вода.')), costHtml({ gold: 1000, wood: 10 }, p.res)), el('button', { class: 'small primary', disabled: p.res.gold >= 1000 && p.res.wood >= 10 ? null : 'disabled', onclick: () => { const r = w.buildBoat(t); toast(r.ok ? T('Корабът е готов.') : r.why); render(); } }, T('Построй кораб'))));
       D.BUILDINGS.forEach((b) => {
         if (t.buildings[b.id]) return;
         const bf = D.buildingFor(t.faction, b.id);
@@ -521,7 +525,7 @@
         const missing = bf.req.filter((r) => !t.buildings[r]);
         if (missing.length > 1) return;
         const chk = w.canBuild(t, b.id);
-        pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, bf.name), el('div', { class: 'sub' }, bf.desc || ''), costHtml(bf.cost, p.res), !chk.ok ? el('div', { class: 'sub', style: 'color:#f0a080' }, chk.why) : null), el('button', { class: 'small' + (chk.ok ? ' primary' : ''), disabled: chk.ok ? null : 'disabled', onclick: () => { const r = w.build(t, b.id); if (r.ok) toast(bf.name + ' е построено.'); else toast(r.why); render(); } }, 'Строй')));
+        pane.appendChild(el('div', { class: 'row' }, el('div', { class: 'grow' }, el('div', { class: 'name' }, bf.name), el('div', { class: 'sub' }, bf.desc || ''), costHtml(bf.cost, p.res), !chk.ok ? el('div', { class: 'sub', style: 'color:#f0a080' }, chk.why) : null), el('button', { class: 'small' + (chk.ok ? ' primary' : ''), disabled: chk.ok ? null : 'disabled', onclick: () => { const r = w.build(t, b.id); if (r.ok) toast(bf.name + T(' е построено.')); else toast(r.why); render(); } }, T('Строй'))));
       });
     };
     const renderRecruit = (pane, onlyTier) => {
@@ -538,13 +542,13 @@
           const row = el('div', { class: 'row' });
           const cv = spriteCanvas(G.creatureSprite(c, 96), 48, 56); cv.style.cursor = 'pointer'; cv.addEventListener('click', () => creatureInfo(c));
           row.appendChild(cv);
-          row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, c.name), el('div', { class: 'sub' }, 'Налични: ' + t.avail[tier] + ' · растеж ' + w.growthOf(t, tier) + '/седм. · А' + c.att + ' З' + c.def + ' Щ' + c.dmin + '–' + c.dmax + ' Ж' + c.hp + ' С' + c.spd), costHtml(c.cost, p.res)));
-          row.appendChild(el('button', { class: 'small', disabled: max > 0 ? null : 'disabled', onclick: () => recruitDialog(cid, tier, u, max, target) }, 'Набор'));
-          row.appendChild(el('button', { class: 'small primary', disabled: max > 0 ? null : 'disabled', onclick: () => { const r = w.recruit(t, tier, u, max, target); if (r.ok) toast(r.n + ' × ' + c.name + ' се присъединяват.'); else toast(r.why); render(); } }, 'Всички (' + max + ')'));
+          row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, c.name), el('div', { class: 'sub' }, T('Налични: ') + t.avail[tier] + T(' · растеж ') + w.growthOf(t, tier) + T('/седм. · А') + c.att + T(' З') + c.def + T(' Щ') + c.dmin + '–' + c.dmax + T(' Ж') + c.hp + T(' С') + c.spd), costHtml(c.cost, p.res)));
+          row.appendChild(el('button', { class: 'small', disabled: max > 0 ? null : 'disabled', onclick: () => recruitDialog(cid, tier, u, max, target) }, T('Набор')));
+          row.appendChild(el('button', { class: 'small primary', disabled: max > 0 ? null : 'disabled', onclick: () => { const r = w.recruit(t, tier, u, max, target); if (r.ok) toast(r.n + ' × ' + c.name + T(' се присъединяват.')); else toast(r.why); render(); } }, T('Всички (') + max + ')'));
           pane.appendChild(row);
         });
       }
-      if (!any) pane.appendChild(el('div', { class: 'tiny' }, 'Няма жилища. Построй Форт и първото жилище.'));
+      if (!any) pane.appendChild(el('div', { class: 'tiny' }, T('Няма жилища. Построй Форт и първото жилище.')));
       // подобрения на стекове
       const v = visitor();
       [t.garrison, v ? v.army : null].forEach((army, k) => {
@@ -552,7 +556,7 @@
         army.forEach((sl, i) => {
           const cost = w.upgradeCost(t, army, i); if (!cost) return;
           const c = D.creatureOf(sl.c), u = D.upgradeOf(c);
-          pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(u, 96), 40, 48), el('div', { class: 'grow' }, el('div', { class: 'name' }, 'Подобри ' + sl.n + ' × ' + c.name + ' → ' + u.name), costHtml(cost, p.res)), el('button', { class: 'small', disabled: w.canAfford(p, cost) ? null : 'disabled', onclick: () => { const r = w.upgradeStack(t, army, i); if (!r.ok) toast(r.why); render(); } }, 'Подобри')));
+          pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.creatureSprite(u, 96), 40, 48), el('div', { class: 'grow' }, el('div', { class: 'name' }, T('Подобри ') + sl.n + ' × ' + c.name + ' → ' + u.name), costHtml(cost, p.res)), el('button', { class: 'small', disabled: w.canAfford(p, cost) ? null : 'disabled', onclick: () => { const r = w.upgradeStack(t, army, i); if (!r.ok) toast(r.why); render(); } }, T('Подобри'))));
         });
       });
     };
@@ -562,34 +566,34 @@
       const lbl = el('b', { style: 'font-size:22px;color:#ffd870;min-width:60px;text-align:center' }, String(n));
       const cost = el('div', null); const upd = () => { cost.innerHTML = ''; cost.appendChild(costHtml(w.recruitCost(cid, n), p.res)); };
       const range = el('input', { type: 'range', min: 1, max, value: n, style: 'flex:1' }); range.addEventListener('input', () => { n = +range.value; lbl.textContent = String(n); upd(); }); upd();
-      dialog({ title: 'Набор: ' + c.name, content: el('div', null, el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl), cost), buttons: [{ label: 'Отказ', value: false }, { label: 'Наеми', value: true, cls: 'primary' }] }).then((v) => { if (v) { const r = w.recruit(t, tier, u, n, target); if (!r.ok) toast(r.why); } render(); });
+      dialog({ title: T('Набор: ') + c.name, content: el('div', null, el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl), cost), buttons: [{ label: T('Отказ'), value: false }, { label: T('Наеми'), value: true, cls: 'primary' }] }).then((v) => { if (v) { const r = w.recruit(t, tier, u, n, target); if (!r.ok) toast(r.why); } render(); });
     };
     const renderMage = (pane) => {
       const ml = w.mageLevel(t);
       for (let l = 1; l <= ml; l++) {
-        pane.appendChild(el('h3', { style: 'margin-top:6px' }, 'Ниво ' + l));
+        pane.appendChild(el('h3', { style: 'margin-top:6px' }, T('Ниво ') + l));
         const sb = el('div', { class: 'spellbook' });
-        t.spells[l].forEach((id) => { const sp = D.spellById[id]; sb.appendChild(el('div', { class: 'spell school-' + sp.school, onclick: () => dialog({ title: sp.name, text: sp.desc + ' ' + D.SCHOOL_NAME[sp.school] + ', цена ' + sp.cost + ' мана.' }) }, el('b', null, sp.name), el('small', null, D.SCHOOL_NAME[sp.school] + ' · ' + sp.cost + ' мана'))); });
+        t.spells[l].forEach((id) => { const sp = D.spellById[id]; sb.appendChild(el('div', { class: 'spell school-' + sp.school, onclick: () => dialog({ title: sp.name, text: sp.desc + ' ' + D.SCHOOL_NAME[sp.school] + T(', цена ') + sp.cost + T(' мана.') }) }, el('b', null, sp.name), el('small', null, D.SCHOOL_NAME[sp.school] + ' · ' + sp.cost + T(' мана')))); });
         pane.appendChild(sb);
       }
-      pane.appendChild(el('div', { class: 'tiny', style: 'margin-top:8px' }, 'Героят в града научава магиите автоматично. За 3-о ниво и нагоре е нужна Мъдрост.'));
+      pane.appendChild(el('div', { class: 'tiny', style: 'margin-top:8px' }, T('Героят в града научава магиите автоматично. За 3-о ниво и нагоре е нужна Мъдрост.')));
     };
     const renderTavern = (pane) => {
       const list = w.tavernHeroes(t);
-      if (!list.length) pane.appendChild(el('div', { class: 'tiny' }, 'Днес в таверната няма герои.'));
+      if (!list.length) pane.appendChild(el('div', { class: 'tiny' }, T('Днес в таверната няма герои.')));
       list.forEach((proto, i) => {
         const cls = D.CLASSES[proto.cls];
         const fake = { cls: proto.cls, portrait: proto.portrait };
-        pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.portrait(fake, 96, p.color), 44, 44), el('div', { class: 'grow' }, el('div', { class: 'name' }, proto.name + (proto.keep ? ', ниво ' + proto.keep.level : '')), el('div', { class: 'sub' }, cls.name + ' · ' + D.factionById(proto.faction).name + ' · армия: ' + proto.army.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ')), el('div', { class: 'sub' }, 'Цена: 2500 злато')), el('button', { class: 'small primary', disabled: p.res.gold >= 2500 && !t.visitor && p.heroes.length < 8 ? null : 'disabled', onclick: () => { const r = w.hireHero(t, i); if (r.ok) { if (proto.keep) Object.assign(r.hero, proto.keep); toast(r.hero.name + ' се присъединява.'); } else toast(r.why); render(); } }, 'Наеми')));
+        pane.appendChild(el('div', { class: 'row' }, spriteCanvas(G.portrait(fake, 96, p.color), 44, 44), el('div', { class: 'grow' }, el('div', { class: 'name' }, proto.name + (proto.keep ? T(', ниво ') + proto.keep.level : '')), el('div', { class: 'sub' }, cls.name + ' · ' + D.factionById(proto.faction).name + T(' · армия: ') + proto.army.filter(Boolean).map((s) => s.n + ' ' + D.creatureOf(s.c).name).join(', ')), el('div', { class: 'sub' }, T('Цена: 2500 злато'))), el('button', { class: 'small primary', disabled: p.res.gold >= 2500 && !t.visitor && p.heroes.length < 8 ? null : 'disabled', onclick: () => { const r = w.hireHero(t, i); if (r.ok) { if (proto.keep) Object.assign(r.hero, proto.keep); toast(r.hero.name + T(' се присъединява.')); } else toast(r.why); render(); } }, T('Наеми'))));
       });
-      if (t.visitor) pane.appendChild(el('div', { class: 'tiny' }, 'В града вече има герой — изведи го, за да наемеш друг.'));
+      if (t.visitor) pane.appendChild(el('div', { class: 'tiny' }, T('В града вече има герой — изведи го, за да наемеш друг.')));
     };
     const renderMarket = (pane) => {
       // Пазар като в класиките: „Ресурси на кралството“ / „Налични за търговия“ с курсове, оферта, плъзгач за количество
       const st = state.market || (state.market = { from: 'wood', to: 'gold', amount: 0 });
       const icon = (r, size) => { const u = MK.Img.url('ui/icon_' + r); return u ? el('img', { src: u, alt: '', style: 'width:' + size + 'px;height:' + size + 'px;object-fit:contain' }) : el('i', { style: 'display:inline-block;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + D.RES_COLOR[r] }); };
       const name = (r) => D.RES_NAME[r].toLowerCase();
-      const rateText = (to) => { if (to === st.from) return 'н/д'; const r = w.tradeRate(p, st.from, to); return to === 'gold' ? String(r) : '1/' + r; };
+      const rateText = (to) => { if (to === st.from) return T('н/д'); const r = w.tradeRate(p, st.from, to); return to === 'gold' ? String(r) : '1/' + r; };
       const cell = (r, sub, sel, onclick) => el('button', { class: 'market-cell' + (sel ? ' sel' : ''), title: D.RES_NAME[r], onclick }, icon(r, 30), el('span', null, sub));
       const grid = (key, showOwn) => {
         const g = el('div', { class: 'market-grid' });
@@ -604,10 +608,10 @@
       const unitGive = toGold ? 1 : rate, unitGet = toGold ? rate : 1;
       const maxUnits = same ? 0 : Math.floor(p.res[st.from] / unitGive);
       if (st.amount > maxUnits) st.amount = maxUnits;
-      const offer = same ? 'Избери два различни ресурса.' : 'Мога да ти предложа ' + unitGet + ' ' + name(st.to) + ' за ' + unitGive + ' ' + name(st.from) + '.';
+      const offer = same ? T('Избери два различни ресурса.') : T('Мога да ти предложа ') + unitGet + ' ' + name(st.to) + T(' за ') + unitGive + ' ' + name(st.from) + '.';
       pane.appendChild(el('div', { class: 'market-top' },
-        el('div', { class: 'market-col' }, el('div', { class: 'market-title' }, 'Ресурси на кралството'), grid('from', true)),
-        el('div', { class: 'market-col' }, el('div', { class: 'market-offer' }, offer), el('div', { class: 'market-title' }, 'Налични за търговия'), grid('to', false))
+        el('div', { class: 'market-col' }, el('div', { class: 'market-title' }, T('Ресурси на кралството')), grid('from', true)),
+        el('div', { class: 'market-col' }, el('div', { class: 'market-offer' }, offer), el('div', { class: 'market-title' }, T('Налични за търговия')), grid('to', false))
       ));
       // долна лента: даваш — количество — получаваш
       const giveBox = el('div', { class: 'market-box' }, icon(st.from, 30), el('span', null, '0'));
@@ -618,15 +622,15 @@
       const step = (d) => { st.amount = Math.max(0, Math.min(maxUnits, st.amount + d)); upd(); };
       const bottom = el('div', { class: 'market-bottom' },
         giveBox,
-        el('div', { class: 'market-mid' }, el('div', { class: 'market-qty' }, 'Количество за размяна ▶'), el('div', { class: 'market-pot' }, el('button', { class: 'small', onclick: () => step(-1) }, '◀'), range, el('button', { class: 'small', onclick: () => step(1) }, '▶'))),
+        el('div', { class: 'market-mid' }, el('div', { class: 'market-qty' }, T('Количество за размяна ▶')), el('div', { class: 'market-pot' }, el('button', { class: 'small', onclick: () => step(-1) }, '◀'), range, el('button', { class: 'small', onclick: () => step(1) }, '▶'))),
         getBox
       );
       pane.appendChild(bottom);
       upd();
       pane.appendChild(el('div', { class: 'market-actions' },
-        el('div', { class: 'tiny' }, 'Пазари: ' + w.marketRate(p)),
-        el('button', { class: 'small', disabled: maxUnits ? null : 'disabled', title: 'Максимум', onclick: () => { st.amount = maxUnits; upd(); } }, '⬆ Макс'),
-        el('button', { class: 'primary', disabled: maxUnits ? null : 'disabled', title: 'Търгувай', onclick: () => { if (!st.amount) return toast('Избери количество.'); if (!w.trade(p, st.from, st.to, st.amount)) return toast('Недостатъчно ресурси.'); toast('Сделката е сключена.'); st.amount = 0; render(); } }, '🤝 Търгувай')
+        el('div', { class: 'tiny' }, T('Пазари: ') + w.marketRate(p)),
+        el('button', { class: 'small', disabled: maxUnits ? null : 'disabled', title: T('Максимум'), onclick: () => { st.amount = maxUnits; upd(); } }, T('⬆ Макс')),
+        el('button', { class: 'primary', disabled: maxUnits ? null : 'disabled', title: T('Търгувай'), onclick: () => { if (!st.amount) return toast(T('Избери количество.')); if (!w.trade(p, st.from, st.to, st.amount)) return toast(T('Недостатъчно ресурси.')); toast(T('Сделката е сключена.')); st.amount = 0; render(); } }, T('🤝 Търгувай'))
       ));
     };
     render();
@@ -642,9 +646,9 @@
     const range = el('input', { type: 'range', min: 0, max: Math.max(0, max), value: n, style: 'flex:1' });
     const cost = el('div', null); const upd = () => { cost.innerHTML = ''; cost.appendChild(costHtml(w.recruitCost(o.creature, n), p.res)); };
     range.addEventListener('input', () => { n = +range.value; lbl.textContent = String(n); upd(); }); upd();
-    return dialog({ title: 'Жилище: ' + c.name, content: el('div', null, el('p', null, 'Налични: ' + o.available + '. Цена за едно: ' + Object.entries(c.cost).map(([k, v]) => v + ' ' + D.RES_NAME[k].toLowerCase()).join(', ') + '.'), el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl), cost), buttons: [{ label: 'Затвори', value: false }, { label: 'Инфо', value: 'info' }, { label: 'Наеми', value: true, cls: 'primary' }] }).then((v) => {
+    return dialog({ title: T('Жилище: ') + c.name, content: el('div', null, el('p', null, T('Налични: ') + o.available + T('. Цена за едно: ') + Object.entries(c.cost).map(([k, v]) => v + ' ' + D.RES_NAME[k].toLowerCase()).join(', ') + '.'), el('div', { style: 'display:flex;gap:8px;align-items:center' }, range, lbl), cost), buttons: [{ label: T('Затвори'), value: false }, { label: T('Инфо'), value: 'info' }, { label: T('Наеми'), value: true, cls: 'primary' }] }).then((v) => {
       if (v === 'info') return creatureInfo(c).then(() => dwellingDialog(game, h, o));
-      if (v && n > 0) { if (!MK.Army.canAdd(h.army, o.creature)) return toast('Няма свободен слот в армията.'); w.pay(p, w.recruitCost(o.creature, n)); o.available -= n; MK.Army.add(h.army, o.creature, n); toast(n + ' × ' + c.name + ' се присъединяват.'); }
+      if (v && n > 0) { if (!MK.Army.canAdd(h.army, o.creature)) return toast(T('Няма свободен слот в армията.')); w.pay(p, w.recruitCost(o.creature, n)); o.available -= n; MK.Army.add(h.army, o.creature, n); toast(n + ' × ' + c.name + T(' се присъединяват.')); }
     });
   }
 

@@ -3,6 +3,7 @@
 (function () {
   'use strict';
   const MK = (window.MK = window.MK || {});
+  const T = (s) => (MK.T ? MK.T(s) : s);
   const D = MK.data, G = MK.Gfx;
   const UI = MK.UI;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -41,7 +42,7 @@
       document.getElementById('btn-hero').addEventListener('click', () => { if (this.selected) UI.showHero(this, this.selected); });
       document.getElementById('btn-next-hero').addEventListener('click', () => this.nextHero());
       document.getElementById('btn-level').addEventListener('click', () => this.toggleLevel());
-      document.getElementById('btn-sleep').addEventListener('click', () => { if (this.selected) { this.selected.sleeping = !this.selected.sleeping; UI.toast(this.selected.sleeping ? this.selected.name + ' почива.' : this.selected.name + ' е на крак.'); this.updateHUD(); } });
+      document.getElementById('btn-sleep').addEventListener('click', () => { if (this.selected) { this.selected.sleeping = !this.selected.sleeping; UI.toast(this.selected.sleeping ? this.selected.name + T(' почива.') : this.selected.name + T(' е на крак.')); this.updateHUD(); } });
       UI.showMenu(this);
     }
 
@@ -53,7 +54,7 @@
       this.human = this.world.players.findIndex((p) => p.human);
       await this.preload();
       this.start();
-      if (this.campaign) UI.dialog({ title: this.campaign.title, text: this.campaign.text, buttons: [{ label: 'Напред!', value: true, cls: 'primary' }] });
+      if (this.campaign) UI.dialog({ title: this.campaign.title, text: this.campaign.text, buttons: [{ label: T('Напред!'), value: true, cls: 'primary' }] });
     }
     async startCampaign(cid, i) {
       const C = MK.campaignById(cid), sc = C.scenarios[i]; if (!sc) return;
@@ -61,7 +62,7 @@
       // Избор на начален бонус, както в класическите кампании
       let bonus = null;
       if (sc.bonuses && sc.bonuses.length) {
-        bonus = await UI.dialog({ title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc) + ' Избери начален бонус:', buttons: sc.bonuses.map((b) => ({ label: b.label, value: b, cls: 'primary' })).concat([{ label: 'Назад', value: null }]) });
+        bonus = await UI.dialog({ title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc) + T(' Избери начален бонус:'), buttons: sc.bonuses.map((b) => ({ label: b.label, value: b, cls: 'primary' })).concat([{ label: T('Назад'), value: null }]) });
         if (!bonus) return;
       }
       const players = [{ faction: sc.playerFaction, human: true }].concat(sc.opponents.map((f) => ({ faction: f, human: false })));
@@ -74,14 +75,14 @@
       if (c.goal && MK.Campaign.goalMet(w, this.human, { goal: c.goal })) { await this.victory(this.human); return true; }
       if (c.days && w.day > c.days) {
         MK.Audio.loseGame();
-        await UI.dialog({ title: 'Срокът изтече', text: 'Не успя да изпълниш целта до ' + c.days + '-ия ден. Сценарият може да се играе отново.' });
+        await UI.dialog({ title: T('Срокът изтече'), text: T('Не успя да изпълниш целта до ') + c.days + T('-ия ден. Сценарият може да се играе отново.') });
         localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showCampaignScenarios(this, c.id); return true;
       }
       return false;
     }
     /* Зарежда рисуваните графики за текущия свят преди първото показване, за да не се мяркат старите */
     async preload() {
-      const ov = UI.loading('Зареждане на света…');
+      const ov = UI.loading(T('Зареждане на света…'));
       try { await MK.Img.load(MK.Img.listForWorld(this.world), 12000); } catch (e) { /* продължаваме и без всичко */ }
       ov.remove();
     }
@@ -100,7 +101,7 @@
     }
     save() {
       if (!this.world) return;
-      try { localStorage.setItem('mk_save', JSON.stringify({ human: this.human, campaign: this.campaign, world: this.world.toJSON() })); } catch (e) { UI.toast('Сейвът не успя: ' + e.message); }
+      try { localStorage.setItem('mk_save', JSON.stringify({ human: this.human, campaign: this.campaign, world: this.world.toJSON() })); } catch (e) { UI.toast(T('Сейвът не успя: ') + e.message); }
     }
     async load() {
       try {
@@ -110,14 +111,14 @@
         this.world = MK.World.fromJSON(j.world); this.human = j.human || 0; this.campaign = j.campaign || null;
         await this.preload();
         this.start();
-        UI.toast('Играта е заредена.');
-      } catch (e) { UI.toast('Сейвът не може да се зареди: ' + e.message); }
+        UI.toast(T('Играта е заредена.'));
+      } catch (e) { UI.toast(T('Сейвът не може да се зареди: ') + e.message); }
     }
     gameMenu() {
-      UI.dialog({ title: 'Меню', buttons: [{ label: 'Запази', value: 'save' }, { label: MK.Audio.settings.muted ? '🔇 Звук: изкл.' : '🔊 Звук: вкл.', value: 'sound' }, { label: 'Как се играе', value: 'help' }, { label: 'Главно меню', value: 'menu', cls: 'danger' }, { label: 'Назад', value: false }] }).then((v) => {
-        if (v === 'save') { this.save(); UI.toast('Запазено.'); }
+      UI.dialog({ title: T('Меню'), buttons: [{ label: T('Запази'), value: 'save' }, { label: MK.Audio.settings.muted ? T('🔇 Звук: изкл.') : T('🔊 Звук: вкл.'), value: 'sound' }, { label: T('Как се играе'), value: 'help' }, { label: T('Главно меню'), value: 'menu', cls: 'danger' }, { label: T('Назад'), value: false }] }).then((v) => {
+        if (v === 'save') { this.save(); UI.toast(T('Запазено.')); }
         if (v === 'help') UI.showHelp();
-        if (v === 'sound') { MK.Audio.toggleMuted(); UI.toast(MK.Audio.settings.muted ? 'Звукът е изключен.' : 'Звукът е включен.'); }
+        if (v === 'sound') { MK.Audio.toggleMuted(); UI.toast(MK.Audio.settings.muted ? T('Звукът е изключен.') : T('Звукът е включен.')); }
         if (v === 'menu') { this.save(); UI.showMenu(this); }
       });
     }
@@ -129,14 +130,14 @@
       this.selected = h;
       this.renderer.selected = h;
       this.renderer.pathPreview = null;
-      if (h) { MK.Audio.map(h.boat ? 'water' : D.TERRAIN[this.world.terrainAt(h.x, h.y, h.z || 0)].key); this.renderer.z = h.z || 0; if (center) this.renderer.center(h.x, h.y); this.refreshReach(); this.hint = h.name + ' · движение ' + h.movement + '/' + h.maxMovement + (h.boat ? ' · на кораб' : '') + (h.z ? ' · подземие' : ''); }
+      if (h) { MK.Audio.map(h.boat ? 'water' : D.TERRAIN[this.world.terrainAt(h.x, h.y, h.z || 0)].key); this.renderer.z = h.z || 0; if (center) this.renderer.center(h.x, h.y); this.refreshReach(); this.hint = h.name + T(' · движение ') + h.movement + '/' + h.maxMovement + (h.boat ? T(' · на кораб') : '') + (h.z ? T(' · подземие') : ''); }
       this.updateHUD();
     }
     refreshReach() { const h = this.selected; this.renderer.reach = h ? MK.Path.reachable(this.world, h, h.movement) : null; }
     nextHero() {
       const p = this.world.players[this.human];
       const list = p.heroes.map((id) => this.world.heroes[id]).filter((h) => h.movement > 0 && !h.sleeping);
-      if (!list.length) { UI.toast('Всички герои са се движили.'); return; }
+      if (!list.length) { UI.toast(T('Всички герои са се движили.')); return; }
       const i = list.indexOf(this.selected);
       this.selectHero(list[(i + 1) % list.length], true);
     }
@@ -188,24 +189,24 @@
     intent(tx, ty) {
       const w = this.world; if (!w || !w.inb(tx, ty)) return { kind: 'none' };
       const z = this.renderer.z, p = w.players[this.human];
-      if (!p.fog[z][w.idx(tx, ty)]) return { kind: 'fog', label: 'Неизследвана земя' };
+      if (!p.fog[z][w.idx(tx, ty)]) return { kind: 'fog', label: T('Неизследвана земя') };
       const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z), sel = this.selected;
-      if (hero && hero.owner === this.human) return { kind: 'hero', label: hero === sel ? (hero.inTown ? 'Влез в града' : 'Отвори героя') : 'Избери ' + hero.name };
+      if (hero && hero.owner === this.human) return { kind: 'hero', label: hero === sel ? (hero.inTown ? T('Влез в града') : T('Отвори героя')) : T('Избери ') + hero.name };
       if (!sel || (sel.z || 0) !== z) return obj ? { kind: 'info', label: this.objName(obj) } : { kind: 'none' };
-      if (sel.x === tx && sel.y === ty) return { kind: 'hero', label: 'Отвори героя' };
+      if (sel.x === tx && sel.y === ty) return { kind: 'hero', label: T('Отвори героя') };
       const path = MK.Path.findPath(w, sel, tx, ty);
-      if (!path) return { kind: 'noPath', label: obj ? this.objName(obj) + ' — няма път' : w.isWater(tx, ty, z) && !sel.boat ? 'Вода — трябва ти кораб' : 'Няма път дотам' };
+      if (!path) return { kind: 'noPath', label: obj ? this.objName(obj) + T(' — няма път') : w.isWater(tx, ty, z) && !sel.boat ? T('Вода — трябва ти кораб') : T('Няма път дотам') };
       const days = Math.ceil(path.total / Math.max(1, sel.maxMovement));
       const r = { path, days, label: '' };
-      if (hero) { r.kind = 'attack'; r.label = 'Нападни ' + hero.name + ' (ниво ' + hero.level + ')'; }
+      if (hero) { r.kind = 'attack'; r.label = T('Нападни ') + hero.name + T(' (ниво ') + hero.level + ')'; }
       else if (obj && obj.guard) { r.kind = 'guard'; r.label = this.objName(obj); }
-      else if (obj && obj.type === 'monster') { r.kind = 'attack'; r.label = 'Нападни ' + this.objName(obj); }
-      else if (obj && obj.type === 'town') { r.kind = w.towns[obj.townId].owner === this.human ? 'enter' : 'attack'; r.label = (r.kind === 'enter' ? 'Влез в ' : 'Обсади ') + w.towns[obj.townId].name; }
-      else if (obj && obj.type === 'boat' && !sel.boat) { r.kind = 'board'; r.label = 'Качи се на кораба'; }
-      else if (obj && (obj.type === 'resource' || obj.type === 'chest' || obj.type === 'artifact' || obj.type === 'sea_chest')) { r.kind = 'pickup'; r.label = 'Вземи: ' + this.objName(obj); }
-      else if (obj && obj.type === 'mine' && obj.owner !== this.human) { r.kind = 'flag'; r.label = 'Завладей: ' + this.objName(obj); }
+      else if (obj && obj.type === 'monster') { r.kind = 'attack'; r.label = T('Нападни ') + this.objName(obj); }
+      else if (obj && obj.type === 'town') { r.kind = w.towns[obj.townId].owner === this.human ? 'enter' : 'attack'; r.label = (r.kind === 'enter' ? T('Влез в ') : T('Обсади ')) + w.towns[obj.townId].name; }
+      else if (obj && obj.type === 'boat' && !sel.boat) { r.kind = 'board'; r.label = T('Качи се на кораба'); }
+      else if (obj && (obj.type === 'resource' || obj.type === 'chest' || obj.type === 'artifact' || obj.type === 'sea_chest')) { r.kind = 'pickup'; r.label = T('Вземи: ') + this.objName(obj); }
+      else if (obj && obj.type === 'mine' && obj.owner !== this.human) { r.kind = 'flag'; r.label = T('Завладей: ') + this.objName(obj); }
       else if (obj) { r.kind = 'visit'; r.label = this.objName(obj); }
-      else { r.kind = 'move'; r.label = sel.boat ? 'Плавай' : 'Придвижи се'; }
+      else { r.kind = 'move'; r.label = sel.boat ? T('Плавай') : T('Придвижи се'); }
       return r;
     }
     onHover(tx, ty) {
@@ -214,13 +215,13 @@
       this._hoverX = tx; this._hoverY = ty;
       const it = this.intent(tx, ty);
       this.renderer.canvas.style.cursor = CURSORS[it.kind] || 'default';
-      if (!this.renderer.pathPreview) { this.hint = it.label ? ICONS[it.kind] + ' ' + it.label + (it.days > 1 ? ' · ' + it.days + ' дни' : '') : ''; this.updateHUD(); }
+      if (!this.renderer.pathPreview) { this.hint = it.label ? ICONS[it.kind] + ' ' + it.label + (it.days > 1 ? ' · ' + it.days + T(' дни') : '') : ''; this.updateHUD(); }
     }
     /* Задържане / десен бутон: бърза информация за това, което е на плочката (както в HotA) */
     onLongPress(tx, ty) {
       const w = this.world; if (!w || !w.inb(tx, ty)) return;
       const z = this.renderer.z, p = w.players[this.human];
-      if (!p.fog[z][w.idx(tx, ty)]) { UI.toast('Неизследвана земя.'); return; }
+      if (!p.fog[z][w.idx(tx, ty)]) { UI.toast(T('Неизследвана земя.')); return; }
       const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z);
       if (hero && !(obj && obj.type === 'town')) { UI.heroQuickInfo(this, hero); return; }
       if (!obj) { UI.toast(D.TERRAIN[w.terrainAt(tx, ty, z)].name); return; }
@@ -236,7 +237,7 @@
       const re = /(?:^|[^\d])[+]?(\d+)\s*(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)|(злато|дърво|руда|живак|сяра|кристал|скъпоценни камъни|опит)\s*:\s*\+?(\d+)/gi; let m;
       while ((m = re.exec(text))) {
         const n = +(m[1] || m[4]), what = (m[2] || m[3]).toLowerCase();
-        if (what === 'опит') { UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: n, title: 'опит', cls: 'xp' }); shown.push('xp'); continue; }
+        if (what === T('опит')) { UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: n, title: T('опит'), cls: 'xp' }); shown.push('xp'); continue; }
         const r = resNames[what]; if (!r) continue;
         UI.reward({ icon: this.iconEl('ui/icon_' + r, '💰'), amount: n, title: D.RES_NAME[r], cls: 'res' }); shown.push(r);
       }
@@ -246,7 +247,7 @@
         names.forEach((nm) => { const a = D.ARTIFACTS.find((x) => x.name === nm || nm.includes(x.name)); if (a) { UI.reward({ icon: this.iconEl('artifacts/' + a.id, '🏺'), title: a.name, sub: a.desc, cls: 'art', ms: 2400 }); shown.push('art'); } });
       }
       const rs = /(?:Научаваш магията|Магията) „([^“]+)“/.exec(text);
-      if (rs && ev && ev.kind === 'spell') { const sp = D.SPELLS.find((x) => x.name === rs[1]); UI.reward({ icon: this.iconEl(sp ? 'spells/' + sp.id : null, '📖'), title: rs[1], sub: 'Нова магия', cls: 'spell' }); shown.push('spell'); }
+      if (rs && ev && ev.kind === 'spell') { const sp = D.SPELLS.find((x) => x.name === rs[1]); UI.reward({ icon: this.iconEl(sp ? 'spells/' + sp.id : null, '📖'), title: rs[1], sub: T('Нова магия'), cls: 'spell' }); shown.push('spell'); }
       const rst = /\+1 (атака|защита|сила|познание)/.exec(text);
       if (rst) { UI.reward({ icon: this.iconEl('ui/icon_defend', '⚔️'), amount: 1, title: rst[1], cls: 'stat' }); shown.push('stat'); }
       return shown.length > 0;
@@ -276,26 +277,26 @@
       }
       if (obj && obj.type === 'town' && w.towns[obj.townId].owner === this.human && (!this.selected || (this.selected.x === tx && this.selected.y === ty && (this.selected.z || 0) === z))) { UI.showTown(this, w.towns[obj.townId]); return; }
       if (!this.selected || (this.selected.z || 0) !== z) { if (obj && fog) this.describe(obj); else if (!this.selected) this.hint = ''; this.updateHUD(); return; }
-      if (!fog) { this.hint = 'Неизследвана земя.'; this.renderer.pathPreview = null; this.updateHUD(); return; }
+      if (!fog) { this.hint = T('Неизследвана земя.'); this.renderer.pathPreview = null; this.updateHUD(); return; }
       const path = MK.Path.findPath(w, this.selected, tx, ty);
-      if (!path) { this.renderer.pathPreview = null; this.hint = obj ? this.objName(obj) + ' — няма път.' : w.isWater(tx, ty, z) && !this.selected.boat ? 'Вода — трябва ти кораб.' : 'Няма път дотам.'; this.updateHUD(); return; }
+      if (!path) { this.renderer.pathPreview = null; this.hint = obj ? this.objName(obj) + T(' — няма път.') : w.isWater(tx, ty, z) && !this.selected.boat ? T('Вода — трябва ти кораб.') : T('Няма път дотам.'); this.updateHUD(); return; }
       this.renderer.pathPreview = path;
       const days = Math.ceil(path.total / Math.max(1, this.selected.maxMovement));
       const it = this.intent(tx, ty);
       this.renderer.targetIcon = { x: tx, y: ty, icon: ICONS[it.kind], kind: it.kind };
-      this.hint = ICONS[it.kind] + ' ' + it.label + ' · ' + (path.total <= this.selected.movement ? 'Докосни отново, за да ' + (it.kind === 'attack' || it.kind === 'guard' ? 'нападнеш.' : 'тръгнеш.') : 'Пътят е ' + days + ' дни. Докосни отново, за да тръгнеш.');
+      this.hint = ICONS[it.kind] + ' ' + it.label + ' · ' + (path.total <= this.selected.movement ? T('Докосни отново, за да ') + (it.kind === 'attack' || it.kind === 'guard' ? T('нападнеш.') : T('тръгнеш.')) : T('Пътят е ') + days + T(' дни. Докосни отново, за да тръгнеш.'));
       this.updateHUD();
     }
     objName(o) {
       const cnt = (n) => D.countRange(n).text + ' × ';
-      const guard = o.guard ? ' — пазят го ' + (o.guard.stacks ? o.guard.stacks.map((s) => cnt(s.count) + D.creatureOf(s.creature).name).join(', ') : cnt(o.guard.count) + D.creatureOf(o.guard.creature).name) : '';
-      if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : ', неутрален') + ')' + guard; }
+      const guard = o.guard ? T(' — пазят го ') + (o.guard.stacks ? o.guard.stacks.map((s) => cnt(s.count) + D.creatureOf(s.creature).name).join(', ') : cnt(o.guard.count) + D.creatureOf(o.guard.creature).name) : '';
+      if (o.type === 'town') { const t = this.world.towns[o.townId]; return t.name + ' (' + D.factionById(t.faction).name + (t.owner >= 0 ? ', ' + D.PLAYER_COLORS[t.owner].name.toLowerCase() : T(', неутрален')) + ')' + guard; }
       if (o.type === 'mine') return D.MINES.find((m) => m.res === o.res).name + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
       if (o.type === 'monster') return cnt(o.count) + D.creatureOf(o.creature).name;
       if (o.type === 'resource') return D.RES_NAME[o.res] + guard;
-      if (o.type === 'dwelling') return 'Жилище: ' + D.creatureOf(o.creature).name + ' (налични ' + o.available + ')' + guard;
-      if (o.type === 'artifact') return 'Артефакт' + guard;
-      if (o.type === 'boat') return 'Кораб' + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
+      if (o.type === 'dwelling') return T('Жилище: ') + D.creatureOf(o.creature).name + T(' (налични ') + o.available + ')' + guard;
+      if (o.type === 'artifact') return T('Артефакт') + guard;
+      if (o.type === 'boat') return T('Кораб') + (o.owner >= 0 ? ' (' + D.PLAYER_COLORS[o.owner].name.toLowerCase() + ')' : '') + guard;
       return (D.OBJECTS[o.type] || {}).name || o.type + guard;
     }
     describe(o) { this.hint = this.objName(o) + ((D.OBJECTS[o.type] || {}).desc ? ' — ' + D.OBJECTS[o.type].desc : ''); this.updateHUD(); }
@@ -311,7 +312,7 @@
         if (!w.heroes[h.id]) break;
         const fromX = h.x, fromY = h.y, fromZ = h.z;
         const r = w.stepHero(h, st.x, st.y);
-        if (r.stop) { if (r.why && r.why !== 'Няма точки за движение.') UI.toast(r.why); break; }
+        if (r.stop) { if (r.why && r.why !== T('Няма точки за движение.')) UI.toast(r.why); break; }
         if ((h.x !== fromX || h.y !== fromY) && h.z === fromZ) {
           this.renderer.anim = { hero: h, fromX, fromY, toX: h.x, toY: h.y, t: 0 };
           const dur = 110;
@@ -340,15 +341,15 @@
     async handleEvent(ev) {
       const w = this.world;
       switch (ev.type) {
-        case 'visit': if (!this.showGains(ev.text, ev)) UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : 'Находка', text: ev.text }); break;
+        case 'visit': if (!this.showGains(ev.text, ev)) UI.toast(ev.text); if (ev.kind === 'spell') MK.Audio.sfx('spell_learn'); else if (ev.kind === 'artifact' || ev.kind === 'pickup') MK.Audio.sfx('treasure'); if (ev.kind === 'artifact' || ev.kind === 'spell' || ev.kind === 'stat' || ev.kind === 'xp') await UI.dialog({ title: ev.obj ? this.objName(ev.obj) : T('Находка'), text: ev.text }); break;
         case 'choice': { if (ev.obj && (ev.obj.type === 'chest' || ev.obj.type === 'sea_chest')) MK.Audio.sfx('treasure'); const v = await UI.dialog({ title: ev.title, text: ev.text, buttons: ev.options.map((o, i) => ({ label: o.label, value: i, disabled: !!o.disabled })) }); ev.options[v].apply(); this.showGains(ev.options[v].label, null); break; }
         case 'dwelling': await UI.dwellingDialog(this, ev.hero, ev.obj); break;
-        case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + ' е превзет!'); if (ev.learned && ev.learned.length) MK.Audio.sfx('spell_learn'); if (ev.learned && ev.learned.length) UI.toast('Научени магии: ' + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
+        case 'enterTown': { if (ev.captured) UI.toast(ev.town.name + T(' е превзет!')); if (ev.learned && ev.learned.length) MK.Audio.sfx('spell_learn'); if (ev.learned && ev.learned.length) UI.toast(T('Научени магии: ') + ev.learned.map((s) => D.spellById[s].name).join(', ')); UI.showTown(this, ev.town); break; }
         case 'meet': UI.showHero(this, ev.hero, ev.other); break;
         case 'battle': await this.fight(ev); break;
         case 'msg': UI.toast(ev.text); break;
-        case 'battleResult': await UI.dialog({ title: ev.win ? 'Победа' : 'Загуба', text: ev.text }); if (ev.win && ev.xp) UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: ev.xp, title: 'опит', cls: 'xp' }); break;
-        case 'eliminated': await UI.dialog({ title: 'Играч е победен', text: ev.text }); break;
+        case 'battleResult': await UI.dialog({ title: ev.win ? T('Победа') : T('Загуба'), text: ev.text }); if (ev.win && ev.xp) UI.reward({ icon: this.iconEl('ui/icon_morale', '⭐'), amount: ev.xp, title: T('опит'), cls: 'xp' }); break;
+        case 'eliminated': await UI.dialog({ title: T('Играч е победен'), text: ev.text }); break;
         case 'victory': await this.victory(ev.player); break;
         default: break;
       }
@@ -378,18 +379,18 @@
       if (w.players[ctx.attacker.owner] && w.players[ctx.attacker.owner].human) humans.push(0);
       if (ctx.defender.owner >= 0 && w.players[ctx.defender.owner] && w.players[ctx.defender.owner].human) humans.push(1);
       const d = ctx.defender;
-      const desc = d.hero ? d.hero.name + ' (ниво ' + d.hero.level + ')' : ctx.town ? 'гарнизона на ' + ctx.town.name : d.obj ? (ctx.guardOf ? 'пазачите на ' + this.objName(d.obj).split(' — ')[0].toLowerCase() : d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name) : 'противник';
+      const desc = d.hero ? d.hero.name + T(' (ниво ') + d.hero.level + ')' : ctx.town ? T('гарнизона на ') + ctx.town.name : d.obj ? (ctx.guardOf ? T('пазачите на ') + this.objName(d.obj).split(' — ')[0].toLowerCase() : d.obj.count + ' × ' + D.creatureOf(d.obj.creature).name) : T('противник');
       // Прозорец преди битка (както в HotA): армиите с точен брой и портрети, героите с характеристики; бърз бой без бойния екран
-      const armyRow = (a) => { const row = UI.el('div', { class: 'pre-army' }); a.filter((s) => s && s.n > 0).forEach((s) => { const c = D.creatureOf(s.c); row.appendChild(UI.el('div', { class: 'pre-stack', title: c.name, onclick: () => UI.creatureInfo(c, UI.stackInfo(s.n, undefined, true)) }, UI.spriteCanvas(G.creatureSprite(c, 128), 44, 54), UI.el('b', null, String(s.n)), UI.el('small', null, c.name))); }); if (!row.childNodes.length) row.appendChild(UI.el('span', { class: 'tiny' }, 'няма')); return row; };
-      const heroBox = (hero, owner) => hero ? UI.el('div', { class: 'pre-hero' }, UI.spriteCanvas(G.portrait(hero, 96, w.players[owner].color), 52, 52), UI.el('div', null, UI.el('div', { class: 'name' }, hero.name), UI.el('div', { class: 'tiny' }, D.CLASSES[hero.cls].name + ' · ниво ' + hero.level), UI.el('div', { class: 'tiny' }, '⚔ ' + hero.att + '  🛡 ' + hero.def + '  ✦ ' + hero.pow + '  📖 ' + hero.know + '  мана ' + hero.mana))) : null;
+      const armyRow = (a) => { const row = UI.el('div', { class: 'pre-army' }); a.filter((s) => s && s.n > 0).forEach((s) => { const c = D.creatureOf(s.c); row.appendChild(UI.el('div', { class: 'pre-stack', title: c.name, onclick: () => UI.creatureInfo(c, UI.stackInfo(s.n, undefined, true)) }, UI.spriteCanvas(G.creatureSprite(c, 128), 44, 54), UI.el('b', null, String(s.n)), UI.el('small', null, c.name))); }); if (!row.childNodes.length) row.appendChild(UI.el('span', { class: 'tiny' }, T('няма'))); return row; };
+      const heroBox = (hero, owner) => hero ? UI.el('div', { class: 'pre-hero' }, UI.spriteCanvas(G.portrait(hero, 96, w.players[owner].color), 52, 52), UI.el('div', null, UI.el('div', { class: 'name' }, hero.name), UI.el('div', { class: 'tiny' }, D.CLASSES[hero.cls].name + T(' · ниво ') + hero.level), UI.el('div', { class: 'tiny' }, '⚔ ' + hero.att + '  🛡 ' + hero.def + '  ✦ ' + hero.pow + '  📖 ' + hero.know + T('  мана ') + hero.mana))) : null;
       const sideBox = (title, hero, owner, a, extra) => UI.el('div', { class: 'pre-side' }, UI.el('div', { class: 'pre-title' }, title), heroBox(hero, owner), armyRow(a), extra || null);
       const content = UI.el('div', { class: 'pre-battle' },
-        sideBox('Нападател', ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
-        sideBox('Защитник', d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? UI.el('div', null, UI.el('div', { class: 'tiny' }, 'Гарнизон:'), armyRow(d.garrison)) : null),
-        ctx.town ? UI.el('p', { class: 'tiny', style: 'width:100%;text-align:center' }, 'Обсада: ' + ['без укрепления', 'форт (стени)', 'цитадела (стени, ров, кула)', 'замък (дебели стени, ров, три кули)'][w.fortLevel(ctx.town)]) : null);
+        sideBox(T('Нападател'), ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
+        sideBox(T('Защитник'), d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? UI.el('div', null, UI.el('div', { class: 'tiny' }, T('Гарнизон:')), armyRow(d.garrison)) : null),
+        ctx.town ? UI.el('p', { class: 'tiny', style: 'width:100%;text-align:center' }, T('Обсада: ') + [T('без укрепления'), T('форт (стени)'), T('цитадела (стени, ров, кула)'), T('замък (дебели стени, ров, три кули)')][w.fortLevel(ctx.town)]) : null);
       let choice = true;
-      if (humans.includes(0) && !humans.includes(1)) choice = await UI.dialog({ title: 'Битка с ' + desc, content, buttons: [{ label: '⚔ В бой!', value: true, cls: 'primary' }, { label: '⚡ Бърз бой', value: 'quick' }] });
-      else choice = await UI.dialog({ title: humans.length === 2 ? 'Битка между двама играчи' : 'Нападнати сме!', text: (ctx.attacker.hero ? ctx.attacker.hero.name : 'Врагът') + ' напада ' + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : 'войските') + '.', content, buttons: [{ label: '⚔ В бой!', value: true, cls: 'primary' }, { label: '⚡ Бърз бой', value: 'quick' }] });
+      if (humans.includes(0) && !humans.includes(1)) choice = await UI.dialog({ title: T('Битка с ') + desc, content, buttons: [{ label: T('⚔ В бой!'), value: true, cls: 'primary' }, { label: T('⚡ Бърз бой'), value: 'quick' }] });
+      else choice = await UI.dialog({ title: humans.length === 2 ? T('Битка между двама играчи') : T('Нападнати сме!'), text: (ctx.attacker.hero ? ctx.attacker.hero.name : T('Врагът')) + T(' напада ') + (ctx.town ? ctx.town.name : d.hero ? d.hero.name : T('войските')) + '.', content, buttons: [{ label: T('⚔ В бой!'), value: true, cls: 'primary' }, { label: T('⚡ Бърз бой'), value: 'quick' }] });
       if (choice === 'quick') {
         // бърз бой: битката се изиграва мигновено от ИИ за двете страни, показва се само резултатът
         const b = new MK.Battle(ctx);
@@ -400,9 +401,9 @@
         MK.Audio.battleEnd(won);
         const after = { att: MK.Army.count(ctx.attacker.army), def: MK.Army.count(d.army) + (d.garrison ? MK.Army.count(d.garrison) : 0) };
         const rc = UI.el('div', { class: 'pre-battle' },
-          sideBox('Нападател — загуби ' + (before.att - after.att), ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
-          sideBox('Защитник — загуби ' + (before.def - after.def), d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? armyRow(d.garrison) : null));
-        await UI.dialog({ title: won ? 'Победа!' : 'Поражение', content: rc });
+          sideBox(T('Нападател — загуби ') + (before.att - after.att), ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
+          sideBox(T('Защитник — загуби ') + (before.def - after.def), d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? armyRow(d.garrison) : null));
+        await UI.dialog({ title: won ? T('Победа!') : T('Поражение'), content: rc });
         w.resolveBattle(ctx, res);
         MK.Audio.resumeMap();
         return res;
@@ -425,11 +426,11 @@
         if (hero) prog.hero = this.world.heroSnapshot(hero);
         MK.Campaign.save(cid, prog);
         const last = this.campaign.index >= C.scenarios.length - 1;
-        await UI.dialog({ title: last ? 'Кампанията е завършена!' : 'Победа!', text: this.campaign.win + (hero && !last ? ' ' + hero.name + ' продължава в следващия сценарий с ниво ' + hero.level + '.' : '') });
+        await UI.dialog({ title: last ? T('Кампанията е завършена!') : T('Победа!'), text: this.campaign.win + (hero && !last ? ' ' + hero.name + T(' продължава в следващия сценарий с ниво ') + hero.level + '.' : '') });
         localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true;
         UI.showCampaignScenarios(this, cid); return;
       }
-      await UI.dialog({ title: p.human ? 'Победа!' : 'Край на играта', text: p.human ? p.colorName + ' играч покори всички противници! Кралството е негово.' : D.PLAYER_COLORS[pid].name + ' играч печели играта.' });
+      await UI.dialog({ title: p.human ? T('Победа!') : T('Край на играта'), text: p.human ? p.colorName + T(' играч покори всички противници! Кралството е негово.') : D.PLAYER_COLORS[pid].name + T(' играч печели играта.') });
       localStorage.removeItem('mk_save');
       this.world = null; document.getElementById('hud').hidden = true;
       UI.showMenu(this);
@@ -461,10 +462,10 @@
       if (!w || this.busy || w.curPlayer !== this.human) return;
       const p0 = w.players[this.human];
       if (this._turnSnap && this._turnSnap === this.turnSnapshot()) {
-        const ok = await UI.dialog({ title: 'Край на деня?', text: 'Не си направил нищо през този ден — никой герой не се е местил, нищо не е построено или купено. Сигурен ли си, че искаш да приключиш деня?', buttons: [{ label: 'Да, нов ден', value: true, cls: 'primary' }, { label: 'Назад', value: false }] });
+        const ok = await UI.dialog({ title: T('Край на деня?'), text: T('Не си направил нищо през този ден — никой герой не се е местил, нищо не е построено или купено. Сигурен ли си, че искаш да приключиш деня?'), buttons: [{ label: T('Да, нов ден'), value: true, cls: 'primary' }, { label: T('Назад'), value: false }] });
         if (!ok) return;
       } else if (p0.heroes.some((id) => { const h = w.heroes[id]; return !h.sleeping && h.movement >= h.maxMovement * 0.5 && h.maxMovement > 0; }) && this._turnSnap) {
-        const ok = await UI.dialog({ title: 'Край на деня?', text: 'Един или повече герои все още могат да се движат. Да приключим ли деня?', buttons: [{ label: 'Да, нов ден', value: true, cls: 'primary' }, { label: 'Назад', value: false }] });
+        const ok = await UI.dialog({ title: T('Край на деня?'), text: T('Един или повече герои все още могат да се движат. Да приключим ли деня?'), buttons: [{ label: T('Да, нов ден'), value: true, cls: 'primary' }, { label: T('Назад'), value: false }] });
         if (!ok) return;
       }
       this.busy = true;
@@ -476,7 +477,7 @@
       while (w.players[w.curPlayer] && !w.players[w.curPlayer].human && guard++ < 10) {
         const p = w.players[w.curPlayer];
         if (p.alive) {
-          UI.toast('Ход на ' + p.colorName.toLowerCase() + ' играч…');
+          UI.toast(T('Ход на ') + p.colorName.toLowerCase() + T(' играч…'));
           const gen = MK.AI.turn(w, p, {});
           let r = gen.next(), k = 0;
           while (!r.done) {
@@ -491,8 +492,8 @@
       this.busy = false;
       if (!this.world) return;
       const me = w.players[w.curPlayer];
-      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); MK.Audio.loseGame(); await UI.dialog({ title: 'Поражение', text: 'Кралството ти падна. Опитай отново!' }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
-      if (!me.human) { UI.toast('Грешка в реда на ходовете.'); return; }
+      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); MK.Audio.loseGame(); await UI.dialog({ title: T('Поражение'), text: T('Кралството ти падна. Опитай отново!') }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
+      if (!me.human) { UI.toast(T('Грешка в реда на ходовете.')); return; }
       // Hot-seat: подаваме устройството
       if (humansCount > 1 || me.id !== this.human) { this.human = me.id; this.selected = null; this.renderer.selected = null; this.updateHUD(); await UI.passDevice(this, me); }
       if (w.dayOfWeek() === 1) MK.Audio.sfx('new_week'); else MK.Audio.sfxClip('new_week', 2000, 700);
@@ -509,6 +510,6 @@
     }
   }
 
-  const init = () => { if (!MK.game) MK.game = new Game(); };
+  const init = () => { if (MK.i18n) MK.i18n.applyData(); if (!MK.game) MK.game = new Game(); };
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', init); else init();
 })();

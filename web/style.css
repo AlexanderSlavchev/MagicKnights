@@ -295,3 +295,5 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .pre-stack { display: flex; flex-direction: column; align-items: center; width: 56px; font-size: 10px; text-align: center; cursor: pointer; }
 .pre-stack b { font-size: 13px; color: var(--gold-2); }
 .pre-stack small { color: var(--ink-dim); line-height: 1.05; }
+
+.audio-panel select.lang { font: inherit; color: var(--ink); background: rgba(0,0,0,0.5); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }

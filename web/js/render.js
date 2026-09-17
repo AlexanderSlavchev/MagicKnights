@@ -204,7 +204,7 @@
                 g.fillStyle = gr; g.fillRect(sx - S * 0.5, sy - S * 0.3, S * 2, S * 1.6);
               }
               const bob = o.type === 'boat' ? Math.sin(T * 2 + x) * S * 0.03 : 0;
-              const scale = o.type === 'town' ? 1.45 : o.type === 'mine' || o.type === 'dwelling' || o.type === 'lighthouse' ? 1.15 : 1;
+              const scale = o.type === 'town' ? 1.45 : o.type === 'dragon_utopia' ? 2 : o.type === 'mine' || o.type === 'dwelling' || o.type === 'lighthouse' ? 1.15 : 1;
               g.drawImage(G.objectSprite(o, spriteS, world), Math.floor(sx - S * (scale - 1) / 2), Math.floor(sy) - S * 0.4 * scale - S * (scale - 1) * 0.72 + bob, TS * scale, TS * 1.4 * scale);
               if (o.guard) this.drawGuard(o, sx, sy, S, T);
               // анимирано знаме
