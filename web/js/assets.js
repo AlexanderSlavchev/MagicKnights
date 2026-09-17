@@ -13,7 +13,7 @@
 
   // XHR вместо fetch — работи и от file:// в Android WebView
   try {
-    const x = new XMLHttpRequest(); x.open('GET', BASE + 'manifest.json'); x.overrideMimeType('application/json');
+    const x = new XMLHttpRequest(); x.open('GET', BASE + 'manifest.json?v=' + ((MK.i18n && MK.i18n.VER) || Date.now())); x.overrideMimeType('application/json');
     x.onload = () => { try { const m = JSON.parse(x.responseText); Object.assign(files, m.files || {}); ready = true; preload(); } catch (e) { /* без рисувани графики */ } };
     x.send();
   } catch (e) { /* без рисувани графики */ }
