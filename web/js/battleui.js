@@ -35,6 +35,8 @@
       // не при всяка промяна на лентата отдолу — иначе полето „подскача“ при всеки ход.
       this._winW = window.innerWidth; this._winH = window.innerHeight;
       this.onPointer = (e) => this.tap(e);
+      this.onHover = (e) => { if (e.pointerType !== 'mouse') return; const rect = this.canvas.getBoundingClientRect(); this.updateHoverAttack((e.clientX - rect.left) * this.dpr, (e.clientY - rect.top) * this.dpr); };
+      this.canvas.addEventListener('pointermove', this.onHover);
       this.canvas.addEventListener('pointerup', this.onPointer);
       this.raf = null;
       this.loopDraw();
@@ -331,6 +333,13 @@
         else { g.fillStyle = '#5a4a2a'; g.fillRect(cx - r * 0.55, cy + r * 0.2, r * 1.1, r * 0.28); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(cx - r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.arc(cx + r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#6a4a2a'; g.lineWidth = r * 0.12; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - r * 0.2, cy + r * 0.2); g.lineTo(cx + r * 0.35, cy - r * 0.7); g.stroke(); g.fillStyle = '#7a7068'; g.beginPath(); g.arc(cx + r * 0.4, cy - r * 0.78, r * 0.14, 0, Math.PI * 2); g.fill(); } }
       const hi = tactics ? this.tacticsStack : (cur && cur.alive ? cur : null);
       if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); const hv = MK.Img.get('ui/hex_hover'); if (hv) { g.globalAlpha = pulse; g.drawImage(hv, p[0] - r * 1.02, p[1] - r * 1.02, r * 2.04, r * 2.04); g.globalAlpha = 1; return; } this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
+      if (this.hoverAttack && this.hoverAttack.opt && !this.hoverAttack.opt.ranged && input) {
+        const o = this.hoverAttack.opt; const [fx, fy] = this.hexCenter(o.from.x, o.from.y); const [tx, ty] = this.hexCenter(o.target.x, o.target.y);
+        this.hexPath(g, fx, fy, r - 2); g.fillStyle = 'rgba(255,170,60,0.45)'; g.fill(); g.strokeStyle = 'rgba(255,200,90,0.95)'; g.lineWidth = 2; g.stroke();
+        const ang = Math.atan2(ty - fy, tx - fx), L = Math.hypot(tx - fx, ty - fy) * 0.55;
+        g.save(); g.translate(fx, fy); g.rotate(ang); g.strokeStyle = 'rgba(255,220,120,0.95)'; g.lineWidth = Math.max(2, r * 0.1); g.lineCap = 'round';
+        g.beginPath(); g.moveTo(r * 0.2, 0); g.lineTo(L, 0); g.stroke(); g.beginPath(); g.moveTo(L, 0); g.lineTo(L - r * 0.35, -r * 0.28); g.lineTo(L - r * 0.35, r * 0.28); g.closePath(); g.fillStyle = 'rgba(255,220,120,0.95)'; g.fill(); g.restore();
+      }
       if (reach && cur) this.attackOpts.forEach((o) => { b.hexes(o.target).forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); const ha = MK.Img.get('ui/hex_attack'); if (ha && !o.ranged) { g.globalAlpha = 0.6; g.drawImage(ha, cx - r * 0.98, cy - r * 0.98, r * 1.96, r * 1.96); g.globalAlpha = 1; return; } this.hexPath(g, cx, cy, r - 2); g.fillStyle = o.ranged ? 'rgba(90,160,255,0.28)' : 'rgba(230,50,50,0.32)'; g.fill(); g.strokeStyle = o.ranged ? 'rgba(143,208,255,0.95)' : 'rgba(255,96,96,0.95)'; g.lineWidth = Math.max(2, r * 0.07); g.stroke(); }); });
       if (this.castSpell) { g.fillStyle = 'rgba(140,120,255,0.12)'; g.fillRect(0, 0, W, H - this.barH); }
       // стекове (сенки, спрайтове, ефекти, брой)
@@ -665,13 +674,36 @@
         return;
       }
       if (target && target.side !== cur.side) {
-        const opt = this.attackOpts.find((o) => o.target === target && o.ranged) || this.attackOpts.find((o) => o.target === target);
+        // посоката на удара се избира по мястото на докосване вътре в хекса на целта (както в класиките)
+        const opt = this.attackOpts.find((o) => o.target === target && o.ranged) || this.chooseAttackOpt(target, px, py);
         if (!opt) { UI.toast(TR('Не можеш да стигнеш до тази цел.')); return; }
         if (opt.ranged) b.doShoot(cur, target); else b.doAttack(cur, target, opt.from.x, opt.from.y);
         this.resolveInput({}); return;
       }
       if (target && target.side === cur.side) { UI.creatureInfo(target.c); return; }
       if (this.reach.has(Hex.idx(x, y)) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { b.doMove(cur, x, y); cur.acted = true; cur.actionKind = 'move'; this.resolveInput({}); }
+    }
+    /* Избор откъде да се удари: от възможните съседни хексове се взима този, чиято посока спрямо
+       центъра на целта е най-близка до посоката на курсора/докосването */
+    chooseAttackOpt(target, px, py) {
+      const opts = this.attackOpts.filter((o) => o.target === target && !o.ranged);
+      if (!opts.length) return null;
+      const [cx, cy] = this.hexCenter(target.x, target.y);
+      const a = Math.atan2(py - cy, px - cx);
+      let best = null, bd = Infinity;
+      opts.forEach((o) => { const [fx, fy] = this.hexCenter(o.from.x, o.from.y); let d = Math.abs(Math.atan2(fy - cy, fx - cx) - a); if (d > Math.PI) d = 2 * Math.PI - d; if (d < bd) { bd = d; best = o; } });
+      return best;
+    }
+    updateHoverAttack(px, py) {
+      const h = this.pixelToHex(px, py);
+      let ha = null;
+      if (h && this.state === 'input' && this.b.current && !this.castSpell) {
+        const t = this.b.occupant(h[0], h[1]);
+        if (t && t.side !== this.b.current.side) { const ranged = this.attackOpts.find((o) => o.target === t && o.ranged); const opt = ranged || this.chooseAttackOpt(t, px, py); if (opt) ha = { target: t, opt, px, py }; }
+      }
+      const changed = !!ha !== !!this.hoverAttack || (ha && this.hoverAttack && (ha.opt !== this.hoverAttack.opt));
+      this.hoverAttack = ha;
+      if (changed || !ha) this.canvas.style.cursor = ha ? (ha.opt.ranged ? 'crosshair' : 'pointer') : '';
     }
     hint(t) { const el = this.bar.querySelector('.log'); if (el && t) el.innerHTML = '<b style="color:#c0a0ff">' + t + '</b>'; }
     openSpellbook(side) {
@@ -696,7 +728,7 @@
       }
       this.castSpell = sp; this.renderBar(); this.hint(TR('Избери цел за „') + sp.name + TR('“ (докосни хекс)'));
     }
-    prepareInput(cur) { this.reach = this.b.reach(cur); this.attackOpts = this.b.attackOptions(cur, this.reach); }
+    prepareInput(cur) { this.reach = this.b.reach(cur); this.attackOpts = this.b.attackOptions(cur, this.reach); this.hoverAttack = null; }
     waitInput(cur) {
       this.state = 'input'; this.prepareInput(cur); this.castSpell = null; this.renderBar();
       return new Promise((res) => { this.resolveInput = (v) => { this.state = 'anim'; this.resolveInput = () => {}; res(v); }; });
@@ -746,7 +778,7 @@
       this.running = false; cancelAnimationFrame(this.raf);
       window.removeEventListener('resize', this.onResize);
       if (this.ro) this.ro.disconnect();
-      this.canvas.removeEventListener('pointerup', this.onPointer);
+      this.canvas.removeEventListener('pointerup', this.onPointer); this.canvas.removeEventListener('pointermove', this.onHover); this.canvas.style.cursor = '';
       this.canvas.hidden = true; this.bar.hidden = true; this.bar.innerHTML = '';
       if (this.hudWasVisible) document.getElementById('hud').hidden = false;
     }
