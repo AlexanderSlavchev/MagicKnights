@@ -1626,5 +1626,7 @@
  "Това е всичко за начало. Целта: превземи градовете на противниците. Успех!": "That is all to begin with. The goal: capture the enemy towns. Good luck!",
  "Искаш ли интерактивен урок на малка карта — стъпка по стъпка с показване къде да натиснеш? Или само кратките правила?": "Would you like an interactive tutorial on a small map — step by step, showing where to tap? Or just the short rules?",
  "▶ Урок": "▶ Tutorial",
- "Правила": "Rules"
+ "Правила": "Rules",
+ "Съветникът": "アドバイザー",
+ "Това е избраната ти единица (светещ хекс) и подсказката вляво. Съветникът ще мълчи, докато се биеш.": "This is your active unit (glowing hex). The advisor will stay quiet while you fight."
 }

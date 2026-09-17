@@ -309,8 +309,8 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .doll .knight-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.85; border-radius: 12px; }
 
 /* Интерактивен урок */
-.tut-ov { position: fixed; inset: 0; z-index: 70; pointer-events: none; }
-.tut-spot { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--gold-2), 0 0 24px rgba(255, 216, 112, 0.7); transition: left 0.15s, top 0.15s, width 0.15s, height 0.15s; pointer-events: none; animation: tutPulse 1.4s ease-in-out infinite; }
+.tut-ov { position: fixed; inset: 0; z-index: 70; pointer-events: auto; touch-action: none; }
+.tut-spot { position: fixed; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--gold-2), 0 0 24px rgba(255, 216, 112, 0.7); transition: left 0.15s, top 0.15s, width 0.15s, height 0.15s; pointer-events: none; animation: tutPulse 1.4s ease-in-out infinite; }
 @keyframes tutPulse { 0%, 100% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 3px var(--gold-2), 0 0 24px rgba(255,216,112,0.7); } 50% { box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 0 5px #fff3c4, 0 0 36px rgba(255,216,112,0.95); } }
 .tut-tip { position: fixed; width: min(340px, calc(100vw - 16px)); background: linear-gradient(180deg, rgba(50,38,18,0.98), rgba(22,16,8,0.98)); border: 2px solid var(--gold); border-radius: 12px; padding: 10px 12px; color: var(--ink); box-shadow: 0 10px 30px rgba(0,0,0,0.7); pointer-events: auto; font-size: 14px; line-height: 1.35; }
 .tut-ov.center .tut-tip { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); }
@@ -319,3 +319,15 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .tut-num { font-size: 11px; color: var(--gold-dim); letter-spacing: 1px; margin-bottom: 4px; }
 .tut-btns { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
 .tut-btns .tiny { margin-right: auto; }
+
+.tut-hand { position: fixed; z-index: 72; font-size: 38px; transform: translate(-40%, -10%); pointer-events: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8)); animation: tutHand 0.9s ease-in-out infinite; }
+@keyframes tutHand { 0%, 100% { transform: translate(-40%, -10%) scale(1); } 50% { transform: translate(-40%, 10%) scale(0.9); } }
+.tut-hand.shake { animation: tutShake 0.4s; }
+@keyframes tutShake { 0%, 100% { margin-left: 0; } 25% { margin-left: -8px; } 75% { margin-left: 8px; } }
+.tut-head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.tut-avatar { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--gold); object-fit: cover; }
+.tut-avatar.emoji { display: flex; align-items: center; justify-content: center; font-size: 24px; background: #222; }
+.tut-who { font-weight: 700; color: var(--gold-2); font-size: 13px; }
+.tut-tip::before { content: ''; position: absolute; left: 24px; top: -10px; border: 10px solid transparent; border-top: none; border-bottom-color: var(--gold); }
+.tut-tip.above::before { top: auto; bottom: -10px; border-bottom: none; border-top: 10px solid var(--gold); }
+.tut-ov.yield { pointer-events: none; } .tut-ov.yield .tut-spot, .tut-ov.yield .tut-hand { display: none !important; } .tut-ov.yield .tut-tip { opacity: 0.35; }

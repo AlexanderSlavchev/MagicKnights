@@ -13,11 +13,31 @@
     if (Tut.ov) return;
     Tut.ov = MK.UI.el('div', { class: 'tut-ov' });
     Tut.spot = MK.UI.el('div', { class: 'tut-spot' });
+    Tut.hand = MK.UI.el('div', { class: 'tut-hand' }, '👆');
     Tut.tip = MK.UI.el('div', { class: 'tut-tip' });
-    Tut.ov.appendChild(Tut.spot); Tut.ov.appendChild(Tut.tip);
+    Tut.ov.appendChild(Tut.spot); Tut.ov.appendChild(Tut.hand); Tut.ov.appendChild(Tut.tip);
     document.body.appendChild(Tut.ov);
+    // Пътеводител: докосванията минават към играта само вътре в осветената цел; всичко друго е блокирано
+    const pass = (e) => {
+      if (Tut.tip.contains(e.target)) return;
+      const step = Tut.steps[Tut.step]; const rect = step && step.when ? Tut.rect : null;
+      const inside = rect && e.clientX >= rect.x && e.clientX <= rect.x + rect.w && e.clientY >= rect.y && e.clientY <= rect.y + rect.h;
+      if (!inside) { e.stopPropagation(); e.preventDefault(); if (e.type === 'pointerup' && step && step.when) Tut.hand.classList.add('shake'); setTimeout(() => Tut.hand.classList.remove('shake'), 400); return; }
+      // препращаме събитието към елемента под целта
+      e.stopPropagation(); e.preventDefault();
+      Tut.ov.style.pointerEvents = 'none';
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      Tut.ov.style.pointerEvents = '';
+      if (!el) return;
+      const ev = new PointerEvent(e.type, { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId || 1, pointerType: e.pointerType || 'touch', button: e.button || 0, isPrimary: true });
+      el.dispatchEvent(ev);
+      if (e.type === 'pointerup') { const ce = new MouseEvent('click', { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY }); el.dispatchEvent(ce); }
+    };
+    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach((t) => Tut.ov.addEventListener(t, pass, true));
+    Tut.ov.addEventListener('click', (e) => { if (!Tut.tip.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } }, true);
+    Tut.ov.addEventListener('contextmenu', (e) => e.preventDefault());
   }
-  function destroyOverlay() { if (Tut.ov) Tut.ov.remove(); Tut.ov = Tut.tip = Tut.spot = null; if (Tut.raf) cancelAnimationFrame(Tut.raf); Tut.raf = null; if (Tut.timer) clearInterval(Tut.timer); Tut.timer = null; }
+  function destroyOverlay() { if (Tut.ov) Tut.ov.remove(); Tut.ov = Tut.tip = Tut.spot = Tut.hand = null; Tut.rect = null; if (Tut.raf) cancelAnimationFrame(Tut.raf); Tut.raf = null; if (Tut.timer) clearInterval(Tut.timer); Tut.timer = null; }
 
   /* Правоъгълник на целта: DOM елемент, плочка от картата или хекс от битката */
   function targetRect(t, game) {
@@ -35,19 +55,25 @@
   }
 
   function place(step, game) {
+    const modal = document.querySelector('#overlay .modal-wrap');
+    Tut.ov.classList.toggle('yield', !!modal && !!step.when);
     const rect = targetRect(step.target, game);
     const sp = Tut.spot, tip = Tut.tip;
+    Tut.rect = rect;
     if (rect) {
       sp.style.display = 'block';
+      Tut.hand.style.display = step.when ? 'block' : 'none';
+      const hr = (step.hand && targetRect(step.hand, game)) || rect;
+      Tut.hand.style.left = (hr.x + hr.w / 2) + 'px'; Tut.hand.style.top = (hr.y + hr.h * 0.55) + 'px';
       sp.style.left = rect.x + 'px'; sp.style.top = rect.y + 'px'; sp.style.width = rect.w + 'px'; sp.style.height = rect.h + 'px';
       // текстът е под целта, ако има място, иначе над нея
       const vh = window.innerHeight, below = rect.y + rect.h + 12;
       tip.style.left = ''; tip.style.right = ''; tip.style.top = ''; tip.style.bottom = '';
-      if (below + 150 < vh) tip.style.top = below + 'px'; else tip.style.bottom = (vh - rect.y + 12) + 'px';
+      if (below + 150 < vh) { tip.style.top = below + 'px'; tip.classList.remove('above'); } else { tip.style.bottom = (vh - rect.y + 12) + 'px'; tip.classList.add('above'); }
       const cx = rect.x + rect.w / 2; tip.style.left = Math.max(8, Math.min(window.innerWidth - 8 - Math.min(340, window.innerWidth - 16), cx - 170)) + 'px';
       Tut.ov.classList.remove('center');
     } else {
-      sp.style.display = 'none'; tip.style.left = ''; tip.style.top = ''; tip.style.bottom = '';
+      sp.style.display = 'none'; Tut.hand.style.display = 'none'; tip.style.left = ''; tip.style.top = ''; tip.style.bottom = '';
       Tut.ov.classList.add('center');
     }
   }
@@ -56,14 +82,14 @@
     const step = Tut.steps[Tut.step]; if (!step) return;
     ensureOverlay();
     const tip = Tut.tip; tip.innerHTML = '';
-    tip.appendChild(MK.UI.el('div', { class: 'tut-num' }, (Tut.step + 1) + ' / ' + Tut.steps.length));
+    const port = MK.Img.url('heroes/cleric_portrait');
+    tip.appendChild(MK.UI.el('div', { class: 'tut-head' }, port ? MK.UI.el('img', { src: port, class: 'tut-avatar', alt: '' }) : MK.UI.el('span', { class: 'tut-avatar emoji' }, '🧙'), MK.UI.el('div', null, MK.UI.el('div', { class: 'tut-who' }, TR('Съветникът')), MK.UI.el('div', { class: 'tut-num' }, (Tut.step + 1) + ' / ' + Tut.steps.length))));
     tip.appendChild(MK.UI.el('div', { class: 'tut-text' }, step.text));
     const row = MK.UI.el('div', { class: 'tut-btns' });
     if (!step.when) row.appendChild(MK.UI.el('button', { class: 'primary small', onclick: () => next(game) }, step.last ? TR('Край на урока') : TR('Напред')));
     else row.appendChild(MK.UI.el('span', { class: 'tiny' }, step.waitText || TR('Направи го, за да продължим…')));
     row.appendChild(MK.UI.el('button', { class: 'small', onclick: () => stop(game, true) }, TR('Спри урока')));
     tip.appendChild(row);
-    Tut.ov.classList.toggle('pass', !!step.when); // при чакане докосванията минават към играта
     place(step, game);
   }
 
@@ -92,12 +118,13 @@
     S.push({ text: TR('Долу е подсказката: показва какво ще стане при докосване. Първо докосване на плочка показва пътя и дните, второ — тръгваш.'), target: '#hint' });
     S.push({ text: TR('Наблизо има ресурс. Докосни го веднъж, за да видиш пътя, и още веднъж, за да го вземеш.'), target: { get tile() { const o = game._tutRes; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => { const o = game._tutRes; return !o || !w.objectAt(o.x, o.y, 0); }, setup: (g) => { ensureTutorialObjects(g); } });
     S.push({ text: TR('Вляво е панелът: миникарта, героите и градовете ти. Докосни иконата на града, за да влезеш в него.'), target: '#town-list', when: () => !!document.querySelector('.screen.town') });
-    S.push({ text: TR('Това е градът ти. Сградите на панорамата са кликаеми. Докосни управата (или бутона „Строеж“) и построй нещо — например Пазар или следващото жилище.'), target: '.town-tabs', when: () => town() && Object.keys(town().buildings).length > game._tutBuildCount, setup: () => { game._tutBuildCount = Object.keys(town().buildings).length; } });
-    S.push({ text: TR('Всяка седмица в жилищата се появяват нови същества. Докосни жилището (или „Набор“) и наеми войска — тя отива при героя, ако е в града, иначе в гарнизона.'), target: '.town-tabs', when: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); return cnt(t.garrison) + cnt(h.army) > game._tutArmy; }, setup: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); game._tutArmy = cnt(t.garrison) + cnt(h.army); } });
+    S.push({ text: TR('Това е градът ти. Сградите на панорамата са кликаеми. Докосни управата (или бутона „Строеж“) и построй нещо — например Пазар или следващото жилище.'), target: '.screen.town', hand: '.town-tabs button:first-child', when: () => town() && Object.keys(town().buildings).length > game._tutBuildCount, setup: () => { game._tutBuildCount = Object.keys(town().buildings).length; } });
+    S.push({ text: TR('Всяка седмица в жилищата се появяват нови същества. Докосни жилището (или „Набор“) и наеми войска — тя отива при героя, ако е в града, иначе в гарнизона.'), target: '.screen.town', hand: '.town-tabs button:nth-child(2)', when: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); return cnt(t.garrison) + cnt(h.army) > game._tutArmy; }, setup: () => { const t = town(); const h = hero(); const cnt = (a) => a.reduce((s, x) => s + (x ? x.n : 0), 0); game._tutArmy = cnt(t.garrison) + cnt(h.army); } });
     S.push({ text: TR('Затвори града с ✕ и се върни на картата.'), target: '.screen.town header button:last-child', when: () => !document.querySelector('.screen.town') });
     S.push({ text: TR('Задръж пръста върху нещо на картата (същество, град, обект), за да видиш подробности — колко са, какво дават.') });
     S.push({ text: TR('Когато си свършил за деня, натисни „Ход“. Компютърът играе своя ход, после идва нов ден с нови точки за движение.'), target: '#btn-end', when: () => w.day > game._tutDay, setup: () => { game._tutDay = w.day; } });
     S.push({ text: TR('Наблизо има малка група пазачи. Докосни ги — първо се показва прозорец с двете армии, после избираш „В бой!“ (ръчна битка) или „Бърз бой“. Избери „В бой!“.'), target: { get tile() { const o = game._tutMon; return o && w.objectAt(o.x, o.y, 0) ? { x: o.x, y: o.y, z: 0 } : null; } }, when: () => !$('battle').hidden, setup: (g) => { ensureTutorialObjects(g); } });
+    S.push({ text: TR('Това е избраната ти единица (светещ хекс) и подсказката вляво. Съветникът ще мълчи, докато се биеш.'), target: '#battle' });
     S.push({ text: TR('Бойно поле. Единиците се редуват по скорост. Зелените хексове са докъдето може да стигне текущата единица. Докосни враг — светват хексовете, откъдето можеш да го удариш; докосни един от тях.'), target: '#battle', when: () => $('battle').hidden });
     S.push({ text: TR('Победа носи опит: сборът от живота на убитите врагове. С опит героят вдига нива и получава умения. Мините дават ресурси всеки ден — завладей ги, като стъпиш на тях.') });
     S.push({ text: TR('Това е всичко за начало. Целта: превземи градовете на противниците. Успех!'), last: true });
