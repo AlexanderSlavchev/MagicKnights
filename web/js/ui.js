@@ -390,7 +390,8 @@
       right.appendChild(el('h3', { style: 'margin-top:8px' }, T('Артефакти')));
       // „Кукла“ като в класиките: гравиран рицар, слотовете са по местата на тялото
       const doll = el('div', { class: 'doll' });
-      doll.innerHTML = KNIGHT_SVG;
+      const dollImg = MK.Img.url('ui/doll_knight');
+      if (dollImg) doll.appendChild(el('img', { src: dollImg, class: 'knight-img', alt: '' })); else doll.innerHTML = KNIGHT_SVG;
       const POS = { head: [50, 6], neck: [50, 23], shoulders: [78, 20], weapon: [18, 42], shield: [82, 44], torso: [50, 42], ring0: [22, 66], ring1: [78, 66], feet: [50, 88], misc0: [8, 92], misc1: [26, 92], misc2: [74, 92], misc3: [92, 92] };
       let ringN = 0, miscN = 0;
       D.SLOTS.forEach((slot, i) => {

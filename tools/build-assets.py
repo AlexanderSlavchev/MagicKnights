@@ -23,7 +23,7 @@ SPECIAL = {  # конкретни файлове с друг размер (w, h)
     'heroes/*_portrait': (256, False, 85), 'towns/*_screen': (1600, False, 80), 'battle/bg_*': (1600, False, 80),
     'battle/obstacles': (1024, True, 85), 'terrain/water_frames': (1024, False, 88), 'terrain/road': (512, False, 88),
     'decor/mountain_*': (768, True, 85), 'objects/mine_*': (384, True, 85), 'ui/frame_wood': (512, True, 90),
-    'ui/panel_dark': (512, False, 85), 'siege/*_moat': (512, False, 88), 'siege/*_keep': (640, True, 85), 'siege/*_tower': (560, True, 85), 'siege/*_wall': (512, False, 85), 'siege/*_wall_damaged': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
+    'ui/panel_dark': (512, False, 85), 'ui/doll_knight': (768, False, 85), 'ui/app_icon': (512, False, 88), 'siege/*_moat': (512, False, 88), 'siege/*_keep': (640, True, 85), 'siege/*_tower': (560, True, 85), 'siege/*_wall': (512, False, 85), 'siege/*_wall_damaged': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
 }
 
 def rule(rel):
