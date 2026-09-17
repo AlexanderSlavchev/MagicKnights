@@ -100,7 +100,7 @@
       el('button', { class: 'primary', onclick: () => showSetup(game) }, T('Нова игра')),
       el('button', { onclick: () => showCampaign(game) }, T('Кампания')),
       el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, T('Продължи')),
-      el('button', { onclick: () => showHelp() }, T('Как се играе')),
+      el('button', { onclick: () => showHelp(game) }, T('Как се играе')),
       game.world ? el('button', { onclick: () => { closeScreens(); game.afterScreen(); } }, T('Назад към играта')) : null
     ));
     s.appendChild(audioPanel());
@@ -118,7 +118,13 @@
     box.appendChild(slider(T('Ефекти'), A.settings.sfx, (v) => A.setSfx(v)));
     return box;
   }
-  function showHelp() {
+  function showHelp(game) {
+    if (game && game.newGame) {
+      return dialog({ title: T('Как се играе'), text: T('Искаш ли интерактивен урок на малка карта — стъпка по стъпка с показване къде да натиснеш? Или само кратките правила?'), buttons: [{ label: T('▶ Урок'), value: 'tut', cls: 'primary' }, { label: T('Правила'), value: 'text' }, { label: T('Назад'), value: false }] }).then((v) => { if (v === 'tut') MK.Tutorial.start(game); else if (v === 'text') showHelpText(); });
+    }
+    return showHelpText();
+  }
+  function showHelpText() {
     dialog({ title: T('Как се играе'), content: el('div', null,
       el('p', null, T('Всеки ход местиш героите си по картата, събираш ресурси, превземаш мини и градове и се биеш с пазачите. Докосни плочка, за да видиш пътя, докосни я пак, за да тръгнеш. Плъзгане мести картата, щипка — мащабира.')),
       el('p', null, T('В града строиш по една сграда на ден и набираш същества всяка седмица. Героят вдига ниво от опит и избира умения.')),
