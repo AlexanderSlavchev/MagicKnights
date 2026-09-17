@@ -70,7 +70,10 @@
       const band = Math.floor((this.canvas.height - barH) * this.bandK);
       const availW = fieldW - 16 * dpr, availH = this.canvas.height - barH - 24 * dpr - band;
       const heroPad = (this.b.sides[0].hero ? 1.3 : 0) + (this.b.sides[1].hero ? 1.3 : 0); // място за героите отстрани
-      this.r = Math.max(4, Math.min(availW / (Math.sqrt(3) * (Hex.W + 0.5) + heroPad), availH / ((1.5 * (Hex.H - 1)) * sq + 2)));
+      const rW = availW / (Math.sqrt(3) * (Hex.W + 0.5) + heroPad), rH = availH / ((1.5 * (Hex.H - 1)) * sq + 2);
+      this.r = Math.max(4, Math.min(rW, rH));
+      // ако ширината ограничава, редовете се разтварят вертикално (до правилни хексове), за да се запълни височината
+      this.squash = rW <= rH ? Math.max(sq, Math.min(1, (availH - 2 * this.r) / (1.5 * (Hex.H - 1) * this.r))) : sq;
       this.ox = fieldX + (fieldW - Math.sqrt(3) * this.r * (Hex.W + 0.5)) / 2 + Math.sqrt(3) * this.r / 2;
       this.oy = 22 * dpr + band + this.r;
       this.fieldX = fieldX;
@@ -123,36 +126,56 @@
       const art = { wall: get('wall'), wall_damaged: get('wall_damaged'), rubble: get('rubble'), gate: get('gate'), gate_broken: get('gate_broken'), tower: get('tower'), keep: get('keep'), tower_ruin: get('tower_ruin'), moat: get('moat') };
       return art.wall && art.gate && art.tower ? art : null;
     }
+    /* Непрекъсната колона на стената: горен парапет + повтаряща се средна част + основа, кеширана по размер */
+    wallColumn(art, w, h) {
+      const key = Math.round(w) + 'x' + Math.round(h) + this.b.ctx.town.faction;
+      if (this._wallCol && this._wallCol.key === key) return this._wallCol.c;
+      const im = art.wall, c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h); const g = c.getContext('2d');
+      const k = w / im.width, capT = im.height * 0.24, capB = im.height * 0.14, mid0 = im.height * 0.26, mid1 = im.height * 0.84;
+      const capTh = capT * k, capBh = capB * k;
+      g.drawImage(im, 0, 0, im.width, capT, 0, 0, w, capTh);
+      g.drawImage(im, 0, im.height - capB, im.width, capB, 0, h - capBh, w, capBh);
+      let y = capTh; const midH = (mid1 - mid0) * k;
+      while (y < h - capBh) { const hh = Math.min(midH, h - capBh - y); g.drawImage(im, 0, mid0, im.width, (mid1 - mid0) * hh / midH, 0, y, w, hh); y += hh; }
+      this._wallCol = { key, c }; return c;
+    }
     drawWallRow(y, T) {
       const b = this.b; if (!b.siege) return;
       const g = this.ctx, r = this.r, sq = this.squash || 1;
       const WX = 10, gateI = Hex.idx(WX, 5);
       const art = this.siegeArt();
       if (art) {
-        // рисувани стени: всеки сегмент е колона с основа в долния край на хекса; портата е по-широка; кулите — по-високи
-        const drawPart = (im, cx, cy, wMul, anchor) => { if (!im) return; const w = Math.sqrt(3) * r * wMul, h = w * im.height / im.width; const base = cy + r * sq * 0.95; g.drawImage(im, cx - w / 2, base - h, w, h); return { top: base - h, base, w, h }; };
-        const hpBar = (cx, base, hp, maxHp) => { if (!maxHp) return; const dmg = 1 - hp / maxHp; g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(cx - r * 0.5, base + r * 0.05, r, r * 0.12); g.fillStyle = dmg > 0.5 ? '#ff8a60' : '#ffd870'; g.fillRect(cx - r * 0.5, base + r * 0.05, r * (hp / maxHp), r * 0.12); };
-        for (let x = 0; x < Hex.W; x++) {
-          const i = Hex.idx(x, y);
-          const isGate = i === gateI;
-          if (b.walls.has(i) || (isGate && b.isGateIntact())) {
-            const [cx, cy] = this.hexCenter(x, y); const hp = b.wallHp[i] || 0, maxHp = b.siege + (isGate ? 1 : 0);
-            const im = isGate ? art.gate : hp < maxHp && art.wall_damaged ? art.wall_damaged : art.wall;
-            const q = drawPart(im, cx, cy, isGate ? 1.55 : 1.08);
-            // знаме в цвета на защитника на портата
-            if (isGate && q) { const col = this.sideColor(1); const fx = cx, fy = q.top + r * 0.1; g.strokeStyle = '#3a2a10'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - r * 1.0); g.stroke(); g.fillStyle = col; g.beginPath(); g.moveTo(fx, fy - r); g.lineTo(fx + r * 0.5 + Math.sin(T * 3) * r * 0.06, fy - r * 0.82); g.lineTo(fx, fy - r * 0.6); g.closePath(); g.fill(); }
-            if (q) hpBar(cx, q.base, hp, maxHp);
-          } else if (isGate && b.siege && !b.isGateIntact()) { const [cx, cy] = this.hexCenter(x, y); drawPart(art.gate_broken || art.rubble, cx, cy, 1.55); }
-          else if (b.rubble.has(i) && x === WX) { const [cx, cy] = this.hexCenter(x, y); drawPart(art.rubble, cx, cy, 1.15); }
+        // Рисувана обсада: стената е една непрекъсната колона по цялата височина на полето (горен парапет,
+        // повтаряща се средна част, основа), рисувана по ленти ред по ред, за да стои правилно спрямо единиците.
+        const rowH = 1.5 * r * sq, hexW = Math.sqrt(3) * r;
+        const top0 = this.hexCenter(WX, 0)[1] - rowH * 0.5 - r * sq * 0.9, base0 = this.hexCenter(WX, Hex.H - 1)[1] + r * sq * 0.95;
+        const colW = hexW * 1.5, colX = this.hexCenter(WX, 0)[0] - colW / 2 + (0 & 1) * 0;
+        const col = this.wallColumn(art, colW, base0 - top0);
+        const [cx, cy] = this.hexCenter(WX, y);
+        const bandTop = cy - rowH * 0.5 - (y === 0 ? r * sq : 0), bandBot = cy + rowH * 0.5 + (y === Hex.H - 1 ? r * sq * 0.5 : 0);
+        const i = Hex.idx(WX, y), isGate = i === gateI;
+        const hp = b.wallHp[i] || 0, maxHp = b.siege + (isGate ? 1 : 0);
+        const alive = b.walls.has(i) || (isGate && b.isGateIntact());
+        const drawPart = (im, cx2, cy2, wMul) => { if (!im) return; const w = hexW * wMul, h = w * im.height / im.width; const base = cy2 + r * sq * 0.95; g.drawImage(im, cx2 - w / 2, base - h, w, h); return { top: base - h, base, w, h }; };
+        const hpBar = (base, hpv, mx) => { if (!mx) return; const dmg = 1 - hpv / mx; g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(cx - r * 0.5, base + r * 0.05, r, r * 0.12); g.fillStyle = dmg > 0.5 ? '#ff8a60' : '#ffd870'; g.fillRect(cx - r * 0.5, base + r * 0.05, r * (hpv / mx), r * 0.12); };
+        if (alive || isGate) {
+          g.save(); g.beginPath(); g.rect(colX - r, bandTop, colW + r * 2, bandBot - bandTop); g.clip();
+          g.drawImage(col, colX, top0);
+          if (alive && !isGate && hp < maxHp && art.wall_damaged) { // пукнатини по повредения сегмент
+            const im = art.wall_damaged; g.globalAlpha = 0.95; g.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, colX, bandTop, colW, bandBot - bandTop); g.globalAlpha = 1;
+          }
+          g.restore();
         }
+        if (isGate) { const q = drawPart(b.isGateIntact() ? art.gate : (art.gate_broken || art.rubble), cx, cy, 1.7); if (q && b.isGateIntact()) { const cl = this.sideColor(1); const fx = cx, fy = q.top + r * 0.1; g.strokeStyle = '#3a2a10'; g.lineWidth = Math.max(1, r * 0.05); g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - r); g.stroke(); g.fillStyle = cl; g.beginPath(); g.moveTo(fx, fy - r); g.lineTo(fx + r * 0.5 + Math.sin(T * 3) * r * 0.06, fy - r * 0.82); g.lineTo(fx, fy - r * 0.6); g.closePath(); g.fill(); } }
+        else if (!alive && b.rubble.has(i)) drawPart(art.rubble, cx, cy, 1.3);
+        if (alive) hpBar(cy + r * sq * 0.6, hp, maxHp);
         b.towers.forEach((tw) => {
           if (tw.y !== y) return;
-          const [cx, cy] = this.hexCenter(tw.x, tw.y); const big = tw.x === 13;
-          if (tw.destroyed) { drawPart(art.tower_ruin || art.rubble, cx, cy, big ? 1.6 : 1.3); return; }
-          const q = drawPart(big ? (art.keep || art.tower) : art.tower, cx, cy, big ? 1.7 : 1.25);
-          // стрелец на върха на кулата
+          const [tx, ty0] = this.hexCenter(tw.x, tw.y); const big = tw.x === 13; const ty = tw.y === 0 ? ty0 + r * sq * 1.4 : ty0; // горната кула стъпва по-ниско, за да не излиза от екрана
+          if (tw.destroyed) { drawPart(art.tower_ruin || art.rubble, tx, ty, big ? 1.5 : 1.2); return; }
+          const q = drawPart(big ? (art.keep || art.tower) : art.tower, tx, ty, big ? 1.6 : 1.2);
           const t = b.ctx.town; const c = t ? D.creatureOf(t.faction + '2' + (t.buildings && t.buildings.dw2u ? 'u' : '')) : null;
-          if (c && q) { const spr = G.creatureSprite(c, 128, true); const sz = r * 1.2; g.drawImage(spr, cx - sz / 2 + (big ? -r * 0.1 : 0), q.top + q.h * 0.1 - sz * 1.4 + Math.sin(T * 1.7 + cx) * r * 0.02, sz, sz * 1.4); }
+          if (c && q) { const spr = G.creatureSprite(c, 128, true); const sz = r * 1.25; g.drawImage(spr, tx - sz / 2 + (big ? -r * 0.05 : 0), q.top + q.h * 0.1 - sz * 1.4 + Math.sin(T * 1.7 + tx) * r * 0.02, sz, sz * 1.4); }
         });
         return;
       }
