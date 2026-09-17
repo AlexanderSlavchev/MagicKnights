@@ -333,7 +333,18 @@
         else { g.fillStyle = '#5a4a2a'; g.fillRect(cx - r * 0.55, cy + r * 0.2, r * 1.1, r * 0.28); g.fillStyle = '#3a2a1a'; g.beginPath(); g.arc(cx - r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.arc(cx + r * 0.4, cy + r * 0.5, r * 0.16, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#6a4a2a'; g.lineWidth = r * 0.12; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - r * 0.2, cy + r * 0.2); g.lineTo(cx + r * 0.35, cy - r * 0.7); g.stroke(); g.fillStyle = '#7a7068'; g.beginPath(); g.arc(cx + r * 0.4, cy - r * 0.78, r * 0.14, 0, Math.PI * 2); g.fill(); } }
       const hi = tactics ? this.tacticsStack : (cur && cur.alive ? cur : null);
       if (hi) { const pulse = 0.6 + 0.35 * Math.sin(T * 5); b.hexes(hi).forEach(([hx, hy]) => { const p = this.hexCenter(hx, hy); const hv = MK.Img.get('ui/hex_hover'); if (hv) { g.globalAlpha = pulse; g.drawImage(hv, p[0] - r * 1.02, p[1] - r * 1.02, r * 2.04, r * 2.04); g.globalAlpha = 1; return; } this.hexPath(g, p[0], p[1], r - 1); g.strokeStyle = 'rgba(255,216,112,' + pulse + ')'; g.lineWidth = 3; g.stroke(); g.fillStyle = 'rgba(255,216,112,0.12)'; g.fill(); }); }
-      if (this.hoverAttack && this.hoverAttack.opt && !this.hoverAttack.opt.ranged && input) {
+      if (this.pickTarget && input) { // всички посоки за удар по избраната цел
+        const [tx, ty] = this.hexCenter(this.pickTarget.x, this.pickTarget.y);
+        const pulse = 0.35 + 0.15 * Math.sin(T * 6);
+        this.attackOpts.filter((o) => o.target === this.pickTarget && !o.ranged).forEach((o) => {
+          const [fx, fy] = this.hexCenter(o.from.x, o.from.y);
+          this.hexPath(g, fx, fy, r - 2); g.fillStyle = 'rgba(255,170,60,' + pulse + ')'; g.fill(); g.strokeStyle = 'rgba(255,200,90,0.95)'; g.lineWidth = 2; g.stroke();
+          const ang = Math.atan2(ty - fy, tx - fx), L = Math.hypot(tx - fx, ty - fy) * 0.5;
+          g.save(); g.translate(fx, fy); g.rotate(ang); g.strokeStyle = 'rgba(255,230,140,0.95)'; g.lineWidth = Math.max(2, r * 0.09); g.lineCap = 'round';
+          g.beginPath(); g.moveTo(r * 0.15, 0); g.lineTo(L, 0); g.stroke(); g.beginPath(); g.moveTo(L, 0); g.lineTo(L - r * 0.3, -r * 0.24); g.lineTo(L - r * 0.3, r * 0.24); g.closePath(); g.fillStyle = 'rgba(255,230,140,0.95)'; g.fill(); g.restore();
+        });
+        this.hexPath(g, tx, ty, r - 1); g.strokeStyle = 'rgba(255,80,60,0.95)'; g.lineWidth = 3; g.stroke();
+      } else if (this.hoverAttack && this.hoverAttack.opt && !this.hoverAttack.opt.ranged && input) {
         const o = this.hoverAttack.opt; const [fx, fy] = this.hexCenter(o.from.x, o.from.y); const [tx, ty] = this.hexCenter(o.target.x, o.target.y);
         this.hexPath(g, fx, fy, r - 2); g.fillStyle = 'rgba(255,170,60,0.45)'; g.fill(); g.strokeStyle = 'rgba(255,200,90,0.95)'; g.lineWidth = 2; g.stroke();
         const ang = Math.atan2(ty - fy, tx - fx), L = Math.hypot(tx - fx, ty - fy) * 0.55;
@@ -673,12 +684,21 @@
         this.playEvents().then(() => { if (b.finished) this.resolveInput({}); else { this.prepareInput(cur); this.renderBar(); } });
         return;
       }
+      // избрана цел за близък бой: осветени са всички хексове, откъдето може да се удари — докосни един от тях
+      if (this.pickTarget) {
+        const o = this.attackOpts.find((q) => q.target === this.pickTarget && !q.ranged && q.from.x === x && q.from.y === y);
+        if (o) { this.pickTarget = null; b.doAttack(cur, o.target, o.from.x, o.from.y); this.resolveInput({}); return; }
+        if (target === this.pickTarget) { const d = this.chooseAttackOpt(target, px, py); this.pickTarget = null; if (d) { b.doAttack(cur, target, d.from.x, d.from.y); this.resolveInput({}); } return; }
+        this.pickTarget = null; // друго докосване: отказ и обичайна обработка
+      }
       if (target && target.side !== cur.side) {
-        // посоката на удара се избира по мястото на докосване вътре в хекса на целта (както в класиките)
-        const opt = this.attackOpts.find((o) => o.target === target && o.ranged) || this.chooseAttackOpt(target, px, py);
-        if (!opt) { UI.toast(TR('Не можеш да стигнеш до тази цел.')); return; }
-        if (opt.ranged) b.doShoot(cur, target); else b.doAttack(cur, target, opt.from.x, opt.from.y);
-        this.resolveInput({}); return;
+        const ranged = this.attackOpts.find((o) => o.target === target && o.ranged);
+        if (ranged) { b.doShoot(cur, target); this.resolveInput({}); return; }
+        const opts = this.attackOpts.filter((o) => o.target === target && !o.ranged);
+        if (!opts.length) { UI.toast(TR('Не можеш да стигнеш до тази цел.')); return; }
+        if (opts.length === 1) { b.doAttack(cur, target, opts[0].from.x, opts[0].from.y); this.resolveInput({}); return; }
+        this.pickTarget = target; this.hint(TR('Избери откъде да удариш — докосни осветен хекс.'));
+        return;
       }
       if (target && target.side === cur.side) { UI.creatureInfo(target.c); return; }
       if (this.reach.has(Hex.idx(x, y)) && b.canStand(cur, x, y) && !(x === cur.x && y === cur.y)) { b.doMove(cur, x, y); cur.acted = true; cur.actionKind = 'move'; this.resolveInput({}); }
@@ -728,7 +748,7 @@
       }
       this.castSpell = sp; this.renderBar(); this.hint(TR('Избери цел за „') + sp.name + TR('“ (докосни хекс)'));
     }
-    prepareInput(cur) { this.reach = this.b.reach(cur); this.attackOpts = this.b.attackOptions(cur, this.reach); this.hoverAttack = null; }
+    prepareInput(cur) { this.reach = this.b.reach(cur); this.attackOpts = this.b.attackOptions(cur, this.reach); this.hoverAttack = null; this.pickTarget = null; }
     waitInput(cur) {
       this.state = 'input'; this.prepareInput(cur); this.castSpell = null; this.renderBar();
       return new Promise((res) => { this.resolveInput = (v) => { this.state = 'anim'; this.resolveInput = () => {}; res(v); }; });
