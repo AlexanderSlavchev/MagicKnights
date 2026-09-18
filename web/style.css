@@ -341,3 +341,5 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 @keyframes cheerPop { 0% { transform: scale(0.3); opacity: 0; } 30% { transform: scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(1) translateY(-30px); opacity: 0; } }
 .tut-cheer i { position: absolute; left: 0; top: 0; width: 10px; height: 14px; border-radius: 2px; animation: confetti 1.2s ease-out forwards; }
 @keyframes confetti { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
+.pre-result { flex-direction: column; }
+.pre-result .pre-side { flex: none; }

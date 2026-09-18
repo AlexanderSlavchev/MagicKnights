@@ -1640,5 +1640,8 @@
  "Опитът от битката вдига ниво! Избери умение — те правят героя уникален.": "The experience from the battle levels you up! Pick a skill — skills make the hero unique.",
  "Ново ниво!": "Level up!",
  "Това е играта: ход по ход събираш, строиш, наемаш и се биеш, докато превземеш всички вражески градове. Ето финалната награда — и те чакат шест кампании с истории.": "That is the game: turn by turn you gather, build, recruit and fight until you capture all enemy towns. Here is the final reward — and six story campaigns await you.",
- "Бий се…": "Сражайся…"
+ "Бий се…": "Сражайся…",
+ "Загуби:": "Потери:",
+ "Твоите загуби": "Твои потери",
+ "Загуби на врага": "Потери врага"
 }

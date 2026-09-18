@@ -398,15 +398,21 @@
       if (choice === 'quick') {
         // бърз бой: битката се изиграва мигновено от ИИ за двете страни, показва се само резултатът
         const b = new MK.Battle(ctx);
-        const before = { att: MK.Army.count(ctx.attacker.army), def: MK.Army.count(d.army) + (d.garrison ? MK.Army.count(d.garrison) : 0) };
+        const snap = (a) => (a || []).filter(Boolean).map((s) => ({ c: s.c, n: s.n }));
+        const before = { att: snap(ctx.attacker.army), def: snap(d.army).concat(snap(d.garrison)) };
         const res = b.runAuto();
         const mine = humans.includes(0) ? 0 : 1;
         const won = (res.winner === 'att') === (mine === 0);
         MK.Audio.battleEnd(won);
-        const after = { att: MK.Army.count(ctx.attacker.army), def: MK.Army.count(d.army) + (d.garrison ? MK.Army.count(d.garrison) : 0) };
-        const rc = UI.el('div', { class: 'pre-battle' },
-          sideBox(T('Нападател — загуби ') + (before.att - after.att), ctx.attacker.hero, ctx.attacker.owner, ctx.attacker.army),
-          sideBox(T('Защитник — загуби ') + (before.def - after.def), d.hero, d.owner >= 0 ? d.owner : 0, d.army, d.garrison ? armyRow(d.garrison) : null));
+        // загуби по видове: преди минус след
+        const losses = (bef, now) => { const left = {}; now.forEach((s) => { left[s.c] = (left[s.c] || 0) + s.n; }); const out = []; const seen = {}; bef.forEach((s) => { seen[s.c] = (seen[s.c] || 0) + s.n; }); for (const c in seen) { const lost = seen[c] - (left[c] || 0); if (lost > 0) out.push({ c, n: lost }); } return out; };
+        const after = { att: snap(ctx.attacker.army), def: snap(d.army).concat(snap(d.garrison)) };
+        const lostAtt = losses(before.att, after.att), lostDef = losses(before.def, after.def);
+        const total = (l) => l.reduce((s, x) => s + x.n, 0);
+        const lossBox = (title, hero, owner, lost) => UI.el('div', { class: 'pre-side' }, UI.el('div', { class: 'pre-title' }, title), heroBox(hero, owner), UI.el('div', { class: 'tiny' }, T('Загуби:') + (lost.length ? '' : ' ' + T('няма'))), lost.length ? armyRow(lost) : null);
+        const rc = UI.el('div', { class: 'pre-battle pre-result' },
+          lossBox((humans.includes(0) ? T('Твоите загуби') : T('Нападател')) + ' — ' + total(lostAtt), ctx.attacker.hero, ctx.attacker.owner, lostAtt),
+          lossBox((humans.includes(1) ? T('Твоите загуби') : T('Загуби на врага')) + ' — ' + total(lostDef), d.hero, d.owner >= 0 ? d.owner : 0, lostDef));
         await UI.dialog({ title: won ? T('Победа!') : T('Поражение'), content: rc });
         w.resolveBattle(ctx, res);
         MK.Audio.resumeMap();

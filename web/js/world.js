@@ -821,6 +821,7 @@
       if (t.visitor && this.heroes[t.visitor] && this.heroes[t.visitor].owner !== hero.owner) this.removeHero(this.heroes[t.visitor]);
       t.visitor = null;
       t.owner = hero.owner;
+      const to = this.map.objects.find((o) => o.type === 'town' && o.townId === t.id); if (to) to.owner = hero.owner; // знамето на картата
       this.players[hero.owner].towns.push(t.id);
       if (hero.boat) { this.addObject({ type: 'boat', x: hero.x, y: hero.y, z: hero.z, owner: hero.owner }); hero.boat = false; }
       hero.x = t.x; hero.y = t.y; hero.z = t.z; hero.inTown = t.id; t.visitor = hero.id;
