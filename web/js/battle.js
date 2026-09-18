@@ -466,7 +466,8 @@
       this.pushEv({ type: 'hit', from: att.id, to: def.id, dmg: a.dmg, kills: a.kills, luck: r.luck, ranged: !!opts.ranged, retaliation: !!opts.retaliation, deathBlow: r.deathBlow });
       this.logLine((opts.retaliation ? T('Ответен удар: ') : opts.ranged ? T('Изстрел: ') : '') + att.c.name + ' → ' + def.c.name + ': ' + a.dmg + T(' щети') + (a.kills ? T(', убити ') + a.kills : '') + (r.luck > 0 ? T(' (късмет!)') : r.luck < 0 ? T(' (лош късмет)') : '') + (r.deathBlow ? T(' (смъртоносен удар!)') : '') + '.');
       const ab = att.c.abilities;
-      if (!opts.ranged && ab.lifeDrain && a.dmg > 0) { const h = this.heal(att, a.dmg, true); if (h > 0) this.pushEv({ type: 'heal', stack: att.id, amount: h }); }
+      // Пиене на кръв (както в класиките): само от живи — не от немъртви и неживи (елементали, големи, гаргойли, автомати)
+      if (!opts.ranged && ab.lifeDrain && a.dmg > 0 && !def.c.abilities.undead && !def.c.abilities.nonLiving) { const h = this.heal(att, a.dmg, true); if (h > 0) this.pushEv({ type: 'heal', stack: att.id, amount: h }); }
       if (!opts.ranged && def.c.abilities.fireShield && att.alive && !att.c.abilities.fireImmune) { const back = Math.floor(a.dmg * def.c.abilities.fireShield / 100); if (back > 0) { const rb = this.applyDamage(att, back); this.pushEv({ type: 'hit', from: def.id, to: att.id, dmg: rb.dmg, kills: rb.kills, fire: true }); this.logLine(T('Огнен щит: ') + back + T(' щети на ') + att.c.name + '.'); } }
       if (def.alive) {
         if (ab.curseHit && this.rng.chance(ab.curseHit / 100)) this.addEffect(def, 'curse', 0, 3);

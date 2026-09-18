@@ -1662,5 +1662,10 @@
  "Бий се…": "Fight…",
  "Загуби:": "Losses:",
  "Твоите загуби": "Your losses",
- "Загуби на врага": "Enemy losses"
+ "Загуби на врага": "Enemy losses",
+ "изпива живот (само от живи)": "drains life (living targets only)",
+ "неживо": "non-living",
+ "Смени: ": "Switch: ",
+ "базово": "basic",
+ "подобрено": "upgraded"
 }

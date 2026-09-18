@@ -300,7 +300,7 @@
     const a = c.abilities; const out = [];
     if (a.shooter) out.push(T('стрелец (') + c.shots + T(' изстрела)')); if (a.flying) out.push(T('лети')); if (a.noMeleePenalty) out.push(T('без наказание в близък бой'));
     if (a.doubleAttack) out.push(T('двоен удар')); if (a.doubleShot) out.push(T('двоен изстрел')); if (a.noRetaliation) out.push(T('без ответен удар')); if (a.retaliations) out.push(a.retaliations > 10 ? T('неограничени ответни удари') : a.retaliations + T(' ответни удара'));
-    if (a.lifeDrain) out.push(T('изпива живот')); if (a.regenerate) out.push(T('регенерира')); if (a.breath) out.push(T('дъх (удря 2 хекса)')); if (a.jousting) out.push(T('атака +5% на хекс разбег'));
+    if (a.lifeDrain) out.push(T('изпива живот (само от живи)')); if (a.nonLiving) out.push(T('неживо')); if (a.regenerate) out.push(T('регенерира')); if (a.breath) out.push(T('дъх (удря 2 хекса)')); if (a.jousting) out.push(T('атака +5% на хекс разбег'));
     if (a.magicRes) out.push(a.magicRes + T('% магическа съпротива')); if (a.spellImmune) out.push(T('имунитет за магии до ') + a.spellImmune + T(' ниво')); if (a.undead) out.push(T('немъртъв')); if (a.moraleAura) out.push(T('+1 морал на съюзниците'));
     if (a.fearAura) out.push(T('−1 морал на врага')); if (a.curseHit) out.push(a.curseHit + T('% проклятие при удар')); if (a.blindHit) out.push(a.blindHit + T('% ослепяване при удар')); if (a.resurrect) out.push(T('възкресява')); if (a.deathBlow) out.push(a.deathBlow + T('% смъртоносен удар'));
     if (a.ageHit) out.push(a.ageHit + T('% състаряване')); if (a.ignoreDef) out.push(T('пренебрегва ') + a.ignoreDef + T('% от защитата')); if (a.ignoreAtt) out.push(T('намалява атаката на врага с ') + a.ignoreAtt + '%'); if (a.deathStare) out.push(T('смъртоносен поглед ') + a.deathStare + '%'); if (a.fireImmune) out.push(T('огнен имунитет')); if (a.mindImmune) out.push(T('имунитет за ум')); if (a.rebirth) out.push(T('прераждане')); if (a.fireShield) out.push(T('огнен щит ') + a.fireShield + '%'); if (a.badLuckAura) out.push(T('−1 късмет на врага')); if (a.goodMorale) out.push(T('винаги добър морал')); if (a.thunderHit) out.push(a.thunderHit + T('% гръмотевичен удар')); if (a.weakHit) out.push(T('отслабва при удар')); if (a.dispelHit) out.push(T('разсейва магии при удар')); if (a.blindImmune) out.push(T('не може да бъде ослепен')); if (a.noObstaclePenalty) out.push(T('стреля през стени без наказание'));
@@ -562,8 +562,10 @@
         if (!t.buildings['dw' + tier] || (onlyTier && tier !== onlyTier)) continue;
         any = true;
         const upg = !!t.buildings['dw' + tier + 'u'];
-        [false, true].forEach((u) => {
-          if (u && !upg) return;
+        // както в HotA: при построено подобрение се предлага подобреното същество, с бутон за връщане към базовото
+        state.recruitBase = state.recruitBase || {};
+        const showU = upg && !state.recruitBase[tier];
+        [showU].forEach((u) => {
           const cid = t.faction + tier + (u ? 'u' : ''); const c = D.creatureOf(cid);
           const target = visitor() ? visitor().army : t.garrison;
           const max = Math.min(t.avail[tier], w.maxAffordable(p, cid));
@@ -571,6 +573,7 @@
           const cv = spriteCanvas(G.creatureSprite(c, 96), 48, 56); cv.style.cursor = 'pointer'; cv.addEventListener('click', () => creatureInfo(c));
           row.appendChild(cv);
           row.appendChild(el('div', { class: 'grow' }, el('div', { class: 'name' }, c.name), el('div', { class: 'sub' }, T('Налични: ') + t.avail[tier] + T(' · растеж ') + w.growthOf(t, tier) + T('/седм. · А') + c.att + T(' З') + c.def + T(' Щ') + c.dmin + '–' + c.dmax + T(' Ж') + c.hp + T(' С') + c.spd), costHtml(c.cost, p.res)));
+          if (upg) { const other = D.creatureOf(t.faction + tier + (u ? '' : 'u')); row.appendChild(el('button', { class: 'small', title: T('Смени: ') + other.name, onclick: () => { state.recruitBase[tier] = !state.recruitBase[tier]; render(); } }, u ? '⇄ ' + T('базово') : '⇄ ' + T('подобрено'))); }
           row.appendChild(el('button', { class: 'small', disabled: max > 0 ? null : 'disabled', onclick: () => recruitDialog(cid, tier, u, max, target) }, T('Набор')));
           row.appendChild(el('button', { class: 'small primary', disabled: max > 0 ? null : 'disabled', onclick: () => { const r = w.recruit(t, tier, u, max, target); if (r.ok) toast(r.n + ' × ' + c.name + T(' се присъединяват.')); else toast(r.why); render(); } }, T('Всички (') + max + ')'));
           pane.appendChild(row);

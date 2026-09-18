@@ -63,10 +63,10 @@
   // Академия
   cr('academy', 1, 0, T('Гремлин'), 'infantry', 3, 3, 1, 2, 4, 4, 30, 16);
   cr('academy', 1, 1, T('Майстор гремлин'), 'archer', 4, 4, 1, 2, 4, 5, 40, 16, { shots: 8, abilities: { shooter: 1 } });
-  cr('academy', 2, 0, T('Гаргойл'), 'flyer', 6, 6, 2, 3, 16, 6, 130, 9, { abilities: { flying: 1, mindImmune: 1 } });
-  cr('academy', 2, 1, T('Обсидианов гаргойл'), 'flyer', 7, 7, 2, 3, 16, 9, 160, 9, { abilities: { flying: 1, mindImmune: 1 } });
-  cr('academy', 3, 0, T('Каменен голем'), 'giant', 7, 10, 4, 5, 30, 3, 150, 6, { abilities: { magicRes: 50, mindImmune: 1 } });
-  cr('academy', 3, 1, T('Железен голем'), 'giant', 9, 10, 4, 5, 35, 5, 200, 6, { abilities: { magicRes: 75, mindImmune: 1 } });
+  cr('academy', 2, 0, T('Гаргойл'), 'flyer', 6, 6, 2, 3, 16, 6, 130, 9, { abilities: { nonLiving: 1, flying: 1, mindImmune: 1 } });
+  cr('academy', 2, 1, T('Обсидианов гаргойл'), 'flyer', 7, 7, 2, 3, 16, 9, 160, 9, { abilities: { nonLiving: 1, flying: 1, mindImmune: 1 } });
+  cr('academy', 3, 0, T('Каменен голем'), 'giant', 7, 10, 4, 5, 30, 3, 150, 6, { abilities: { nonLiving: 1, magicRes: 50, mindImmune: 1 } });
+  cr('academy', 3, 1, T('Железен голем'), 'giant', 9, 10, 4, 5, 35, 5, 200, 6, { abilities: { nonLiving: 1, magicRes: 75, mindImmune: 1 } });
   cr('academy', 4, 0, T('Маг'), 'mage', 11, 8, 7, 9, 25, 5, 350, 4, { shots: 24, abilities: { shooter: 1, noMeleePenalty: 1 } });
   cr('academy', 4, 1, T('Архимаг'), 'mage', 12, 9, 7, 9, 30, 7, 450, 4, { shots: 24, abilities: { shooter: 1, noMeleePenalty: 1, noObstaclePenalty: 1 } });
   cr('academy', 5, 0, T('Джин'), 'spirit', 12, 12, 13, 16, 40, 7, 550, 3, { abilities: { flying: 1 } });
@@ -138,16 +138,16 @@
   // Стихии
   cr('elements', 1, 0, T('Пикси'), 'flyer', 2, 2, 1, 2, 3, 7, 25, 20, { abilities: { flying: 1 } });
   cr('elements', 1, 1, T('Фея'), 'flyer', 2, 2, 1, 3, 3, 9, 30, 20, { abilities: { flying: 1, noRetaliation: 1 } });
-  cr('elements', 2, 0, T('Въздушен елементал'), 'spirit', 9, 9, 2, 8, 25, 7, 250, 6, { abilities: { mindImmune: 1 } });
+  cr('elements', 2, 0, T('Въздушен елементал'), 'spirit', 9, 9, 2, 8, 25, 7, 250, 6, { abilities: { nonLiving: 1, mindImmune: 1 } });
   cr('elements', 2, 1, T('Буреносен елементал'), 'spirit', 9, 9, 2, 8, 25, 8, 275, 6, { shots: 24, abilities: { shooter: 1, mindImmune: 1 } });
   cr('elements', 3, 0, T('Воден елементал'), 'spirit', 8, 10, 3, 7, 30, 5, 300, 6, { wide: 1, abilities: { mindImmune: 1 } });
   cr('elements', 3, 1, T('Леден елементал'), 'spirit', 8, 10, 3, 7, 30, 6, 375, 6, { wide: 1, shots: 24, abilities: { shooter: 1, mindImmune: 1 } });
-  cr('elements', 4, 0, T('Огнен елементал'), 'spirit', 10, 8, 4, 6, 35, 6, 350, 5, { abilities: { fireImmune: 1, mindImmune: 1 } });
-  cr('elements', 4, 1, T('Енергиен елементал'), 'spirit', 12, 8, 4, 6, 35, 8, 400, 5, { abilities: { flying: 1, fireImmune: 1, mindImmune: 1 } });
-  cr('elements', 5, 0, T('Земен елементал'), 'giant', 10, 10, 4, 8, 40, 4, 400, 4, { abilities: { mindImmune: 1 } });
-  cr('elements', 5, 1, T('Магмен елементал'), 'giant', 11, 11, 6, 10, 40, 6, 500, 4, { abilities: { mindImmune: 1, fireImmune: 1 } });
-  cr('elements', 6, 0, T('Психичен елементал'), 'spirit', 15, 13, 10, 20, 75, 7, 750, 2, { abilities: { allAround: 1, mindImmune: 1 } });
-  cr('elements', 6, 1, T('Магически елементал'), 'spirit', 15, 13, 15, 25, 80, 9, 800, 2, { abilities: { allAround: 1, spellImmune: 5 } });
+  cr('elements', 4, 0, T('Огнен елементал'), 'spirit', 10, 8, 4, 6, 35, 6, 350, 5, { abilities: { nonLiving: 1, fireImmune: 1, mindImmune: 1 } });
+  cr('elements', 4, 1, T('Енергиен елементал'), 'spirit', 12, 8, 4, 6, 35, 8, 400, 5, { abilities: { nonLiving: 1, flying: 1, fireImmune: 1, mindImmune: 1 } });
+  cr('elements', 5, 0, T('Земен елементал'), 'giant', 10, 10, 4, 8, 40, 4, 400, 4, { abilities: { nonLiving: 1, mindImmune: 1 } });
+  cr('elements', 5, 1, T('Магмен елементал'), 'giant', 11, 11, 6, 10, 40, 6, 500, 4, { abilities: { nonLiving: 1, mindImmune: 1, fireImmune: 1 } });
+  cr('elements', 6, 0, T('Психичен елементал'), 'spirit', 15, 13, 10, 20, 75, 7, 750, 2, { abilities: { nonLiving: 1, allAround: 1, mindImmune: 1 } });
+  cr('elements', 6, 1, T('Магически елементал'), 'spirit', 15, 13, 15, 25, 80, 9, 800, 2, { abilities: { nonLiving: 1, allAround: 1, spellImmune: 5 } });
   cr('elements', 7, 0, T('Огнена птица'), 'flyer', 18, 18, 30, 40, 150, 15, 1500, 2, { wide: 1, abilities: { flying: 1, fireImmune: 1 } });
   cr('elements', 7, 1, T('Феникс'), 'flyer', 21, 18, 30, 40, 200, 21, 2000, 2, { rare: 1, wide: 1, abilities: { flying: 1, fireImmune: 1, rebirth: 1 } });
   // Пристан
@@ -172,8 +172,8 @@
   cr('workshop', 2, 1, T('Инженер'), 'infantry', 6, 7, 2, 4, 14, 6, 130, 9, { abilities: { repair: 1 } });
   cr('workshop', 3, 0, T('Броненосец'), 'beast', 7, 12, 4, 6, 32, 4, 220, 6, { wide: 1 });
   cr('workshop', 3, 1, T('Боен броненосец'), 'beast', 8, 14, 4, 6, 35, 6, 275, 6, { wide: 1, abilities: { goodMorale: 1 } });
-  cr('workshop', 4, 0, T('Автомат'), 'giant', 10, 9, 5, 9, 38, 5, 350, 4, { abilities: { mindImmune: 1 } });
-  cr('workshop', 4, 1, T('Автомат стражар'), 'giant', 12, 10, 6, 9, 45, 7, 425, 4, { abilities: { mindImmune: 1, retaliations: 2 } });
+  cr('workshop', 4, 0, T('Автомат'), 'giant', 10, 9, 5, 9, 38, 5, 350, 4, { abilities: { nonLiving: 1, mindImmune: 1 } });
+  cr('workshop', 4, 1, T('Автомат стражар'), 'giant', 12, 10, 6, 9, 45, 7, 425, 4, { abilities: { nonLiving: 1, mindImmune: 1, retaliations: 2 } });
   cr('workshop', 5, 0, T('Пясъчен червей'), 'dragon', 14, 11, 12, 18, 72, 5, 550, 3, { wide: 1 });
   cr('workshop', 5, 1, T('Гигантски червей'), 'dragon', 15, 12, 12, 18, 78, 7, 750, 3, { wide: 1, abilities: { regenerate: 1 } });
   cr('workshop', 6, 0, T('Стрелец с револвер'), 'archer', 15, 10, 13, 19, 70, 8, 900, 2, { shots: 16, abilities: { shooter: 1 } });
