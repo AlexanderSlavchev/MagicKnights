@@ -142,13 +142,19 @@
       return { creature: st[0].creature, count: st[0].count, stacks: st, disposition: 1 };
     }
     /* Награда: злато + артефакти; колкото по-голяма картата, толкова по-ценни */
-    function utopiaLoot(lvl) {
+    /* Съкровище на утопията по ниво (0..3), винаги с поне един легендарен артефакт:
+       0: 20000 + реликва, ценен, съкровище + легендарен · 1: 30000 + 2 реликви, ценен + легендарен
+       2: 40000 + 2 реликви, 2 ценни + легендарен · 3: 50000 + 3 реликви + 2 легендарни */
+    function utopiaLoot(tier) {
       const arts = [];
       const grab = (cls) => { const a = takeArt(cls); if (a) arts.push(a); };
-      if (lvl >= 3) { grab(3); grab(3); grab(2); }
-      else if (lvl === 2) { grab(3); grab(2); grab(2); }
-      else { grab(3); grab(2); }
-      return { gold: [0, 15000, 25000, 40000][lvl], arts };
+      const grand = () => { const g = grandPool.pop(); if (g) arts.push(g.id); else grab(3); };
+      grand();
+      if (tier === 0) { grab(3); grab(2); grab(1); }
+      else if (tier === 1) { grab(3); grab(3); grab(2); }
+      else if (tier === 2) { grab(3); grab(3); grab(2); grab(2); }
+      else { grand(); grab(3); grab(3); grab(3); }
+      return { gold: [20000, 30000, 40000, 50000][tier], arts, tier };
     }
     const budgetAt = (x, y, z) => {
       const d = distToStart(x, y) / N;
@@ -222,7 +228,8 @@
       else place({ type: 'resource', x: sp.x, y: sp.y, res: rng.weighted({ gold: 5, wood: 4, ore: 4, mercury: 1.5, sulfur: 1.5, crystal: 1.5, gems: 1.5 }), amount: 0 });
     }
     const artN = Math.round(area / 260 * (T.resMult || 1)) + players.length;
-    const artPool = rng.shuffle(D.ARTIFACTS.slice());
+    const artPool = rng.shuffle(D.ARTIFACTS.filter((a) => a.cls <= 3)); // легендарните са само в утопиите
+    const grandPool = rng.shuffle(D.ARTIFACTS.filter((a) => a.cls === 4));
     const takeArt = (cls) => { let ai = artPool.findIndex((a) => a.cls === cls); if (ai < 0) ai = 0; return artPool.length ? artPool.splice(ai, 1)[0].id : null; };
     // Драконови утопии: далеч от стартовете, пазени от дракони, с богата награда
     const utopiaN = N >= 72 ? 3 : N >= 54 ? 2 : 1;
@@ -231,8 +238,10 @@
       if (!sp) continue;
       clearAround(sp.x, sp.y, 0, 0);
       const o = place({ type: 'dragon_utopia', x: sp.x, y: sp.y });
-      o.guard = dragonGuard(N >= 72 ? 1.3 : N >= 54 ? 1 : 0.7);
-      o.loot = utopiaLoot(N >= 72 ? 3 : N >= 54 ? 2 : 1);
+      // както в класиките: случайно ниво на съкровището; по-богатото е пазено от повече дракони
+      const roll = rng.next(), tier = roll < 0.35 ? 0 : roll < 0.65 ? 1 : roll < 0.9 ? 2 : 3;
+      o.guard = dragonGuard((N >= 72 ? 1.2 : N >= 54 ? 1 : 0.75) * [0.85, 1, 1.15, 1.35][tier]);
+      o.loot = utopiaLoot(tier);
     }
     for (let k = 0; k < artN && artPool.length; k++) {
       const sp = anySpot((x, y) => distToStart(x, y) > 5);

@@ -367,7 +367,7 @@
     skillMult(h, sk) { return h.spec && h.spec.kind === 'skill' && h.spec.id === sk ? 1 + 0.05 * h.level : 1; }
     heroSpells(h) {
       const out = h.spells.slice();
-      h.arts.forEach((aid) => { if (aid && D.artById[aid].bonus.spellsOf) D.SPELLS.forEach((s) => { if (s.school === D.artById[aid].bonus.spellsOf && !out.includes(s.id)) out.push(s.id); }); });
+      h.arts.forEach((aid) => { if (aid && D.artById[aid].bonus.spellsOf) D.SPELLS.forEach((s) => { const so = D.artById[aid].bonus.spellsOf; if ((so === 'all' || s.school === so) && !out.includes(s.id)) out.push(s.id); }); });
       return out;
     }
     maxMana(h) { return Math.floor(this.stat(h, 'know') * 10 * (1 + [0, 0.25, 0.5, 1][this.skillLevel(h, 'intelligence')])); }

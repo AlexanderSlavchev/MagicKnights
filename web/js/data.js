@@ -374,12 +374,19 @@
   art('badge_courage', T('Знак за храброст'), 'misc', 1, { morale: 1 }, T('Морал +1.'));
   art('clover', T('Четирилистна детелина'), 'misc', 1, { luck: 1 }, T('Късмет +1.'));
   art('talisman_mana', T('Талисман на маната'), 'misc', 1, { manaRegen: 1 }, T('+1 мана на ден.'));
+  // Легендарни артефакти (клас 4): само от Драконова утопия, никога по картата
+  art('titan_thunder', T('Гръмът на титана'), 'weapon', 4, { att: 9, def: 9, pow: 8, know: 8 }, T('Атака +9, Защита +9, Сила +8, Знание +8.'));
+  art('angelic_alliance', T('Ангелски съюз'), 'torso', 4, { att: 6, def: 6, pow: 6, know: 6, morale: 2 }, T('Всички характеристики +6, морал +2.'));
+  art('spellbinder_hat', T('Шапка на магьосника'), 'head', 4, { spellsOf: 'all', know: 5 }, T('Героят знае всички магии; Знание +5.'));
+  art('dragon_father', T('Силата на Драконовия отец'), 'shoulders', 4, { att: 5, def: 5, pow: 5, know: 5, resistance: 2 }, T('Всички характеристики +5, съпротива срещу магии.'));
+  art('armor_damned', T('Броня на прокълнатите'), 'shield', 4, { att: 7, def: 7, luck: 1, morale: 1 }, T('Атака +7, Защита +7, късмет и морал +1.'));
+  art('sentinel_ring', T('Пръстен на стража'), 'ring', 4, { def: 8, pow: 4, resistance: 1 }, T('Защита +8, Сила +4, съпротива срещу магии.'));
   D.ARTIFACTS = A;
   D.artById = {};
   A.forEach((a) => { D.artById[a.id] = a; });
   D.SLOTS = ['head', 'neck', 'shoulders', 'weapon', 'shield', 'torso', 'ring', 'ring', 'feet', 'misc', 'misc', 'misc', 'misc'];
   D.SLOT_NAME = { head: T('Глава'), neck: T('Шия'), shoulders: T('Рамене'), weapon: T('Оръжие'), shield: T('Щит'), torso: T('Тяло'), ring: T('Пръстен'), feet: T('Крака'), misc: T('Разни') };
-  D.ART_CLASS_NAME = ['', T('Съкровище'), T('Ценен'), T('Реликва')];
+  D.ART_CLASS_NAME = ['', T('Съкровище'), T('Ценен'), T('Реликва'), T('Легендарен')];
 
   // ---------------------------------------------------------------- обекти по картата
   // Типове (type) и параметри. Взаимодействието е в world.js.

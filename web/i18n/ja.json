@@ -1667,5 +1667,18 @@
  "неживо": "non-living",
  "Смени: ": "Switch: ",
  "базово": "basic",
- "подобрено": "upgraded"
+ "подобрено": "upgraded",
+ "Легендарен": "伝説",
+ "Гръмът на титана": "Titan's Thunder",
+ "Атака +9, Защита +9, Сила +8, Знание +8.": "Attack +9, Defense +9, Power +8, Knowledge +8.",
+ "Ангелски съюз": "Angelic Alliance",
+ "Всички характеристики +6, морал +2.": "All primary skills +6, morale +2.",
+ "Шапка на магьосника": "Spellbinder's Hat",
+ "Героят знае всички магии; Знание +5.": "The hero knows every spell; Knowledge +5.",
+ "Силата на Драконовия отец": "Power of the Dragon Father",
+ "Всички характеристики +5, съпротива срещу магии.": "All primary skills +5, magic resistance.",
+ "Броня на прокълнатите": "Armor of the Damned",
+ "Атака +7, Защита +7, късмет и морал +1.": "Attack +7, Defense +7, luck and morale +1.",
+ "Пръстен на стража": "Sentinel's Ring",
+ "Защита +8, Сила +4, съпротива срещу магии.": "Defense +8, Power +4, magic resistance."
 }
