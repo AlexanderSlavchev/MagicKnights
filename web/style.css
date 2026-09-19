@@ -343,3 +343,28 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 @keyframes confetti { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)); opacity: 0; } }
 .pre-result { flex-direction: column; }
 .pre-result .pre-side { flex: none; }
+
+/* Рисувани фонове на менютата */
+.screen.has-art { background: #0a0a12 !important; overflow: hidden; }
+.art-bg { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; animation: kenburns 40s ease-in-out infinite alternate; }
+@keyframes kenburns { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.1) translate(-1.5%, 1%); } }
+.screen.has-art > *:not(.art-bg):not(.embers) { position: relative; z-index: 2; }
+.embers { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.embers i { position: absolute; bottom: -10px; border-radius: 50%; background: radial-gradient(#fff6c8, rgba(255,200,90,0.9) 40%, rgba(255,150,40,0)); animation: ember linear infinite; opacity: 0; }
+@keyframes ember { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.9; } 50% { transform: translate(20px, -50vh); opacity: 0.7; } 100% { transform: translate(-15px, -105vh); opacity: 0; } }
+.menu .divider { width: min(70vw, 420px); margin: -4px 0 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8)); }
+.menu .stack.on-panel { background: url(img/ui/menu_panel.webp) center / 100% 100% no-repeat; padding: 78px 52px 60px; width: 340px; gap: 10px; filter: drop-shadow(0 12px 24px rgba(0,0,0,0.7)); }
+.menu .stack.on-panel button { min-height: 46px; }
+.menu.main .subtitle { text-shadow: 0 2px 4px #000, 0 0 12px rgba(0,0,0,0.9); }
+@media (max-height: 520px) { .menu .stack.on-panel { padding: 56px 44px 44px; width: 300px; gap: 6px; } .menu .stack.on-panel button { min-height: 38px; font-size: 14px; } .menu .logo { max-height: 22vh; } .menu .divider, .menu.main .subtitle { display: none; } }
+.menu.main .audio-panel { background: rgba(10,8,4,0.55); padding: 6px 12px; border-radius: 12px; }
+.splash { position: fixed; inset: 0; z-index: 45; background-size: cover; background-position: center; animation: fadein 0.8s; }
+.splash::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55)); }
+.loading-art { position: fixed; inset: 0; z-index: 65; background-size: cover; background-position: center; }
+.loading-bar { position: absolute; left: 22%; right: 22%; bottom: 13%; height: 4.2%; border-radius: 8px; background: rgba(0,0,0,0.25); overflow: hidden; }
+.loading-bar i { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, rgba(255,216,112,0.2), #ffd870, rgba(255,216,112,0.2)); animation: loadslide 1.4s ease-in-out infinite; border-radius: 8px; }
+@keyframes loadslide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+.loading-text { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center; color: #fff3c4; font-weight: 700; text-shadow: 0 2px 4px #000; letter-spacing: 1px; }
+/* Лента-заглавие на прозорците */
+.modal > h2 { background: url(img/ui/ribbon.webp) center / contain no-repeat; min-height: 64px; margin: -6px auto 8px; padding: 14px 70px 0; text-align: center; color: #4a2c0a; text-shadow: 0 1px 0 rgba(255,240,200,0.8); font-size: 17px; line-height: 1.1; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 480px) { .modal > h2 { padding: 12px 56px 0; font-size: 15px; min-height: 56px; } }

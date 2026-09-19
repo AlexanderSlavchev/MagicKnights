@@ -429,6 +429,7 @@
     async victory(pid) {
       const p = this.world.players[pid];
       if (p.human) MK.Audio.winGame(); else MK.Audio.loseGame();
+      const splash = UI.splash(p.human ? 'victory' : 'defeat'); setTimeout(() => splash.remove(), 6000);
       if (this.campaign && p.human) {
         const cid = this.campaign.id || 'crown', C = MK.campaignById(cid), prog = MK.Campaign.load(cid);
         const hero = this.world.heroes[p.heroes[0]] || null;
@@ -502,7 +503,7 @@
       this.busy = false;
       if (!this.world) return;
       const me = w.players[w.curPlayer];
-      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); MK.Audio.loseGame(); await UI.dialog({ title: T('Поражение'), text: T('Кралството ти падна. Опитай отново!') }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
+      if (!w.players.some((p) => p.human && p.alive)) { await this.drainEvents(); MK.Audio.loseGame(); const sp = UI.splash('defeat'); setTimeout(() => sp.remove(), 6000); await UI.dialog({ title: T('Поражение'), text: T('Кралството ти падна. Опитай отново!') }); localStorage.removeItem('mk_save'); this.world = null; document.getElementById('hud').hidden = true; UI.showMenu(this); return; }
       if (!me.human) { UI.toast(T('Грешка в реда на ходовете.')); return; }
       // Hot-seat: подаваме устройството
       if (humansCount > 1 || me.id !== this.human) { this.human = me.id; this.selected = null; this.renderer.selected = null; this.updateHUD(); await UI.passDevice(this, me); }

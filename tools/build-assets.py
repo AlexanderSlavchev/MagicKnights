@@ -23,7 +23,7 @@ SPECIAL = {  # конкретни файлове с друг размер (w, h)
     'heroes/*_portrait': (256, False, 85), 'towns/*_screen': (1600, False, 80), 'battle/bg_*': (1600, False, 80),
     'battle/obstacles': (1024, True, 85), 'terrain/water_frames': (1024, False, 88), 'terrain/road': (512, False, 88),
     'decor/mountain_*': (768, True, 85), 'objects/mine_*': (384, True, 85), 'ui/frame_wood': (512, True, 90),
-    'ui/panel_dark': (512, False, 85), 'ui/doll_knight': (768, False, 85), 'ui/app_icon': (512, False, 88), 'siege/*_moat': (512, False, 88), 'siege/*_keep': (640, True, 85), 'siege/*_tower': (560, True, 85), 'siege/*_wall': (512, False, 85), 'siege/*_wall_damaged': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
+    'ui/panel_dark': (512, False, 85), 'ui/*_bg': (1920, False, 80), 'ui/menu_bg_*': (1920, False, 80), 'ui/menu_panel': (768, True, 88), 'ui/ribbon': (1024, True, 90), 'ui/divider': (1024, True, 90), 'ui/doll_knight': (768, False, 85), 'ui/app_icon': (512, False, 88), 'siege/*_moat': (512, False, 88), 'siege/*_keep': (640, True, 85), 'siege/*_tower': (560, True, 85), 'siege/*_wall': (512, False, 85), 'siege/*_wall_damaged': (512, False, 85), 'ui/logo': (768, True, 90), 'ui/button': (384, True, 90),
 }
 
 def rule(rel):
@@ -36,7 +36,15 @@ def unkey_magenta(im):
     """Ако фонът е запечен като плътно магента (#FF00FF), го превръща в прозрачност."""
     rgb = im.convert('RGB')
     corners = [rgb.getpixel(p) for p in [(2, 2), (im.width - 3, 2), (2, im.height - 3), (im.width - 3, im.height - 3)]]
-    if sum(1 for r, g, b in corners if r > 200 and g < 90 and b > 200) < 3: return im
+    magenta = sum(1 for r, g, b in corners if r > 200 and g < 90 and b > 200) >= 3
+    white = sum(1 for r, g, b in corners if r > 250 and g > 250 and b > 250) >= 4
+    if white and not magenta:
+        # запечен чисто бял фон (UI елементи): само почти белите пиксели стават прозрачни
+        import numpy as np
+        a = np.asarray(rgb).astype(np.float32); dist = np.sqrt(((255 - a) ** 2).sum(axis=2))
+        alpha = np.clip((dist - 8) / 30.0, 0, 1)
+        return Image.fromarray(np.dstack([a, alpha * 255]).astype(np.uint8), 'RGBA')
+    if not magenta: return im
     import numpy as np
     a = np.asarray(rgb).astype(np.float32)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]

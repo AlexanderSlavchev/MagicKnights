@@ -63,8 +63,25 @@
     setTimeout(() => b.classList.add('out'), newWeek ? 2300 : 1700);
     setTimeout(() => b.remove(), newWeek ? 2800 : 2200);
   }
+  /* Рисуван фон за екран от менюто (по ориентация за главното меню) + плуващи искри */
+  function artBackdrop(s, kind) {
+    const portrait = window.innerHeight > window.innerWidth;
+    const rel = kind === 'menu' ? (portrait && MK.Img.has('ui/menu_bg_portrait') ? 'ui/menu_bg_portrait' : 'ui/menu_bg_landscape') : 'ui/' + kind + '_bg';
+    const u = MK.Img.url(rel); if (!u) return;
+    const bg = el('div', { class: 'art-bg' }); bg.style.backgroundImage = 'url(' + u + ')';
+    s.appendChild(bg); s.classList.add('has-art');
+    const emb = el('div', { class: 'embers' }); for (let i = 0; i < 18; i++) { const e = el('i'); e.style.left = Math.random() * 100 + '%'; e.style.animationDelay = (-Math.random() * 12) + 's'; e.style.animationDuration = (9 + Math.random() * 8) + 's'; e.style.width = e.style.height = (3 + Math.random() * 4) + 'px'; emb.appendChild(e); }
+    s.appendChild(emb);
+  }
+  /* Цял екран с картина (победа/поражение); връща елемент с .remove() */
+  function splash(kind) {
+    const u = MK.Img.url('ui/' + kind + '_bg'); if (!u) return { remove() {} };
+    const d = el('div', { class: 'splash ' + kind }); d.style.backgroundImage = 'url(' + u + ')'; document.body.appendChild(d); return d;
+  }
   /* Прозорец за зареждане; връща елемент с .remove() */
   function loading(text) {
+    const u = MK.Img.url('ui/loading_bg');
+    if (u) { const wrap = el('div', { class: 'loading-art' }, el('div', { class: 'loading-bar' }, el('i')), el('div', { class: 'loading-text' }, text)); wrap.style.backgroundImage = 'url(' + u + ')'; document.body.appendChild(wrap); return wrap; }
     const wrap = el('div', { class: 'modal-wrap loading' }, el('div', { class: 'modal', style: 'text-align:center;max-width:320px' }, el('div', { class: 'spinner' }), el('p', null, text)));
     overlay().appendChild(wrap); return wrap;
   }
@@ -90,13 +107,15 @@
   // ---------------------------------------------------------------- главно меню
   function showMenu(game) {
     MK.Audio.menu();
-    const s = screen('menu');
+    const s = screen('menu main');
+    artBackdrop(s, 'menu');
     const hasSave = !!localStorage.getItem('mk_save');
     const logo = MK.Img.url('ui/logo');
     if (logo) s.appendChild(el('img', { src: logo, class: 'logo', alt: 'MagicKnights' }));
     s.appendChild(el('div', { class: 'title' + (logo ? ' with-logo' : '') }, 'MagicKnights'));
     s.appendChild(el('div', { class: 'subtitle' }, T('Герои, замъци и битки на хексове — класическата стратегия наново, за телефона ти.')));
-    s.appendChild(el('div', { class: 'stack' },
+    const divider = MK.Img.url('ui/divider'); if (divider) s.appendChild(el('img', { src: divider, class: 'divider', alt: '' }));
+    s.appendChild(el('div', { class: 'stack' + (MK.Img.has('ui/menu_panel') ? ' on-panel' : '') },
       el('button', { class: 'primary', onclick: () => showSetup(game) }, T('Нова игра')),
       el('button', { onclick: () => showCampaign(game) }, T('Кампания')),
       el('button', { onclick: () => game.load(), disabled: hasSave ? null : 'disabled' }, T('Продължи')),
@@ -143,6 +162,7 @@
   }
   function showSetup(game) {
     const s = screen('menu');
+    artBackdrop(s, 'setup');
     const st = { size: 's', difficulty: 1, template: 'balanced', players: [{ type: 'human', faction: 'kingdom' }, { type: 'ai', faction: 'random' }, { type: 'none', faction: 'random' }, { type: 'none', faction: 'random' }] };
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, T('Нова игра')));
     const body = el('div', { class: 'modal', style: 'max-width:620px' });
@@ -186,6 +206,7 @@
   function showCampaign(game) {
     MK.Audio.campaign();
     const s = screen('menu');
+    artBackdrop(s, 'campaign');
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, T('Кампании')));
     const body = el('div', { class: 'modal', style: 'max-width:640px' });
     MK.CAMPAIGNS.forEach((C) => {
@@ -202,6 +223,7 @@
   function showCampaignScenarios(game, cid) {
     MK.Audio.campaign();
     const s = screen('menu');
+    artBackdrop(s, 'campaign');
     const C = MK.campaignById(cid), prog = MK.Campaign.load(cid);
     s.appendChild(el('div', { class: 'title', style: 'font-size:30px' }, C.title));
     const body = el('div', { class: 'modal', style: 'max-width:640px' });
@@ -683,5 +705,5 @@
     });
   }
 
-  MK.UI = { el, dialog, toast, loading, reward, dayBanner, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { el, dialog, toast, loading, splash, reward, dayBanner, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();
