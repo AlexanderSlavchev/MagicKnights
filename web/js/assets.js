@@ -11,11 +11,12 @@
   const cache = new Map();
   let ready = false;
 
-  // XHR вместо fetch — работи и от file:// в Android WebView
+  // Манифестът се зарежда синхронно (малък е), за да е готов преди първия екран — иначе
+  // главното меню се показваше без рисуваните графики, докато манифестът пътува
   try {
-    const x = new XMLHttpRequest(); x.open('GET', BASE + 'manifest.json?v=' + ((MK.i18n && MK.i18n.VER) || Date.now())); x.overrideMimeType('application/json');
-    x.onload = () => { try { const m = JSON.parse(x.responseText); Object.assign(files, m.files || {}); ready = true; preload(); } catch (e) { /* без рисувани графики */ } };
+    const x = new XMLHttpRequest(); x.open('GET', BASE + 'manifest.json?v=' + ((MK.i18n && MK.i18n.VER) || Date.now()), false); x.overrideMimeType('application/json');
     x.send();
+    if (x.status === 200 || x.status === 0) { const m = JSON.parse(x.responseText); Object.assign(files, m.files || {}); ready = true; preload(); }
   } catch (e) { /* без рисувани графики */ }
 
   function has(rel) { return ready && !!files[rel]; }
