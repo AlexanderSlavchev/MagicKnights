@@ -345,7 +345,8 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 .pre-result .pre-side { flex: none; }
 
 /* Рисувани фонове на менютата */
-.screen.has-art { background: #0a0a12 !important; overflow: hidden; }
+.screen.has-art { background: #0a0a12 !important; overflow: hidden; isolation: isolate; }
+#overlay > .modal-wrap { z-index: 5; }
 .art-bg { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; animation: kenburns 40s ease-in-out infinite alternate; }
 @keyframes kenburns { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.1) translate(-1.5%, 1%); } }
 .screen.has-art > *:not(.art-bg):not(.embers) { position: relative; z-index: 2; }
