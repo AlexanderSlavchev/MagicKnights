@@ -22,6 +22,8 @@
     hero: svgCur('<circle cx="14" cy="9" r="5" fill="#e8c46a" ' + OUT + '/><path d="M4 26 C4 17 24 17 24 26 Z" fill="#3c6cd2" ' + OUT + '/>', 14, 14),
     noPath: svgCur('<circle cx="14" cy="14" r="9" fill="none" stroke="#d23c3c" stroke-width="3"/><path d="M8 8 L20 20" stroke="#d23c3c" stroke-width="3"/>', 14, 14),
     fog: svgCur('<circle cx="14" cy="14" r="9" fill="none" stroke="#999" stroke-width="3"/><path d="M14 9 L14 15 M14 18 L14 20" stroke="#999" stroke-width="3"/>', 14, 14),
+    // размяна между свои герои (като курсора за среща в Heroes III): две срещуположни стрелки
+    exchange: svgCur('<path d="M3 9 L17 9 L17 4 L26 11 L17 18 L17 13 L3 13 Z" fill="#ffe08a" ' + OUT + '/><path d="M25 19 L11 19 L11 14 L2 21 L11 28 L11 23 L25 23 Z" fill="#6aa0ff" ' + OUT + ' transform="translate(0,-3)"/>', 14, 14),
     info: 'help', none: 'default'
   };
   const ICONS = { move: '🐎', attack: '⚔️', guard: '⚔️', pickup: '💰', flag: '🚩', enter: '🏰', board: '⛵', visit: '👋', hero: '🛡️', exchange: '🤝', noPath: '⛔', fog: '❔', info: 'ℹ️', none: '' };
@@ -192,7 +194,7 @@
       const z = this.renderer.z, p = w.players[this.human];
       if (!p.fog[z][w.idx(tx, ty)]) return { kind: 'fog', label: T('Неизследвана земя') };
       const hero = w.heroAt(tx, ty, z), obj = w.objectAt(tx, ty, z), sel = this.selected;
-      if (hero && hero.owner === this.human && hero !== sel) { const ex = this.exchangePath(hero); if (ex) return { kind: 'exchange', path: ex, days: 1, label: T('Размяна с ') + hero.name }; }
+      if (hero && hero.owner === this.human && hero !== sel) { const ex = this.exchangePath(hero); if (ex) return { kind: 'exchange', path: ex, days: Math.ceil(ex.total / Math.max(1, sel.maxMovement)), label: T('Размяна с ') + hero.name }; }
       if (hero && hero.owner === this.human) return { kind: 'hero', label: hero === sel ? (hero.inTown ? T('Влез в града') : T('Отвори героя')) : T('Избери ') + hero.name };
       if (!sel || (sel.z || 0) !== z) return obj ? { kind: 'info', label: this.objName(obj) } : { kind: 'none' };
       if (sel.x === tx && sel.y === ty) return { kind: 'hero', label: T('Отвори героя') };
@@ -302,12 +304,12 @@
       if (w.heroes[h.id] && !document.querySelector('#overlay .screen')) { this.refreshReach(); }
       this.updateHUD();
     }
-    /* Път до друг свой герой за размяна — само ако избраният може да стигне до него още този ход. */
+    /* Път до друг свой герой за размяна — и когато е далеч (няколко дни път), както в Heroes III. */
     exchangePath(hero) {
       const sel = this.selected, w = this.world;
       if (!sel || sel === hero || hero.owner !== sel.owner || (sel.z || 0) !== (hero.z || 0) || hero.inTown || sel.inTown) return null;
       const path = MK.Path.findPath(w, sel, hero.x, hero.y);
-      return path && path.path.length && path.total <= sel.movement ? path : null;
+      return path && path.path.length ? path : null;
     }
     onTap(tx, ty) {
       const w = this.world;
@@ -334,7 +336,8 @@
           const ex = this.exchangePath(hero);
           if (ex) { // като в Heroes III: с избран герой върху друг свой герой — отиваме при него за размяна
             this.renderer.pathPreview = ex; this.renderer.targetIcon = { x: tx, y: ty, icon: ICONS.exchange, kind: 'exchange' };
-            this.hint = ICONS.exchange + ' ' + T('Размяна с ') + hero.name + ' · ' + T('Докосни отново за размяна на армия и артефакти. Героят се избира от списъка.');
+            const exDays = Math.ceil(ex.total / Math.max(1, this.selected.maxMovement));
+            this.hint = ICONS.exchange + ' ' + T('Размяна с ') + hero.name + (exDays > 1 ? ' · ' + exDays + T(' дни') : '') + ' · ' + (ex.total <= this.selected.movement ? T('Докосни отново за размяна на армия и артефакти. Героят се избира от списъка.') : T('Докосни отново, за да тръгнеш към него. Размяната става, щом стигнеш. Героят се избира от списъка.'));
             this.updateHUD();
           } else this.selectHero(hero, false);
         }

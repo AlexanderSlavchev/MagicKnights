@@ -1763,5 +1763,6 @@
  "Корабът потъва.": "The boat sinks.",
  "Избери свободна видима плочка в обхват.": "Choose a free visible tile in range.",
  "Няма да стигнеш суша с оставащото движение.": "You won't reach land with the remaining movement.",
- "Целта не може да действа, докато не бъде ударена. Ударена, отвръща с 50% атака (25% при напреднало; при експертно не отвръща).": "The target cannot act until it is hit. When hit, it retaliates with 50% attack (25% at Advanced; does not retaliate at Expert)."
+ "Целта не може да действа, докато не бъде ударена. Ударена, отвръща с 50% атака (25% при напреднало; при експертно не отвръща).": "The target cannot act until it is hit. When hit, it retaliates with 50% attack (25% at Advanced; does not retaliate at Expert).",
+ "Докосни отново, за да тръгнеш към него. Размяната става, щом стигнеш. Героят се избира от списъка.": "Tap again to head towards him. The exchange happens once you arrive. Select the hero from the list."
 }
