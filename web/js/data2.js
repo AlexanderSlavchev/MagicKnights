@@ -146,8 +146,8 @@
   cr('elements', 4, 1, T('Енергиен елементал'), 'spirit', 12, 8, 4, 6, 35, 8, 400, 5, { abilities: { nonLiving: 1, flying: 1, fireImmune: 1, mindImmune: 1 } });
   cr('elements', 5, 0, T('Земен елементал'), 'giant', 10, 10, 4, 8, 40, 4, 400, 4, { abilities: { nonLiving: 1, mindImmune: 1 } });
   cr('elements', 5, 1, T('Магмен елементал'), 'giant', 11, 11, 6, 10, 40, 6, 500, 4, { abilities: { nonLiving: 1, mindImmune: 1, fireImmune: 1 } });
-  cr('elements', 6, 0, T('Психичен елементал'), 'spirit', 15, 13, 10, 20, 75, 7, 750, 2, { abilities: { nonLiving: 1, allAround: 1, mindImmune: 1 } });
-  cr('elements', 6, 1, T('Магически елементал'), 'spirit', 15, 13, 15, 25, 80, 9, 800, 2, { abilities: { nonLiving: 1, allAround: 1, spellImmune: 5 } });
+  cr('elements', 6, 0, T('Психичен елементал'), 'spirit', 15, 13, 10, 20, 75, 7, 750, 2, { abilities: { nonLiving: 1, allAround: 1, noRetaliation: 1, mindImmune: 1 } });
+  cr('elements', 6, 1, T('Магически елементал'), 'spirit', 15, 13, 15, 25, 80, 9, 800, 2, { abilities: { nonLiving: 1, allAround: 1, noRetaliation: 1, spellImmune: 5 } });
   cr('elements', 7, 0, T('Огнена птица'), 'flyer', 18, 18, 30, 40, 150, 15, 1500, 2, { wide: 1, abilities: { flying: 1, fireImmune: 1 } });
   cr('elements', 7, 1, T('Феникс'), 'flyer', 21, 18, 30, 40, 200, 21, 2000, 2, { rare: 1, wide: 1, abilities: { flying: 1, fireImmune: 1, rebirth: 1 } });
   // Пристан

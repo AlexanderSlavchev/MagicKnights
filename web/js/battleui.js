@@ -386,6 +386,15 @@
           if (badge) { const bw = Math.max(tw * 1.25, r * 0.9), bh = r * 0.6; g.drawImage(badge, p[0] - bw / 2, p[1] + r * 0.4, bw, bh); }
           else { const bg = g.createLinearGradient(0, p[1] + r * 0.42, 0, p[1] + r * 0.95); bg.addColorStop(0, MK.shade(col, 1.2)); bg.addColorStop(1, MK.shade(col, 0.65)); g.fillStyle = bg; g.beginPath(); g.roundRect(p[0] - tw / 2, p[1] + r * 0.45, tw, r * 0.5, r * 0.12); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1; g.stroke(); }
           g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 2; g.fillText(txt, p[0], p[1] + r * 0.71); g.shadowBlur = 0;
+          // Ответен удар този рунд: златно ↩ = още може да отвърне, сиво зачеркнато = вече е отвърнал
+          {
+            const can = s.retaliations > 0 && !s.effects.blind, rr = Math.max(6, r * 0.24);
+            const cx = p[0] + Math.max(tw * 0.62, r * 0.45) + rr * 0.9, cy = p[1] + r * 0.7;
+            g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.fillStyle = can ? 'rgba(40,28,8,0.92)' : 'rgba(20,20,24,0.8)'; g.fill();
+            g.lineWidth = Math.max(1, rr * 0.18); g.strokeStyle = can ? '#f0cc6a' : '#6a6a72'; g.stroke();
+            g.font = 'bold ' + rr * 1.35 + 'px sans-serif'; g.fillStyle = can ? '#ffe08a' : '#77777f'; g.fillText(s.retaliations > 10 ? '∞' : '↩', cx, cy + rr * 0.06);
+            if (!can) { g.beginPath(); g.moveTo(cx - rr * 0.7, cy + rr * 0.7); g.lineTo(cx + rr * 0.7, cy - rr * 0.7); g.strokeStyle = '#c05050'; g.lineWidth = Math.max(1.2, rr * 0.22); g.stroke(); }
+          }
         }
         g.globalAlpha = 1;
       });

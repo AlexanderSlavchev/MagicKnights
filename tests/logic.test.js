@@ -91,6 +91,31 @@ test('битка: формула за щети и край', () => {
   assert(b.log.length > 3);
 });
 
+test('битка: ответен удар — веднъж на рунд, грифони 2/неограничено, без ответ, контраудар, ослепяване', () => {
+  const w = newWorld(3, 36, 2);
+  const mk = (defId, attId) => {
+    const att = { hero: null, army: MK.Army.empty(), owner: 0 }; for (let i = 0; i < 5; i++) att.army[i] = { c: attId || 'kingdom1', n: 5 };
+    const def = { hero: null, army: MK.Army.empty(), owner: -1 }; def.army[0] = { c: defId, n: 500 };
+    const b = new MK.Battle({ attacker: att, defender: def, world: w, seed: 11, kind: 'monster' });
+    b.startRound();
+    const d = b.stacks.find((s) => s.side === 1), as = b.stacks.filter((s) => s.side === 0);
+    let n = 0; const orig = b.strike.bind(b); b.strike = (x, y, o) => { if (o && o.retaliation) n++; return orig(x, y, o); };
+    const hit = () => { let k = 0; as.forEach((s) => { if (s.alive && d.alive) { s.x = d.x - 1; s.y = d.y; b.meleeAttack(s, d); k++; } }); return k; };
+    return { b, d, as, hit, count: () => n, reset: () => { n = 0; } };
+  };
+  let t = mk('necropolis1'); t.hit(); assert.strictEqual(t.count(), 1, 'обикновено същество отвръща веднъж на рунд');
+  t.reset(); t.b.startRound(); t.hit(); assert.strictEqual(t.count(), 1, 'новият рунд връща ответния удар');
+  t = mk('kingdom3'); t.hit(); assert.strictEqual(t.count(), 2, 'грифон: два ответа');
+  t = mk('kingdom3u'); const k = t.hit(); assert.strictEqual(t.count(), k, 'кралски грифон: на всеки удар');
+  t = mk('necropolis1', 'necropolis4'); t.hit(); assert.strictEqual(t.count(), 0, 'вампирите не получават ответ');
+  t = mk('necropolis1', 'elements6'); t.hit(); assert.strictEqual(t.count(), 0, 'психичният елементал не получава ответ');
+  // Контраудар важи и в следващите рундове, докато трае ефектът
+  t = mk('necropolis1'); t.d.effects.counterstrike = { val: 2, turns: 5 }; t.b.startRound(); t.hit(); assert.strictEqual(t.count(), 3, 'контраудар +2');
+  // Ослепяване: основно — отвръща с намалена атака; експертно — не отвръща; ударът събужда
+  t = mk('necropolis1'); t.d.effects.blind = { val: 3, turns: 3 }; t.hit(); assert.strictEqual(t.count(), 1, 'експертно ослепяване: първият удар остава без ответ, вторият получава'); assert(!t.d.effects.blind);
+  t = mk('kingdom7'); let full = 0, half = 0; for (let i = 0; i < 40; i++) { full += t.b.calcDamage(t.d, t.as[0], { luckRoll: false }).dmg; half += t.b.calcDamage(t.d, t.as[0], { luckRoll: false, attackMul: 0.5 }).dmg; } assert(half < full, 'ослепен отвръща по-слабо');
+});
+
 test('битка: 100 ангели винаги бият 10 скелета', () => {
   const w = newWorld(3, 36, 2);
   const att = { hero: null, army: MK.Army.empty(), owner: 0 }; MK.Army.add(att.army, 'kingdom7u', 100);

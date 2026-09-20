@@ -309,7 +309,7 @@
   sp('lightning', T('Мълния'), 'air', 2, 10, 'dmg', { base: 10, perPow: 25, target: 'enemy', desc: T('Щети 10 + 25×Сила.') });
   sp('ice_bolt', T('Ледена стрела'), 'water', 2, 8, 'dmg', { base: 10, perPow: 20, target: 'enemy', desc: T('Щети 10 + 20×Сила.') });
   sp('death_ripple', T('Вълна на смъртта'), 'earth', 2, 10, 'all', { base: 10, perPow: 5, onlyLiving: true, desc: T('Щети 10 + 5×Сила на всички живи същества на полето.') });
-  sp('blind', T('Ослепяване'), 'fire', 2, 10, 'debuff', { effect: 'blind', val: [1, 1, 1], desc: T('Целта не може да действа, докато не бъде ударена.') });
+  sp('blind', T('Ослепяване'), 'fire', 2, 10, 'debuff', { effect: 'blind', val: [1, 2, 3], desc: T('Целта не може да действа, докато не бъде ударена. Ударена, отвръща с 50% атака (25% при напреднало; при експертно не отвръща).') });
   sp('weakness', T('Слабост'), 'water', 2, 8, 'debuff', { effect: 'weakness', val: [3, 6, 6], mass: true, desc: T('Атака −3 (−6). Експертно: масово.') });
   sp('precision', T('Точност'), 'air', 2, 8, 'buff', { effect: 'precision', val: [3, 6, 6], mass: true, desc: T('Атака +3 (+6) при стрелба. Експертно: масово.') });
   sp('fortune', T('Щастие'), 'air', 2, 7, 'buff', { effect: 'fortune', val: [1, 2, 2], mass: true, desc: T('Късмет +1 (+2). Експертно: масово.') });

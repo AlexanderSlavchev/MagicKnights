@@ -230,6 +230,8 @@
       if (this.alive(1 - s.side).some((o) => o.c.abilities.badLuckAura)) l -= 1;
       return Math.max(-3, Math.min(3, l));
     }
+    /* Ответни удари на рунд (Heroes III): 1 по подразбиране; способност retaliations (2 / неограничено); + активен „Контраудар“. */
+    maxRetaliations(s) { return (s.c.abilities.retaliations || 1) + (s.effects.counterstrike ? s.effects.counterstrike.val : 0); }
     isShooter(s) { return !!s.c.abilities.shooter && s.shots > 0; }
     adjacentEnemy(s) { return this.alive(1 - s.side).some((e) => this.adjacent(s, e)); }
     behindWall(s) { return this.siege && s.x > 10 && this.walls.size > 4; }
@@ -241,8 +243,8 @@
       this.stacks.forEach((s) => {
         if (!s.alive) return;
         s.waited = false; s.defended = false; s.acted = false; s.movedHexes = 0;
-        s.retaliations = s.c.abilities.retaliations || 1;
         for (const k in s.effects) { const e = s.effects[k]; if (e.turns !== Infinity && --e.turns <= 0) delete s.effects[k]; }
+        s.retaliations = this.maxRetaliations(s);
         if (s.c.abilities.regenerate) s.hp = s.maxHp;
       });
       // Катапултът на нападателя удря стена или порта
@@ -383,6 +385,7 @@
       opts = opts || {};
       const ranged = !!opts.ranged;
       let A = this.attack(att, ranged) + (att.effects.slayer && def.c.tier === 7 ? att.effects.slayer.val : 0);
+      if (opts.attackMul && opts.attackMul !== 1) A = Math.floor(A * opts.attackMul);
       if (!ranged && def.c.abilities.ignoreAtt) A = Math.floor(A * (1 - def.c.abilities.ignoreAtt / 100));
       let Dd = this.defense(def);
       if (att.c.abilities.ignoreDef) Dd = Math.floor(Dd * (1 - att.c.abilities.ignoreDef / 100));
@@ -499,11 +502,13 @@
       const targets = [def];
       if (att.c.abilities.breath) { const o = this.breathTarget(att, def); if (o) targets.push(o); }
       if (att.c.abilities.allAround) this.alive(1 - att.side).forEach((o) => { if (o !== def && this.adjacent(att, o)) targets.push(o); });
+      const blindLvl = def.effects.blind ? (def.effects.blind.val || 1) : 0; // ослепена ПРЕДИ удара
       targets.forEach((t) => { if (t.alive) this.strike(att, t, { ranged: false }); });
-      if (def.effects.blind) delete def.effects.blind;
-      if (def.alive && !att.c.abilities.noRetaliation && def.retaliations > 0 && !def.effects.blind) {
+      if (blindLvl) delete def.effects.blind;               // ударът я събужда
+      const justBlinded = !blindLvl && !!def.effects.blind;  // ослепена от самия удар (blindHit): остава сляпа и не отвръща
+      if (def.alive && att.alive && !att.c.abilities.noRetaliation && def.retaliations > 0 && blindLvl < 3 && !justBlinded) {
         def.retaliations--;
-        this.strike(def, att, { ranged: false, retaliation: true });
+        this.strike(def, att, { ranged: false, retaliation: true, attackMul: blindLvl === 1 ? 0.5 : blindLvl === 2 ? 0.25 : 1 });
       }
     }
     doAttack(s, target, fromX, fromY) {
@@ -520,10 +525,11 @@
       if (!this.isShooter(s) || this.adjacentEnemy(s) || !target.alive || target.side === s.side) return false;
       s.actionKind = 'shoot';
       const volley = () => {
+        const wasBlind = !!target.effects.blind;
         s.shots--;
         this.strike(s, target, { ranged: true });
         if (s.c.abilities.deathCloud) { const seen = new Set([target.id]); this.hexes(target).forEach(([tx, ty]) => Hex.neighbors(tx, ty).forEach(([x, y]) => { const o = this.occupant(x, y); if (o && !seen.has(o.id) && !o.c.abilities.undead && o.alive && !o.c.abilities.fireImmune) { seen.add(o.id); this.strike(s, o, { ranged: true, luckRoll: false }); } })); }
-        if (target.effects.blind) delete target.effects.blind;
+        if (wasBlind) delete target.effects.blind;
       };
       volley();
       if (s.c.abilities.doubleShot && target.alive && s.shots > 0) volley();
@@ -682,7 +688,7 @@
           targets.forEach((t) => {
             const a = this.affects(spell, t, side); if (!a.ok) { this.pushEv({ type: 'immune', stack: t.id, why: a.why }); return; }
             if (spell.kind === 'debuff' && this.resists(spell, t, side)) { this.pushEv({ type: 'resist', stack: t.id }); return; }
-            if (spell.effect === 'counterstrike') t.retaliations += val;
+            if (spell.effect === 'counterstrike') t.retaliations += Math.max(0, val - (t.effects.counterstrike ? t.effects.counterstrike.val : 0)); // повторно правене не трупа ответи
             const e = { val, turns: spell.permanent ? Infinity : spell.effect === 'blind' ? 3 : dur, stack: !!spell.stack };
             if (spell.stack && t.effects[spell.effect]) t.effects[spell.effect].val += val; else t.effects[spell.effect] = e;
             const opp = { haste: 'slow', slow: 'haste', bless: 'curse', curse: 'bless', bloodlust: 'weakness', weakness: 'bloodlust', fortune: 'misfortune', misfortune: 'fortune', mirth: 'sorrow', sorrow: 'mirth' }[spell.effect];
