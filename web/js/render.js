@@ -161,7 +161,7 @@
       // --- достижими плочки
       if (this.reach && this.selected && (this.selected.z || 0) === this.z) {
         // един път за всички плочки: припокриванията не се сумират и не се вижда решетка
-        g.fillStyle = 'rgba(255,255,255,0.09)'; g.beginPath();
+        g.fillStyle = this.reachColor || 'rgba(255,255,255,0.09)'; g.beginPath();
         this.reach.forEach((c, i) => { const x = i % m.w, y = Math.floor(i / m.w); if (x < x0 || x > x1 || y < y0 || y > y1) return; const [sx, sy] = this.toScreen(x, y); g.rect(Math.floor(sx), Math.floor(sy), TS, TS); });
         g.fill();
       }

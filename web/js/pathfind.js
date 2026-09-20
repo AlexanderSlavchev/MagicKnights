@@ -35,9 +35,10 @@
         if (isGoal && oid >= 0) { const o = world.objById(oid); if (o && o.type === 'boat') return diag ? 141 : 100; }
         // вражески герой на кораб до брега може да бъде нападнат от сушата (както в класиките)
         if (isGoal) { const eh = world.heroAt(x, y, hero.z || 0); if (eh && eh.owner !== hero.owner) return diag ? 141 : 100; }
-        if (hero._fly && !isGoal) c = 150; else return Infinity;
+        if (hero._ww && (!isGoal || oid >= 0)) c = Math.round(100 * hero._ww); // Ходене по вода: не може да се спре на открита вода
+        else if (hero._fly && !isGoal) c = Math.round(100 * (hero._flyMul || 1.5)); else return Infinity;
       } else if (L.block[i]) {
-        if (hero._fly) c = Math.round(t.cost * 1.5); else return Infinity;
+        if (hero._fly) c = Math.round(t.cost * (hero._flyMul || 1.5)); else return Infinity;
       } else if (L.road[i]) c = D.ROAD_COST;
       else {
         c = t.cost;

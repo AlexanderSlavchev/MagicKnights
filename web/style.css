@@ -369,3 +369,75 @@ button.primary:disabled, .menu .stack > button:disabled { filter: grayscale(0.7)
 /* Лента-заглавие на прозорците */
 .modal > h2 { background: url(img/ui/ribbon.webp) center / contain no-repeat; min-height: 64px; margin: -6px auto 8px; padding: 14px 70px 0; text-align: center; color: #4a2c0a; text-shadow: 0 1px 0 rgba(255,240,200,0.8); font-size: 17px; line-height: 1.1; display: flex; align-items: center; justify-content: center; }
 @media (max-width: 480px) { .modal > h2 { padding: 12px 56px 0; font-size: 15px; min-height: 56px; } }
+/* ---- Главно меню: всичко се побира в екрана (логото не се реже горе, настройките не излизат долу) ---- */
+.menu.main { justify-content: safe center; gap: 0; padding: calc(10px + env(safe-area-inset-top, 0px)) calc(10px + env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) calc(10px + env(safe-area-inset-left, 0px)); }
+.menu.main .logo { flex: 0 1 auto; min-height: 0; width: auto; max-width: min(46vw, 260px); height: clamp(84px, 19vh, 240px); max-height: none; margin-bottom: -4px; }
+.menu.main .title.with-logo { font-size: clamp(26px, 4.4vh, 34px); line-height: 1.1; }
+.menu.main .subtitle { margin-bottom: 8px; font-size: 13px; line-height: 1.25; max-width: 340px; }
+.menu.main .divider { margin: 0 0 2px; max-height: 5vh; width: auto; max-width: min(70vw, 420px); }
+.menu.main .stack.on-panel { flex: none; width: min(340px, 94vw); padding: clamp(60px, 9.6vh, 78px) 52px clamp(46px, 7.4vh, 60px); gap: clamp(6px, 1.2vh, 10px); }
+.menu.main .stack.on-panel button { min-height: clamp(38px, 5.6vh, 46px); }
+.menu.main .audio-panel { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; align-items: center; justify-items: stretch; width: min(320px, 92vw); margin-top: 8px; padding: 8px 12px; }
+.menu.main .audio-panel > button { min-height: 34px; width: 100%; white-space: nowrap; }
+.menu.main .audio-panel label { min-width: 0; }
+.menu.main .audio-panel label:has(select) { flex-direction: row; gap: 6px; font-size: 16px; }
+.menu.main .audio-panel select.lang { flex: 1; min-width: 0; min-height: 34px; padding: 4px 8px; font-size: 13px; }
+.menu.main .audio-panel input[type=range] { width: 100%; }
+.menu.main .version { margin-top: 6px; font-size: 10px; line-height: 1.2; text-align: center; opacity: 0.8; text-shadow: 0 1px 2px #000; max-width: 94vw; }
+@media (max-height: 760px) and (orientation: portrait) { .menu.main .divider { display: none; } }
+@media (max-height: 640px) and (orientation: portrait) { .menu.main .subtitle { display: none; } }
+/* Легнал телефон: лого вляво, бутоните в средата, настройките вдясно — огледално на логото */
+@media (max-height: 520px) and (orientation: landscape) {
+  #overlay > .screen.menu.main { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto auto auto; align-content: center; align-items: center; justify-items: center; column-gap: 10px; }
+  .menu.main .logo { grid-column: 1; grid-row: 1; align-self: end; max-height: none; height: clamp(90px, 42vh, 200px); max-width: 100%; }
+  .menu.main .title.with-logo { grid-column: 1; grid-row: 2; align-self: start; font-size: clamp(20px, 3.4vw, 32px); letter-spacing: 2px; }
+  .menu.main .stack.on-panel { grid-column: 2; grid-row: 1 / 3; width: 300px; padding: 56px 44px 44px; gap: 6px; }
+  .menu.main .stack.on-panel button { min-height: clamp(32px, 9.6vh, 40px); font-size: 14px; }
+  /* панелът заема същото място вдясно, каквото логото + заглавието вляво */
+  .menu.main .audio-panel { grid-column: 3; grid-row: 1 / 3; align-self: center; grid-template-columns: 1fr; width: min(250px, 100%); margin-top: 0; padding: 14px 16px; gap: clamp(6px, 2.4vh, 12px); border: 1px solid rgba(232, 196, 106, 0.35); border-radius: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.55); }
+  .menu.main .audio-panel > button { min-height: clamp(34px, 11vh, 44px); font-size: 15px; }
+  .menu.main .audio-panel select.lang { min-height: clamp(34px, 11vh, 44px); font-size: 15px; }
+  .menu.main .audio-panel label { font-size: 13px; gap: 6px; }
+  .menu.main .audio-panel label:has(select) { font-size: 20px; }
+  .menu.main .audio-panel input[type=range] { height: 22px; }
+  .menu.main .version { grid-column: 1 / -1; grid-row: 3; margin-top: 2px; max-width: none; }
+}
+/* Бързо разпределяне на армията + размяна между герои */
+.army-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 5px; margin-top: 6px; }
+.army-tools button { min-height: 30px; padding: 3px 8px; font-size: 12px; white-space: nowrap; }
+.army-tools button:disabled { opacity: 0.4; }
+.town-armies .army-tools { margin: 4px 0 2px 70px; }
+.cols.exch { flex-wrap: nowrap; align-items: stretch; }
+.cols.exch > .panel { flex: 1 1 0; min-width: 0; }
+.cols.exch > .exch-mid { flex: 0 0 104px; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.exch-mid h3 { text-align: center; margin-bottom: 2px; }
+.exch-mid button { width: 100%; white-space: nowrap; }
+.exch-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.exch-head .name { font-weight: 700; color: var(--gold-2); }
+.exch-head canvas { border-radius: 8px; }
+.exch-stats { display: flex; gap: 4px; }
+.exch-stats span { display: flex; flex-direction: column; align-items: center; min-width: 30px; padding: 2px 4px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+.exch-stats b { color: var(--gold-2); font-family: Georgia, serif; font-size: 15px; }
+.exch-stats small { font-size: 9px; color: var(--ink-dim); }
+.exchange .army { flex-wrap: nowrap; }
+.exchange .slot { flex: 1 1 0; width: auto; min-width: 0; max-width: 60px; }
+.exchange .art.empty { opacity: 0.55; }
+.exchange .arts .art { width: 42px; height: 42px; }
+@media (max-width: 760px) {
+  .cols.exch { flex-direction: column; }
+  .cols.exch > .exch-mid { flex: none; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .exch-mid h3 { flex: 1 0 100%; margin-top: 0 !important; }
+  .exch-mid button { flex: 1 1 0; width: auto; }
+}
+/* Магии за картата */
+.adv-spell { cursor: pointer; align-items: center; gap: 10px; }
+.adv-spell.off { opacity: 0.55; }
+.adv-spell .sub { font-size: 12px; line-height: 1.25; }
+.adv-icon { flex: none; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: radial-gradient(ellipse at 50% 30%, #3a3020, #1a160e); border: 1px solid var(--gold); object-fit: cover; }
+.adv-cost { flex: none; display: flex; flex-direction: column; align-items: center; min-width: 38px; }
+.adv-cost b { color: #8ecbff; font-size: 17px; font-family: Georgia, serif; }
+.adv-cost small { font-size: 9px; color: var(--ink-dim); }
+.spell.adv { border-style: dashed; }
+#side-buttons { grid-template-columns: repeat(3, 1fr); }
+#side-buttons button { padding: 4px 2px; font-size: 16px; white-space: nowrap; }
+#side-buttons #btn-end { grid-column: 1 / -1; }

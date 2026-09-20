@@ -38,6 +38,7 @@
       const h = world.heroes[hid];
       if (!h) continue;
       world.autoLevelUp(h);
+      try { world.aiAdventureMagic(h); } catch (e) { /* магиите за картата не бива да спират хода на ИИ */ }
       let guard = 0;
       while (h.movement > 0 && world.heroes[h.id] && guard++ < 12) {
         const target = pickTarget(world, h, p);
@@ -193,7 +194,7 @@
       if (e.owner === h.owner || e.owner < 0 || (e.z || 0) !== (h.z || 0) || e.boat) continue;
       const d = Math.hypot(e.x - h.x, e.y - h.y);
       if (d > 14) continue;
-      const str = world.heroStrength(e) + (e.inTown ? Army.strength(world.towns[e.inTown].garrison) : 0);
+      const str = world.heroStrength(e) * [1, 1.15, 1.3, 1.5][world.advState(e).disguise || 0] + (e.inTown ? Army.strength(world.towns[e.inTown].garrison) : 0);
       if (my > str * 1.5 / bonus && !world.players[e.owner].human || my > str * 1.8 / bonus) cands.push({ x: e.x, y: e.y, v: 3000 + str * 0.2, kind: 'fight', hero: e });
     }
     // Оценка по път

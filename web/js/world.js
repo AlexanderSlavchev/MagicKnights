@@ -36,6 +36,48 @@
       if (t) t.n += n; else b[j] = { c: s.c, n };
       s.n -= n; return true;
     },
+    /* Бързо разпределяне (като в HotA). Всички връщат true, ако нещо се е променило. */
+    freeSlots(army) { const out = []; for (let i = 0; i < 7; i++) if (!army[i]) out.push(i); return out; },
+    /* Стекът i се разделя поравно между себе си и всички празни слотове; остатъкът отива при първите. */
+    spreadEven(army, i) {
+      const s = army[i]; if (!s || s.n < 2) return false;
+      const free = Army.freeSlots(army); if (!free.length) return false;
+      const parts = Math.min(s.n, free.length + 1), base = Math.floor(s.n / parts); let rem = s.n - base * parts;
+      s.n = base + (rem > 0 ? 1 : 0); if (rem > 0) rem--;
+      for (let k = 0; k < parts - 1; k++) { army[free[k]] = { c: s.c, n: base + (rem > 0 ? 1 : 0) }; if (rem > 0) rem--; }
+      return true;
+    },
+    /* По едно същество от стека i във всеки празен слот (докато в стека остане поне едно). */
+    spreadOnes(army, i) {
+      const s = army[i]; if (!s || s.n < 2) return false;
+      const free = Army.freeSlots(army); if (!free.length) return false;
+      for (const j of free) { if (s.n < 2) break; army[j] = { c: s.c, n: 1 }; s.n--; }
+      return true;
+    },
+    /* Отделя едно същество в първия празен слот. */
+    splitOne(army, i) {
+      const s = army[i]; if (!s || s.n < 2) return false;
+      const free = Army.freeSlots(army); if (!free.length) return false;
+      army[free[0]] = { c: s.c, n: 1 }; s.n--; return true;
+    },
+    /* Събира всички стекове от същото същество в слота i. */
+    mergeSame(army, i) {
+      const s = army[i]; if (!s) return false; let did = false;
+      for (let j = 0; j < 7; j++) if (j !== i && army[j] && army[j].c === s.c) { s.n += army[j].n; army[j] = null; did = true; }
+      return did;
+    },
+    /* Размяна на целите армии / прехвърляне на всичко от a към b (в a остава най-слабият стек, ако keepOne). */
+    swapAll(a, b) { for (let i = 0; i < 7; i++) { const t = a[i]; a[i] = b[i]; b[i] = t; } return true; },
+    moveAll(a, b, keepOne) {
+      let did = false;
+      const order = a.map((sl, i) => ({ sl, i })).filter((x) => x.sl).sort((x, y) => y.sl.n * D.fightValue(D.creatureOf(y.sl.c)) - x.sl.n * D.fightValue(D.creatureOf(x.sl.c)));
+      for (const { sl, i } of order) {
+        if (keepOne && a.filter(Boolean).length <= 1) { if (sl.n > 1 && Army.canAdd(b, sl.c)) { Army.add(b, sl.c, sl.n - 1); sl.n = 1; did = true; } break; }
+        if (!Army.canAdd(b, sl.c)) continue;
+        Army.add(b, sl.c, sl.n); a[i] = null; did = true;
+      }
+      return did;
+    },
     factions(army) { const f = new Set(); army.forEach((sl) => { if (sl) f.add(D.creatureOf(sl.c).faction); }); return f; }
   };
   MK.Army = Army;
@@ -62,7 +104,7 @@
         if (o.type === 'town') w.createTown(o);
         if (o.type === 'resource') o.amount = w.resourceAmount(o.res);
         if (o.type === 'dwelling') o.available = D.creatureOf(o.creature).growth;
-        if (o.type.startsWith('shrine')) o.spell = w.rng.pick(D.SPELLS.filter((s) => s.level === +o.type.slice(-1))).id;
+        if (o.type.startsWith('shrine')) o.spell = w.rng.pick(D.SPELLS.filter((s) => s.kind !== 'adv' && s.level === +o.type.slice(-1))).id;
         if (o.type === 'tree_knowledge') o.price = w.rng.pick(['gold', 'gems']);
         if (o.type === 'windmill' || o.type === 'watermill') o.takenWeek = 0;
       });
@@ -215,8 +257,11 @@
     }
     generateGuildSpells(t, level) {
       const used = new Set(); for (let l = 1; l <= 5; l++) t.spells[l].forEach((s) => used.add(s));
-      const pool = this.rng.shuffle(D.SPELLS.filter((s) => s.level === level && !used.has(s.id)));
+      const pool = this.rng.shuffle(D.SPELLS.filter((s) => s.level === level && s.kind !== 'adv' && !used.has(s.id)));
       t.spells[level] = pool.slice(0, D.GUILD_SLOTS[level]).map((s) => s.id);
+      // магиите за картата не изместват бойните: най-много една на ниво, в допълнително място
+      const adv = D.SPELLS.filter((s) => s.level === level && s.kind === 'adv');
+      if (adv.length && this.rng.chance(D.ADV_GUILD_CHANCE[level] || 0)) { const wts = {}; adv.forEach((s) => { wts[s.id] = s.gw || 10; }); t.spells[level].push(this.rng.weighted(wts)); }
     }
     learnTownSpells(h, t) {
       const ml = this.mageLevel(t);
@@ -300,7 +345,7 @@
       const kind = this.rng.weighted({ creature: 40, skill: 30, spell: cls.magic ? 15 : 5, resource: 15 });
       if (kind === 'creature') return { kind, id: faction + this.rng.int(1, 4) };
       if (kind === 'skill') return { kind, id: this.rng.pick(cls.skills.filter((s) => s !== 'wisdom')) || cls.skills[0] };
-      if (kind === 'spell') return { kind, id: this.rng.pick(D.SPELLS.filter((s) => s.level <= 2)).id };
+      if (kind === 'spell') return { kind, id: this.rng.pick(D.SPELLS.filter((s) => s.kind !== 'adv' && s.level <= 2)).id };
       return { kind, id: this.rng.weighted({ gold: 4, wood: 1, ore: 1, mercury: 1, sulfur: 1, crystal: 1, gems: 1 }) };
     }
     rollStartArmy(faction) {
@@ -365,7 +410,9 @@
     skillLevel(h, sk) { return Math.min(3, (h.skills[sk] || 0) + this.artBonus(h, sk)); }
     // Множител от специалност в умение
     skillMult(h, sk) { return h.spec && h.spec.kind === 'skill' && h.spec.id === sk ? 1 + 0.05 * h.level : 1; }
-    heroSpells(h) {
+    heroSpells(h) { return this.heroAllSpells(h).filter((id) => D.spellById[id].kind !== 'adv'); }
+    heroAdvSpells(h) { return this.heroAllSpells(h).filter((id) => D.spellById[id].kind === 'adv'); }
+    heroAllSpells(h) {
       const out = h.spells.slice();
       h.arts.forEach((aid) => { if (aid && D.artById[aid].bonus.spellsOf) D.SPELLS.forEach((s) => { const so = D.artById[aid].bonus.spellsOf; if ((so === 'all' || s.school === so) && !out.includes(s.id)) out.push(s.id); }); });
       return out;
@@ -392,7 +439,7 @@
       if (h.moveTmpWeek === this.week()) m += h.moveTmp;
       return m;
     }
-    resetMovement(h) { h.maxMovement = this.computeMaxMovement(h); h.movement = h.maxMovement; h._native = undefined; h._fly = this.hasArt(h, 'flyMove'); }
+    resetMovement(h) { h.maxMovement = this.computeMaxMovement(h); h.movement = h.maxMovement; h._native = undefined; this.advState(h); this.refreshFly(h); }
     gainXp(h, xp) {
       xp = Math.round(xp * (1 + [0, 0.05, 0.1, 0.15][this.skillLevel(h, 'learning')] * this.skillMult(h, 'learning')));
       h.xp += xp;
@@ -433,10 +480,196 @@
     }
     equipArtifact(h, aid) {
       const a = D.artById[aid];
-      for (let i = 0; i < D.SLOTS.length; i++) if (D.SLOTS[i] === a.slot && !h.arts[i]) { h.arts[i] = aid; h._native = undefined; h._fly = this.hasArt(h, 'flyMove'); return true; }
+      for (let i = 0; i < D.SLOTS.length; i++) if (D.SLOTS[i] === a.slot && !h.arts[i]) { h.arts[i] = aid; h._native = undefined; this.refreshFly(h); return true; }
       h.backpack.push(aid); return false;
     }
-    unequip(h, i) { const a = h.arts[i]; if (!a) return; h.arts[i] = null; h.backpack.push(a); h._fly = this.hasArt(h, 'flyMove'); }
+    // ------------------------------------------------------ магии за картата
+    /* Дневно състояние на магиите за картата. Нулира се на нов ден; ако героят е „във въздуха“ (над вода/препятствие), ефектът го държи до сушата. */
+    advState(h) {
+      if (!h.adv || h.adv.day !== this.day) {
+        const prev = h.adv, hover = prev && this.isHoverTile(h, h.x, h.y);
+        h.adv = { day: this.day, dd: 0 };
+        if (hover) { if (prev.ww) h.adv.ww = prev.ww; if (prev.fly) h.adv.fly = prev.fly; h.adv.carry = true; }
+        this.refreshFly(h);
+      }
+      return h.adv;
+    }
+    refreshFly(h) {
+      const a = h.adv && h.adv.day === this.day ? h.adv : null, wings = this.hasArt(h, 'flyMove');
+      h._fly = wings || !!(a && a.fly);
+      h._flyMul = Math.min(wings ? 1.5 : 9, a && a.fly ? a.fly : 9); if (h._flyMul === 9) h._flyMul = 1.5;
+      h._ww = a && a.ww ? a.ww : undefined;
+    }
+    /* Плочка, на която герой не може да остане сам: вода (без кораб) или препятствие. */
+    isHoverTile(h, x, y) {
+      if (h.boat) return false; const z = h.z || 0, L = this.lv(z), i = this.idx(x, y);
+      if (this.isWater(x, y, z)) return true;
+      return !!L.block[i] && !this.objectAt(x, y, z);
+    }
+    /* Може ли от (x,y) с budget точки да се стигне до свободна суша — за да не заседне летящ/ходещ по вода герой. */
+    canLand(h, x, y, budget) {
+      const W = this.map.w, dist = new Map(), heap = new MK.Path.Heap(), z = h.z || 0;
+      const s0 = y * W + x; dist.set(s0, 0); heap.push({ i: s0, f: 0 });
+      const DX = [1, -1, 0, 0, 1, 1, -1, -1], DY = [0, 0, 1, -1, 1, -1, 1, -1];
+      while (heap.size) {
+        const cur = heap.pop(); if (cur.f > dist.get(cur.i)) continue;
+        const cx = cur.i % W, cy = Math.floor(cur.i / W);
+        for (let d = 0; d < 8; d++) {
+          const nx = cx + DX[d], ny = cy + DY[d]; if (!this.inb(nx, ny)) continue;
+          if (this.blocksPassage(nx, ny, z, h)) continue;
+          const step = MK.Path.tileCost(this, h, nx, ny, d >= 4, false); if (step === Infinity) continue;
+          const g = cur.f + step; if (g > budget) continue;
+          if (!this.isHoverTile(h, nx, ny)) return true;
+          const ni = ny * W + nx; if (g < (dist.get(ni) ?? Infinity)) { dist.set(ni, g); heap.push({ i: ni, f: g }); }
+        }
+      }
+      return false;
+    }
+    advLevel(h, sp) { if (sp.school === 'all') { let m = 0; D.SCHOOLS.forEach((sc) => { m = Math.max(m, this.skillLevel(h, sc)); }); return m; } return this.skillLevel(h, sp.school); }
+    ddLimit(h) { return this.advLevel(h, D.spellById.dimension_door) >= 3 && this.map.w >= 72 ? 2 : 1; }
+    /* Валидните плочки за Врата между измеренията: Map(индекс -> 1) */
+    ddTargets(h) {
+      const sp = D.spellById.dimension_door, r = sp.range[this.advLevel(h, sp)], z = h.z || 0, out = new Map(), L = this.lv(z), fog = this.players[h.owner].fog[z];
+      for (let y = h.y - r; y <= h.y + r; y++) for (let x = h.x - r; x <= h.x + r; x++) {
+        if (!this.inb(x, y) || (x === h.x && y === h.y)) continue; const i = this.idx(x, y);
+        if (!fog[i] || L.block[i] || this.objectAt(x, y, z) || this.heroAt(x, y, z)) continue;
+        if (h.boat ? !this.isWater(x, y, z) : (this.isWater(x, y, z) || !D.TERRAIN[L.terrain[i]].passable)) continue;
+        out.set(i, 1);
+      }
+      return out;
+    }
+    scuttleTargets(h) {
+      const out = new Map(), z = h.z || 0, r = this.sightRadius(h) + 1, fog = this.players[h.owner].fog[z];
+      this.map.objects.forEach((o) => { if (o.type === 'boat' && (o.z || 0) === z && fog[this.idx(o.x, o.y)] && Math.max(Math.abs(o.x - h.x), Math.abs(o.y - h.y)) <= r) out.set(this.idx(o.x, o.y), 1); });
+      return out;
+    }
+    freeOwnTowns(h) { return this.players[h.owner].towns.map((id) => this.towns[id]).filter((t) => !t.visitor || t.visitor === h.id).filter((t) => h.inTown !== t.id); }
+    /* Защо магията не може да се направи сега (null = може). */
+    advBlocked(h, id) {
+      const sp = D.spellById[id], st = this.advState(h), lvl = this.advLevel(h, sp);
+      if (h.mana < sp.cost) return T('Няма достатъчно мана.');
+      if (h.boat && id !== 'dimension_door' && id !== 'scuttle_boat' && id !== 'view_earth' && id !== 'view_air' && id !== 'visions' && id !== 'disguise') return T('Не може от кораб.');
+      if (sp.move && h.movement <= sp.move[lvl]) return T('Няма достатъчно точки за движение.');
+      if (id === 'dimension_door' && st.dd >= this.ddLimit(h)) return T('Вече е използвана днес.');
+      if (id === 'dimension_door' && !this.ddTargets(h).size) return T('Няма свободна плочка в обхват.');
+      if (id === 'fly' && st.fly && st.fly <= sp.mul[lvl]) return T('Вече е активна.');
+      if (id === 'water_walk' && st.ww && st.ww <= sp.mul[lvl]) return T('Вече е активна.');
+      if (id === 'visions' && st.visions) return T('Вече е активна.');
+      if (id === 'disguise' && st.disguise) return T('Вече е активна.');
+      if (id === 'town_portal' && !this.freeOwnTowns(h).length) return T('Нямаш свободен град.');
+      if (id === 'scuttle_boat' && !this.scuttleTargets(h).size) return T('Наблизо няма празен кораб.');
+      if (id === 'summon_boat') {
+        if (!this.shoreSpot(h)) return T('Героят трябва да е до свободна вода.');
+        const boats = this.map.objects.filter((o) => o.type === 'boat' && o.owner === h.owner && (o.z || 0) === (h.z || 0));
+        if (!boats.length && lvl < 3) return T('Нямаш свободен кораб.');
+      }
+      return null;
+    }
+    shoreSpot(h) {
+      const z = h.z || 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = h.x + dx, y = h.y + dy; if ((dx || dy) && this.inb(x, y) && this.isWater(x, y, z) && !this.objectAt(x, y, z) && !this.heroAt(x, y, z)) return { x, y }; }
+      return null;
+    }
+    /* Прави магия за картата. target: {x,y} за плочка/кораб, {townId} за портал. Връща { ok, why } | { ok:true, text, event?, overview? } */
+    castAdventure(h, id, target) {
+      if (!this.heroAdvSpells(h).includes(id)) return { ok: false, why: T('Героят не знае тази магия.') };
+      const why = this.advBlocked(h, id); if (why) return { ok: false, why };
+      const sp = D.spellById[id], st = this.advState(h), lvl = this.advLevel(h, sp), z = h.z || 0;
+      const pay = () => { h.mana -= sp.cost; if (sp.move) h.movement -= sp.move[lvl]; };
+      const chance = [0.5, 0.5, 0.75, 1][lvl];
+      switch (id) {
+        case 'fly': pay(); st.fly = sp.mul[lvl]; this.refreshFly(h); return { ok: true, text: h.name + T(' се издига във въздуха до края на деня.') };
+        case 'water_walk': pay(); st.ww = sp.mul[lvl]; this.refreshFly(h); return { ok: true, text: h.name + T(' може да върви по вода до края на деня.') };
+        case 'visions': pay(); st.visions = { lvl, r: Math.min(14, Math.max(3, this.stat(h, 'pow')) * Math.max(1, lvl)) }; return { ok: true, text: T('Задръж върху същества наоколо, за да видиш точния им брой.') };
+        case 'disguise': pay(); st.disguise = Math.max(1, lvl); return { ok: true, text: T('Армията на ') + h.name + T(' е прикрита до края на деня.') };
+        case 'view_earth': case 'view_air': pay(); return { ok: true, overview: { kind: id, lvl } };
+        case 'summon_boat': {
+          const spot = this.shoreSpot(h); pay();
+          const boats = this.map.objects.filter((o) => o.type === 'boat' && o.owner === h.owner && (o.z || 0) === z);
+          if (!this.rng.chance(chance)) return { ok: true, fail: true, text: T('Магията не успя.') };
+          if (!boats.length) { this.addObject({ type: 'boat', x: spot.x, y: spot.y, z, owner: h.owner }); return { ok: true, text: T('От вълните се появява нов кораб.') }; }
+          boats.sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
+          const b = boats[0]; this.removeObject(b); this.addObject({ type: 'boat', x: spot.x, y: spot.y, z, owner: h.owner });
+          return { ok: true, text: T('Корабът ти пристига до брега.') };
+        }
+        case 'scuttle_boat': {
+          const o = target && this.objectAt(target.x, target.y, z);
+          if (!o || o.type !== 'boat' || !this.scuttleTargets(h).has(this.idx(o.x, o.y))) return { ok: false, why: T('Избери празен кораб наблизо.') };
+          pay(); if (!this.rng.chance(chance)) return { ok: true, fail: true, text: T('Магията не успя.') };
+          this.removeObject(o); return { ok: true, text: T('Корабът потъва.') };
+        }
+        case 'dimension_door': {
+          if (!target || !this.ddTargets(h).has(this.idx(target.x, target.y))) return { ok: false, why: T('Избери свободна видима плочка в обхват.') };
+          pay(); st.dd++;
+          if (h.inTown) { const t = this.towns[h.inTown]; if (t.visitor === h.id) t.visitor = null; h.inTown = null; }
+          h.x = target.x; h.y = target.y; this.revealAround(h.owner, h.x, h.y, z, this.sightRadius(h));
+          return { ok: true, moved: true, text: '' };
+        }
+        case 'town_portal': {
+          let towns = this.freeOwnTowns(h); let t = null;
+          if (lvl >= 2 && target && target.townId != null) t = towns.find((x) => x.id === target.townId);
+          if (!t) { const d = (x) => Math.hypot(x.x - h.x, x.y - h.y) + ((x.z || 0) !== z ? 1000 : 0); towns = towns.slice().sort((a, b) => d(a) - d(b)); t = towns[0]; }
+          pay();
+          if (h.inTown) { const o = this.towns[h.inTown]; if (o.visitor === h.id) o.visitor = null; h.inTown = null; }
+          h.x = t.x; h.y = t.y; h.z = t.z || 0; h.inTown = t.id; t.visitor = h.id; h.maxMovement = this.computeMaxMovement(h);
+          this.revealAround(h.owner, h.x, h.y, h.z, this.sightRadius(h));
+          return { ok: true, moved: true, event: { type: 'enterTown', town: t, hero: h, learned: this.learnTownSpells(h, t) } };
+        }
+      }
+      return { ok: false, why: '?' };
+    }
+    /* Ниво на Видения на играча върху плочка: -1 няма; 0/1 същества; 2 +герои; 3 +гарнизони */
+    visionsAt(pi, x, y, z) {
+      let best = -1;
+      this.players[pi].heroes.forEach((id) => { const h = this.heroes[id]; if (!h || (h.z || 0) !== (z || 0)) return; const v = this.advState(h).visions; if (v && Math.max(Math.abs(h.x - x), Math.abs(h.y - y)) <= v.r) best = Math.max(best, v.lvl); });
+      return best;
+    }
+    /* Как враг вижда армията на героя (Маскировка). */
+    shownArmy(h) {
+      const army = h.army.filter(Boolean), d = this.advState(h).disguise; if (!d || !army.length) return army;
+      const top = army.slice().sort((a, b) => D.fightValue(D.creatureOf(b.c)) - D.fightValue(D.creatureOf(a.c)))[0];
+      return army.map((s) => ({ c: top.c, n: s.n * (d >= 3 ? 3 : d >= 2 ? 2 : 1) }));
+    }
+    /* ИИ: Летене в началото на хода, Градски портал за защита на застрашен град. */
+    aiAdventureMagic(h) {
+      const known = this.heroAdvSpells(h); if (!known.length || h.boat) return null;
+      if (known.includes('town_portal') && !this.advBlocked(h, 'town_portal')) {
+        const lvl = this.advLevel(h, D.spellById.town_portal), mine = this.heroStrength(h);
+        const threatened = this.freeOwnTowns(h).filter((t) => {
+          if (t.visitor || Math.max(Math.abs(t.x - h.x), Math.abs(t.y - h.y)) < 10) return false;
+          const gar = Army.strength(t.garrison); let worst = 0;
+          for (const id in this.heroes) { const e = this.heroes[id]; if (e.owner !== h.owner && (e.z || 0) === (t.z || 0) && Math.max(Math.abs(e.x - t.x), Math.abs(e.y - t.y)) <= 7) worst = Math.max(worst, this.heroStrength(e)); }
+          return worst > gar * 1.2 && mine + gar > worst;
+        });
+        if (threatened.length) {
+          const t = threatened[0];
+          const nearest = this.freeOwnTowns(h).slice().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
+          if (lvl >= 2 || nearest === t) { const r = this.castAdventure(h, 'town_portal', { townId: t.id }); if (r.ok) return r; }
+        }
+      }
+      if (known.includes('fly') && !h._fly && h.mana >= D.spellById.fly.cost + 30 && !this.advBlocked(h, 'fly')) return this.castAdventure(h, 'fly');
+      return null;
+    }
+    /* Прехвърля артефакт между герои. src = { slot: i } (сложен) или { bp: i } (от раницата). Слага се сам, ако мястото е свободно. */
+    giveArtifact(from, to, src) {
+      let aid = null;
+      if (src.slot != null) { aid = from.arts[src.slot]; if (!aid) return false; from.arts[src.slot] = null; }
+      else { aid = from.backpack[src.bp]; if (!aid) return false; from.backpack.splice(src.bp, 1); }
+      from._native = undefined; this.refreshFly(from);
+      this.equipArtifact(to, aid);
+      return true;
+    }
+    giveAllArtifacts(from, to) {
+      let n = 0;
+      for (let i = 0; i < from.arts.length; i++) if (from.arts[i]) { this.giveArtifact(from, to, { slot: i }); n++; }
+      while (from.backpack.length) { this.giveArtifact(from, to, { bp: 0 }); n++; }
+      return n;
+    }
+    swapArtifacts(a, b) {
+      const t1 = a.arts, t2 = a.backpack; a.arts = b.arts; a.backpack = b.backpack; b.arts = t1; b.backpack = t2;
+      [a, b].forEach((h) => { h._native = undefined; this.refreshFly(h); });
+    }
+    unequip(h, i) { const a = h.arts[i]; if (!a) return; h.arts[i] = null; h.backpack.push(a); this.refreshFly(h); }
     equipFromBackpack(h, bi) {
       const aid = h.backpack[bi]; if (!aid) return false;
       const a = D.artById[aid];
@@ -446,7 +679,7 @@
       if (slot < 0) return false;
       h.backpack.splice(bi, 1);
       if (h.arts[slot]) h.backpack.push(h.arts[slot]);
-      h.arts[slot] = aid; h._fly = this.hasArt(h, 'flyMove'); return true;
+      h.arts[slot] = aid; this.refreshFly(h); return true;
     }
     removeHero(h) {
       const p = this.players[h.owner];
@@ -537,6 +770,7 @@
       if (cost === Infinity) cost = goalCost;
       if (cost === Infinity) return { stop: true, why: T('Непроходимо.') };
       if (h.movement < cost) return { stop: true, why: T('Няма точки за движение.') };
+      if (!other && !(target && target.type === 'boat') && this.isHoverTile(h, x, y) && !this.canLand(h, x, y, h.movement - cost)) return { stop: true, why: T('Няма да стигнеш суша с оставащото движение.') };
       if (h.inTown) { const t = this.towns[h.inTown]; if (t.visitor === h.id) t.visitor = null; h.inTown = null; }
       if (other && other !== h) {
         h.movement -= cost;
@@ -545,7 +779,7 @@
         return { event: this.startBattle(h, { type: 'hero', hero: other }) };
       }
       // Кораб: качване / слизане
-      if (!h.boat && this.isWater(x, y, z)) {
+      if (!h.boat && this.isWater(x, y, z) && !((h._ww || h._fly) && !(target && target.type === 'boat'))) {
         if (!target || target.type !== 'boat') return { stop: true, why: T('Вода.') };
         this.removeObject(target);
         h.x = x; h.y = y; h.boat = true; h.movement = 0; h.maxMovement = this.computeMaxMovement(h);
@@ -588,6 +822,7 @@
         return { event: this.startBattle(h, { type: 'town', town: t }) };
       }
       h.movement -= cost; h.x = x; h.y = y;
+      if (h.adv && h.adv.carry && !this.isHoverTile(h, x, y)) { delete h.adv.fly; delete h.adv.ww; delete h.adv.carry; this.refreshFly(h); } // пренесеният от вчера ефект свършва на сушата
       this.revealAround(h.owner, x, y, z, this.sightRadius(h));
       // Съществата на картата не нападат сами — битка има само ако героят ги атакува.
       if (target) { const ev = this.visit(h, target); if (ev) return { event: ev }; }
@@ -703,7 +938,7 @@
         case 'library': {
           if (!once('lib' + o.id)) return msg(T('Прочел си всичко тук.'));
           if (p.res.gold < 500) { h.visited['lib' + o.id] = false; return msg(T('Достъпът струва 500 злато.')); }
-          p.res.gold -= 500; let n = 0; D.SPELLS.filter((s) => s.level === 1).forEach((s) => { if (!h.spells.includes(s.id)) { h.spells.push(s.id); n++; } });
+          p.res.gold -= 500; let n = 0; D.SPELLS.filter((s) => s.kind !== 'adv' && s.level === 1).forEach((s) => { if (!h.spells.includes(s.id)) { h.spells.push(s.id); n++; } });
           return msg(T('Научаваш ') + n + T(' нови магии от 1-во ниво.'), 'spell');
         }
         case 'monolith': case 'gate': case 'whirlpool': {
@@ -849,7 +1084,7 @@
       const m = j.map;
       w.map = { w: m.w, h: m.h, levels: m.levels.map((L) => ({ terrain: Uint8Array.from(L.terrain), road: Uint8Array.from(L.road), block: Uint8Array.from(L.block), objAt: new Int32Array(m.w * m.h).fill(-1) })), objects: m.objects, starts: m.starts };
       m.objects.forEach((o) => { w.map.levels[o.z || 0].objAt[o.y * m.w + o.x] = o.id; });
-      for (const id in w.heroes) { const h = w.heroes[id]; h._native = undefined; h._fly = w.hasArt(h, 'flyMove'); }
+      for (const id in w.heroes) { const h = w.heroes[id]; h._native = undefined; w.refreshFly(h); }
       return w;
     }
   }
