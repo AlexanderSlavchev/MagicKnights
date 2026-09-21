@@ -81,7 +81,20 @@
   /* Прозорец за зареждане; връща елемент с .remove() */
   function loading(text) {
     const u = MK.Img.url('ui/loading_bg');
-    if (u) { const wrap = el('div', { class: 'loading-art' }, el('div', { class: 'loading-bar' }, el('i')), el('div', { class: 'loading-text' }, text)); wrap.style.backgroundImage = 'url(' + u + ')'; document.body.appendChild(wrap); return wrap; }
+    if (u) {
+      const bar = el('div', { class: 'loading-bar' }, el('i')), txt = el('div', { class: 'loading-text' }, text);
+      const wrap = el('div', { class: 'loading-art' }, bar, txt); wrap.style.backgroundImage = 'url(' + u + ')';
+      // лентата се поставя точно в нарисуваната „тръба“ на картината (координати спрямо изображението при cover)
+      const IMG = { w: 16, h: 9, bx: 0.209, by: 0.833, bw: 0.585, bh: 0.052 };
+      const fit = () => {
+        const W = window.innerWidth, H = window.innerHeight; const k = Math.max(W / IMG.w, H / IMG.h); const iw = IMG.w * k, ih = IMG.h * k; const ox = (W - iw) / 2, oy = (H - ih) / 2;
+        const x = ox + iw * IMG.bx, y = oy + ih * IMG.by, w = iw * IMG.bw, h = ih * IMG.bh;
+        if (x >= 0 && x + w <= W && y + h <= H) { bar.classList.remove('free'); bar.style.left = x + 'px'; bar.style.top = y + 'px'; bar.style.width = w + 'px'; bar.style.height = h + 'px'; bar.style.right = ''; bar.style.bottom = ''; txt.style.bottom = Math.max(6, H - y - h - 4) + 'px'; }
+        else { bar.classList.add('free'); bar.style.left = '15%'; bar.style.right = '15%'; bar.style.width = ''; bar.style.top = ''; bar.style.bottom = '12%'; bar.style.height = '14px'; txt.style.bottom = '6%'; }
+      };
+      fit(); window.addEventListener('resize', fit); const rm = wrap.remove.bind(wrap); wrap.remove = () => { window.removeEventListener('resize', fit); rm(); };
+      document.body.appendChild(wrap); return wrap;
+    }
     const wrap = el('div', { class: 'modal-wrap loading' }, el('div', { class: 'modal', style: 'text-align:center;max-width:320px' }, el('div', { class: 'spinner' }), el('p', null, text)));
     overlay().appendChild(wrap); return wrap;
   }
