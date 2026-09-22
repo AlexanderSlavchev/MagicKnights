@@ -34,8 +34,22 @@
       // Размерът на полето се смята веднъж и се преизчислява само при истинска промяна на прозореца (завъртане),
       // не при всяка промяна на лентата отдолу — иначе полето „подскача“ при всеки ход.
       this._winW = window.innerWidth; this._winH = window.innerHeight;
-      this.onPointer = (e) => this.tap(e);
-      this.onHover = (e) => { if (e.pointerType !== 'mouse') return; const rect = this.canvas.getBoundingClientRect(); this.updateHoverAttack((e.clientX - rect.left) * this.dpr, (e.clientY - rect.top) * this.dpr); };
+      // Мащабиране на полето (щипване) и плъзгане — бутоните остават на място; двойно докосване връща 1×
+      this.view = { s: 1, x: 0, y: 0 };
+      const pts = new Map(); let pinch = null, moved = false, down = null, lastTap = 0;
+      this.onDown = (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = false; down = { x: e.clientX, y: e.clientY, vx: this.view.x, vy: this.view.y }; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: this.view.s, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, vx: this.view.x, vy: this.view.y }; } try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* noop */ } };
+      this.onMove2 = (e) => {
+        if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); const ns = Math.max(1, Math.min(3, pinch.s * d / pinch.d)); const rect = this.canvas.getBoundingClientRect(); const cx = (pinch.cx - rect.left) * this.dpr, cy = (pinch.cy - rect.top) * this.dpr; this.view.x = cx - (cx - pinch.vx) * ns / pinch.s; this.view.y = cy - (cy - pinch.vy) * ns / pinch.s; this.view.s = ns; this.clampView(); moved = true; return; }
+        if (pts.size === 1 && down && this.view.s > 1) { const dx = e.clientX - down.x, dy = e.clientY - down.y; if (moved || Math.hypot(dx, dy) > 8) { moved = true; this.view.x = down.vx + dx * this.dpr; this.view.y = down.vy + dy * this.dpr; this.clampView(); } }
+      };
+      this.onPointer = (e) => { const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!had || moved) { if (pts.size === 0) moved = false; return; } const now = performance.now(); if (now - lastTap < 320 && this.view.s > 1) { lastTap = 0; this.view = { s: 1, x: 0, y: 0 }; return; } lastTap = now; this.tap(e); };
+      this.canvas.addEventListener('pointerdown', this.onDown); this.canvas.addEventListener('pointermove', this.onMove2); this.canvas.addEventListener('pointercancel', this.onPointer);
+      this.canvas.style.touchAction = 'none';
+      // колелце на мишката: мащаб около курсора
+      this.onWheel = (e) => { e.preventDefault(); const rect = this.canvas.getBoundingClientRect(); const cx = (e.clientX - rect.left) * this.dpr, cy = (e.clientY - rect.top) * this.dpr; const ns = Math.max(1, Math.min(3, this.view.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); this.view.x = cx - (cx - this.view.x) * ns / this.view.s; this.view.y = cy - (cy - this.view.y) * ns / this.view.s; this.view.s = ns; this.clampView(); };
+      this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
+      this.onHover = (e) => { if (e.pointerType !== 'mouse') return; const rect = this.canvas.getBoundingClientRect(); this.updateHoverAttack(...this.toField((e.clientX - rect.left) * this.dpr, (e.clientY - rect.top) * this.dpr)); };
       this.canvas.addEventListener('pointermove', this.onHover);
       this.canvas.addEventListener('pointerup', this.onPointer);
       this.raf = null;
@@ -85,6 +99,10 @@
     }
     hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y * (this.squash || 1)]; }
     stackCenter(s) { const hs = this.b.hexes(s); let x = 0, y = 0; hs.forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); x += cx; y += cy; }); return [x / hs.length, y / hs.length]; }
+    /* Ограничава плъзгането, така че полето да не излиза от екрана */
+    clampView() { const v = this.view, W = this.fieldW || this.canvas.width, H = this.canvas.height - (this.barH || 0); v.x = Math.min(0, Math.max(W - W * v.s, v.x)); v.y = Math.min(0, Math.max(H - H * v.s, v.y)); if (v.s === 1) { v.x = 0; v.y = 0; } }
+    /* Екранни пиксели → координати на полето (обратно на мащаба) */
+    toField(px, py) { const v = this.view || { s: 1, x: 0, y: 0 }; return [(px - v.x) / v.s, (py - v.y) / v.s]; }
     pixelToHex(px, py) {
       let best = null, bd = Infinity;
       for (let y = 0; y < Hex.H; y++) for (let x = 0; x < Hex.W; x++) { const [cx, cy] = this.hexCenter(x, y); const d = (cx - px) ** 2 + (cy - py) ** 2; if (d < bd) { bd = d; best = [x, y]; } }
@@ -298,6 +316,7 @@
       if (this.canvas.clientWidth !== this._cw || this.canvas.clientHeight !== this._ch) this.resize(true); // показано/завъртяно
       const g = this.ctx, b = this.b, r = this.r, sq = this.squash || 1;
       g.setTransform(1, 0, 0, 1, 0, 0);
+      if (this.view && this.view.s !== 1) { g.translate(this.view.x, this.view.y); g.scale(this.view.s, this.view.s); }
       if (this.fieldShake) { const fs = this.fieldShake, kk = (performance.now() - fs.t0) / fs.ms; if (kk >= 1) this.fieldShake = null; else g.translate((Math.random() - 0.5) * fs.amp * (1 - kk), (Math.random() - 0.5) * fs.amp * (1 - kk)); }
       const W = this.canvas.width, H = this.canvas.height;
       const now = performance.now(), T = now / 1000;
@@ -425,7 +444,8 @@
       // плаващи числа
       this.floats = this.floats.filter((f) => now - f.t < 1200);
       this.floats.forEach((f) => { const k = (now - f.t) / 1200; const ease = 1 - Math.pow(1 - k, 3); g.globalAlpha = 1 - k * k; g.font = 'bold ' + Math.max(12, r * (f.big ? 0.7 : 0.52)) + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.75)'; g.strokeText(f.text, f.x, f.y - ease * r * 1.6); g.fillStyle = f.color; g.fillText(f.text, f.x, f.y - ease * r * 1.6); g.globalAlpha = 1; });
-      // заглавие
+      // заглавие (без мащаба)
+      g.setTransform(1, 0, 0, 1, 0, 0);
       const hg = g.createLinearGradient(0, 0, 0, this.oy - r); hg.addColorStop(0, 'rgba(10,8,16,0.85)'); hg.addColorStop(1, 'rgba(10,8,16,0)'); g.fillStyle = hg; g.fillRect(0, 0, W, this.oy - r + 4);
       g.font = '600 ' + 14 * this.dpr + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#ffd870';
       const s0 = b.sides[0], s1 = b.sides[1];
@@ -669,7 +689,7 @@
     }
     tap(e) {
       const rect = this.canvas.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * this.dpr, py = (e.clientY - rect.top) * this.dpr;
+      const [px, py] = this.toField((e.clientX - rect.left) * this.dpr, (e.clientY - rect.top) * this.dpr);
       const h = this.pixelToHex(px, py);
       if (!h) {
         const hr = this.heroRects().find((q) => px >= q.x && px <= q.x + q.w && py >= q.y && py <= q.y + q.h);
@@ -807,7 +827,7 @@
       this.running = false; cancelAnimationFrame(this.raf);
       window.removeEventListener('resize', this.onResize);
       if (this.ro) this.ro.disconnect();
-      this.canvas.removeEventListener('pointerup', this.onPointer); this.canvas.removeEventListener('pointermove', this.onHover); this.canvas.style.cursor = '';
+      this.canvas.removeEventListener('pointerup', this.onPointer); this.canvas.removeEventListener('pointermove', this.onHover); this.canvas.removeEventListener('pointerdown', this.onDown); this.canvas.removeEventListener('pointermove', this.onMove2); this.canvas.removeEventListener('pointercancel', this.onPointer); this.canvas.removeEventListener('wheel', this.onWheel); this.canvas.style.cursor = '';
       this.canvas.hidden = true; this.bar.hidden = true; this.bar.innerHTML = '';
       if (this.hudWasVisible) document.getElementById('hud').hidden = false;
     }
