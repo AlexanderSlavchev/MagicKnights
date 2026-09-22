@@ -33,7 +33,9 @@
       this.renderer = new MK.MapRenderer(this.canvas);
       this.world = null; this.human = 0; this.selected = null; this.busy = false; this.hint = '';
       this.campaign = null;
-      window.addEventListener('resize', () => { this.renderer.resize(); this.renderer.clamp(); });
+      const onResize = () => { this.renderer.resize(); this.renderer.clamp(); if (this.selected) this.renderer.center(this.selected.x, this.selected.y); };
+      window.addEventListener('resize', onResize);
+      if (window.screen && screen.orientation) screen.orientation.addEventListener('change', () => setTimeout(onResize, 60));
       this.renderer.resize();
       this.setupInput();
       this.last = performance.now();
@@ -91,6 +93,7 @@
       ov.remove();
     }
     start() {
+      if (window.MKApp && MKApp.setOrientation) MKApp.setOrientation('landscape'); // в игра: пейзаж, но и в двете посоки
       document.getElementById('hud').hidden = false;
       this._turnSnap = null; setTimeout(() => { if (this.world) this._turnSnap = this.turnSnapshot(); }, 0);
       // подгряване на текстурите на терените от картата на фон

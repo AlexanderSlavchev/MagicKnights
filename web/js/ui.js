@@ -120,6 +120,7 @@
   // ---------------------------------------------------------------- главно меню
   function showMenu(game) {
     MK.Audio.menu();
+    if (window.MKApp && MKApp.setOrientation) MKApp.setOrientation('any');
     const s = screen('menu main');
     artBackdrop(s, 'menu');
     const hasSave = !!localStorage.getItem('mk_save');

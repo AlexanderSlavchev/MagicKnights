@@ -8,6 +8,8 @@ import android.view.WindowManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.JavascriptInterface
+import android.content.pm.ActivityInfo
 import androidx.webkit.WebViewAssetLoader
 import android.webkit.WebViewClient
 
@@ -36,6 +38,7 @@ class MainActivity : Activity() {
             settings.mediaPlaybackRequiresUserGesture = false
             settings.allowFileAccess = false
             setBackgroundColor(0xFF0A0A12.toInt())
+            addJavascriptInterface(AppBridge(this@MainActivity), "MKApp")
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(
                     view: WebView, request: WebResourceRequest
@@ -45,6 +48,20 @@ class MainActivity : Activity() {
         }
         setContentView(webView)
         hideSystemUi()
+    }
+
+    /* Мост към уеб играта: менютата са свободни (портрет/пейзаж), играта — пейзаж в двете посоки (обръща се при завъртане на 180°) */
+    class AppBridge(private val activity: Activity) {
+        @JavascriptInterface
+        fun setOrientation(mode: String) {
+            activity.runOnUiThread {
+                activity.requestedOrientation = when (mode) {
+                    "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    else -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                }
+            }
+        }
     }
 
     private fun hideSystemUi() {
