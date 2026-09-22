@@ -54,6 +54,7 @@
       UI.closeScreens();
       this.campaign = opts.campaign || null;
       this.world = MK.World.create(opts);
+      if (MK.i18n.localizeWorld) MK.i18n.localizeWorld(this.world);
       this.human = this.world.players.findIndex((p) => p.human);
       await this.preload();
       this.start();
@@ -112,6 +113,7 @@
         if (!j) return;
         UI.closeScreens();
         this.world = MK.World.fromJSON(j.world); this.human = j.human || 0; this.campaign = j.campaign || null;
+        if (MK.i18n.localizeWorld) MK.i18n.localizeWorld(this.world);
         await this.preload();
         this.start();
         UI.toast(T('Играта е заредена.'));
