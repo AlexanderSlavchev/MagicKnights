@@ -243,6 +243,8 @@
     /* Показва награди „като в казино“ по текста/данните на събитието */
     showGains(text, ev) {
       const shown = [];
+      // само съобщения за реална придобивка; иначе „Дървото иска 2000 злато, а ти нямаш“ се четеше като награда
+      if (ev && !['pickup', 'xp', 'artifact', 'spell', 'stat', 'buff', 'flag'].includes(ev.kind)) return false;
       // имената на ресурсите и „опит“ на текущия език (регулярният израз се строи динамично)
       const resNames = {}; D.RES.forEach((r) => { resNames[D.RES_NAME[r].toLowerCase()] = r; });
       const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
