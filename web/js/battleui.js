@@ -486,6 +486,25 @@
       return [side === 0 ? this.fieldX + this.r : this.fieldX + this.fieldW - this.r, this.oy + this.r * 4];
     }
     addFx(life, draw) { const f = { t0: performance.now(), life, draw }; this.fx.push(f); return f; }
+    /* „Казино“ знак над стек: голяма икона (морал/късмет), която изскача с отскок, свети, вдига се и изчезва; с искри и надпис */
+    bigBadge(cx, cy, icon, text, good) {
+      const r = this.r, im = MK.Img.get('ui/' + icon), col = good ? 'rgba(255,224,112,' : 'rgba(150,150,170,';
+      const life = 1500, t0 = performance.now();
+      this.addFx(life, (g, k) => {
+        const pop = k < 0.25 ? (1.6 - 0.6 * Math.cos((k / 0.25) * Math.PI)) : k < 0.35 ? 1.6 - (k - 0.25) / 0.1 * 0.3 : 1.3;
+        const rise = k > 0.6 ? (k - 0.6) / 0.4 * r * 1.4 : 0, a = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
+        const sz = r * 1.5 * pop, y = cy - r * 1.6 - rise;
+        g.save(); g.globalAlpha = a;
+        const gl = g.createRadialGradient(cx, y, 0, cx, y, sz * 0.9); gl.addColorStop(0, col + (good ? 0.55 : 0.35) + ')'); gl.addColorStop(1, col + '0)'); g.fillStyle = gl; g.beginPath(); g.arc(cx, y, sz * 0.9, 0, Math.PI * 2); g.fill();
+        if (im) { if (!good) g.filter = 'grayscale(1) brightness(0.8)'; g.drawImage(im, cx - sz / 2, y - sz / 2, sz, sz); g.filter = 'none'; }
+        else { g.font = 'bold ' + sz * 0.8 + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(good ? '✦' : '✧', cx, y); }
+        g.font = '900 ' + (r * 0.55) + 'px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top';
+        g.lineWidth = r * 0.14; g.strokeStyle = 'rgba(30,20,0,0.9)'; g.strokeText(text, cx, y + sz * 0.5); g.fillStyle = good ? '#ffe070' : '#c0c0d0'; g.fillText(text, cx, y + sz * 0.5);
+        if (good) { for (let i = 0; i < 10; i++) { const ang = (i / 10) * Math.PI * 2 + k * 2, d = sz * (0.6 + k * 1.2); const sx = cx + Math.cos(ang) * d, sy = y + Math.sin(ang) * d * 0.7; g.fillStyle = 'rgba(255,240,160,' + (a * (1 - k)) + ')'; g.beginPath(); g.arc(sx, sy, r * 0.07 * (1 - k * 0.5), 0, Math.PI * 2); g.fill(); } }
+        g.restore();
+      });
+      if (good) this.burst(cx, cy - r * 1.6, 'rgba(255,224,112,0.95)', 16, r * 2, r * 0.1, -r * 0.5);
+    }
     async playSpell(sp, side, tx, ty, targets) {
       const v = this.spellVisual(sp), r = this.r, dur = (ms) => sleep(ms * (this.auto ? 0.5 : 1) / this.speed);
       const [cx, cy] = Hex.inb(tx, ty) ? this.hexCenter(tx, ty) : [this.fieldX + this.fieldW / 2, this.oy + r * 7];
@@ -633,7 +652,8 @@
             this.flash[tgt.id] = 1; this.shake[tgt.id] = 1;
             this.burst(tp[0], tp[1] - this.r * 0.3, e.type === 'spellHit' ? 'rgba(190,150,255,0.9)' : bloodColor(tgt), e.kills ? 14 : 8, this.r * 2.2, this.r * 0.12);
             this.floats.push({ x: tp[0], y: tp[1] - this.r * 0.6, text: '−' + e.dmg + (e.kills ? '  ☠' + e.kills : ''), color: e.luck > 0 ? '#ffe070' : e.type === 'spellHit' ? '#d0b0ff' : e.fire ? '#ff9040' : '#ff8a8a', t: performance.now(), big: e.kills > 0 });
-            if (e.luck > 0) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: TR('Късмет!'), color: '#ffe070', t: performance.now() });
+            if (e.luck > 0) { const ap = this.stackCenter(st(e.from)); this.bigBadge(ap[0], ap[1], 'icon_luck', TR('Късмет!'), true); MK.Audio.sfx('treasure'); }
+            else if (e.luck < 0) { const ap = this.stackCenter(st(e.from)); this.bigBadge(ap[0], ap[1], 'icon_luck', TR('Лош късмет'), false); }
             if (e.deathBlow) this.floats.push({ x: tp[0], y: tp[1] - this.r * 1.4, text: TR('Смъртоносен удар!'), color: '#ff4040', t: performance.now() });
             await sleep((e.retaliation ? 220 : 300) * fast / this.speed);
             delete this.flash[tgt.id]; delete this.shake[tgt.id];
@@ -644,7 +664,7 @@
           case 'stare': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.4, 'rgba(160,255,200,0.9)', 16, this.r * 1.5, this.r * 0.1); this.floats.push({ x: cx, y: cy - this.r, text: TR('Смъртоносен поглед ☠') + e.kills, color: '#c0ffc0', t: performance.now() }); await sleep(300 * fast); break; }
           case 'catapult': { const [cx, cy] = this.hexCenter(e.idx % Hex.W, Math.floor(e.idx / Hex.W)); await this.projectile(this.hexCenter(0, 10), [cx, cy], 'rock'); this.burst(cx, cy, 'rgba(160,150,130,0.9)', 18, this.r * 2.5, this.r * 0.14); this.shakeScreen = performance.now(); this.floats.push({ x: cx, y: cy - this.r * 0.5, text: e.destroyed ? (e.gate ? TR('Портата пада!') : TR('Стената пада!')) : TR('Удар по стената'), color: '#ffd870', t: performance.now(), big: e.destroyed }); await sleep(350 * fast); break; }
           case 'death': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.burst(cx, cy, 'rgba(90,80,70,0.7)', 14, this.r * 1.5, this.r * 0.16, this.r); const t0 = performance.now(), dur = 450 * fast; while (performance.now() - t0 < dur) { this.fading[s.id] = 1 - (performance.now() - t0) / dur; await sleep(16); } delete this.fading[s.id]; break; }
-          case 'morale': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.floats.push({ x: cx, y: cy - this.r, text: e.good ? TR('Висок морал!') : TR('Лош морал'), color: e.good ? '#ffe070' : '#a0a0a0', t: performance.now() }); if (e.good) this.burst(cx, cy - this.r, 'rgba(255,224,112,0.9)', 10, this.r, this.r * 0.08, -this.r); await sleep(400 * fast); break; }
+          case 'morale': { const s = st(e.stack); const [cx, cy] = this.stackCenter(s); this.bigBadge(cx, cy, 'icon_morale', e.good ? TR('Висок морал!') : TR('Лош морал'), !!e.good); if (e.good) MK.Audio.sfx('treasure'); await sleep(700 * fast); break; }
           case 'cast': { const sd = b.sides[e.side]; const [cx, cy] = Hex.inb(e.x, e.y) ? this.hexCenter(e.x, e.y) : [this.canvas.width / 2, this.oy + this.r * 7]; const sp = D.spellById[e.spell];
             { const tg = (e.targets || []).map((id) => st(id)).filter(Boolean).map((s) => this.stackCenter(s)); this.floats.push({ x: this.casterPoint(e.side)[0], y: this.casterPoint(e.side)[1] - this.r, text: sp.name, color: '#e0c8ff', t: performance.now(), big: true }); await this.playSpell(sp, e.side, e.x, e.y, tg); } const col = sp.school === 'fire' ? 'rgba(255,120,40,0.9)' : sp.school === 'water' ? 'rgba(100,180,255,0.9)' : sp.school === 'earth' ? 'rgba(160,220,100,0.9)' : 'rgba(190,160,255,0.9)'; this.rings.push({ x: cx, y: cy, r0: this.r * 0.3, r1: this.r * (sp.kind === 'all' ? 9 : sp.kind === 'area' ? 2.6 : 1.4), t0: performance.now(), life: 550, color: col }); this.burst(cx, cy, col, 16, this.r * 2, this.r * 0.12, -this.r * 0.5); this.floats.push({ x: this.canvas.width / 2, y: this.oy + this.r * 0.5, text: '✦ ' + sp.name + ' ✦', color: '#d8c0ff', t: performance.now(), big: true }); await sleep(380 * fast); break; }
           case 'effect': { const s = st(e.stack); if (s) { const [cx, cy] = this.stackCenter(s); this.burst(cx, cy - this.r * 0.6, 'rgba(200,170,255,0.9)', 8, this.r, this.r * 0.08, -this.r * 1.5); } await sleep(120 * fast); break; }
