@@ -37,13 +37,18 @@
       // Мащабиране на полето (щипване) и плъзгане — бутоните остават на място; двойно докосване връща 1×
       this.view = { s: 1, x: 0, y: 0 };
       const pts = new Map(); let pinch = null, moved = false, down = null, lastTap = 0;
-      this.onDown = (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = false; down = { x: e.clientX, y: e.clientY, vx: this.view.x, vy: this.view.y }; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: this.view.s, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, vx: this.view.x, vy: this.view.y }; } try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* noop */ } };
+      // задържане върху стек → подробна карта; десен бутон също
+      let pressTimer = null, longPressed = false;
+      const clearPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+      this.canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); this.longPress(e.clientX, e.clientY); });
+      this.onDown = (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = false; longPressed = false; clearPress(); if (e.pointerType !== 'mouse' || e.button === 0) pressTimer = setTimeout(() => { pressTimer = null; if (!moved && pts.size === 1) { longPressed = true; this.longPress(e.clientX, e.clientY); } }, 450); down = { x: e.clientX, y: e.clientY, vx: this.view.x, vy: this.view.y }; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: this.view.s, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, vx: this.view.x, vy: this.view.y }; } try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* noop */ } };
       this.onMove2 = (e) => {
         if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); const ns = Math.max(1, Math.min(3, pinch.s * d / pinch.d)); const rect = this.canvas.getBoundingClientRect(); const cx = (pinch.cx - rect.left) * this.dpr, cy = (pinch.cy - rect.top) * this.dpr; this.view.x = cx - (cx - pinch.vx) * ns / pinch.s; this.view.y = cy - (cy - pinch.vy) * ns / pinch.s; this.view.s = ns; this.clampView(); moved = true; return; }
+        if (pts.size === 1 && down) { const dx = e.clientX - down.x, dy = e.clientY - down.y; if (Math.hypot(dx, dy) > 8) { moved = true; clearPress(); } }
         if (pts.size === 1 && down && this.view.s > 1) { const dx = e.clientX - down.x, dy = e.clientY - down.y; if (moved || Math.hypot(dx, dy) > 8) { moved = true; this.view.x = down.vx + dx * this.dpr; this.view.y = down.vy + dy * this.dpr; this.clampView(); } }
       };
-      this.onPointer = (e) => { const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!had || moved) { if (pts.size === 0) moved = false; return; } const now = performance.now(); if (now - lastTap < 320 && this.view.s > 1) { lastTap = 0; this.view = { s: 1, x: 0, y: 0 }; return; } lastTap = now; this.tap(e); };
+      this.onPointer = (e) => { clearPress(); const had = pts.has(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (longPressed) { longPressed = pts.size > 0; return; } if (!had || moved) { if (pts.size === 0) moved = false; return; } const now = performance.now(); if (now - lastTap < 320 && this.view.s > 1) { lastTap = 0; this.view = { s: 1, x: 0, y: 0 }; return; } lastTap = now; this.tap(e); };
       this.canvas.addEventListener('pointerdown', this.onDown); this.canvas.addEventListener('pointermove', this.onMove2); this.canvas.addEventListener('pointercancel', this.onPointer);
       this.canvas.style.touchAction = 'none';
       // колелце на мишката: мащаб около курсора
@@ -99,6 +104,12 @@
     }
     hexCenter(x, y) { const r = this.r; return [this.ox + Math.sqrt(3) * r * (x + (y & 1) * 0.5), this.oy + 1.5 * r * y * (this.squash || 1)]; }
     stackCenter(s) { const hs = this.b.hexes(s); let x = 0, y = 0; hs.forEach(([hx, hy]) => { const [cx, cy] = this.hexCenter(hx, hy); x += cx; y += cy; }); return [x / hs.length, y / hs.length]; }
+    /* Задържане/десен бутон: подробна карта на стека под пръста */
+    longPress(clientX, clientY) {
+      const rect = this.canvas.getBoundingClientRect(); const [px, py] = this.toField((clientX - rect.left) * this.dpr, (clientY - rect.top) * this.dpr);
+      const h = this.pixelToHex(px, py); if (!h) return;
+      const s = this.b.occupant(h[0], h[1]); if (s) UI.stackDetail(this.b, s);
+    }
     /* Ограничава плъзгането, така че полето да не излиза от екрана */
     clampView() { const v = this.view, W = this.fieldW || this.canvas.width, H = this.canvas.height - (this.barH || 0); v.x = Math.min(0, Math.max(W - W * v.s, v.x)); v.y = Math.min(0, Math.max(H - H * v.s, v.y)); if (v.s === 1) { v.x = 0; v.y = 0; } }
     /* Екранни пиксели → координати на полето (обратно на мащаба) */

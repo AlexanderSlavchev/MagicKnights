@@ -404,6 +404,32 @@
     );
     return dialog({ title: t.name, content, buttons: mine ? [{ label: T('Влез'), value: 'open', cls: 'primary' }, { label: T('Затвори'), value: false }] : undefined }).then((v) => { if (v === 'open') showTown(game, t); });
   }
+  /* Подробна карта на стек в битка (както при десен бутон в класиките): картинка, базови → реални
+     характеристики според героя и положението, брой и живот, стрели, ответни удари, ефекти, морал и късмет */
+  function stackDetail(b, s) {
+    const c = s.c, side = b.sides[s.side];
+    const baseA = c.att, A = b.attack(s, !!c.abilities.shooter), baseD = c.def, D2 = b.defense(s), spd = b.speed(s), mor = b.morale(s), luck = b.luck(s);
+    const stat = (label, base, real) => el('div', null, el('b', null, real !== base ? String(real) : String(base)), real !== base ? el('span', { class: 'tiny', style: 'color:' + (real > base ? '#9fe39f' : '#ff9d8a') }, ' (' + base + (real > base ? ' +' : ' ') + (real - base) + ')') : null, el('small', null, label));
+    const ml = (v) => (v > 0 ? '+' : '') + v;
+    const effs = Object.keys(s.effects).map((k) => { const e = s.effects[k]; const sp = D.spellById[k]; return (sp ? sp.name : k) + (e.turns > 0 ? ' (' + e.turns + T(' р.') + ')' : ''); });
+    const content = el('div', null,
+      el('div', { style: 'display:flex;gap:10px;align-items:center' }, spriteCanvas(G.creatureSprite(c, 128), 84, 100), el('div', null,
+        el('div', { class: 'sub' }, (D.factionById(c.faction) ? D.factionById(c.faction).name : T('Неутрални')) + ' · ' + T('ниво ') + c.tier + (c.upg ? T(' (подобрено)') : '')),
+        el('div', null, el('b', { style: 'font-size:18px;color:var(--gold-2)' }, s.count), ' × ' + c.name),
+        el('div', { class: 'tiny' }, T('Живот на първия: ') + s.hp + ' / ' + s.maxHp + (side.hero ? ' · ' + T('Герой: ') + side.hero.name : '')))),
+      el('div', { class: 'stats', style: 'margin:8px 0' },
+        stat(T('Атака'), baseA, A), stat(T('Защита'), baseD, D2), el('div', null, el('b', null, c.dmin + '–' + c.dmax), el('small', null, T('Щети'))),
+        el('div', null, el('b', null, s.maxHp), el('small', null, T('Живот'))), stat(T('Скорост'), c.spd, spd),
+        c.abilities.shooter ? el('div', null, el('b', null, s.shots), el('small', null, T('Стрели'))) : el('div', null, el('b', null, String(Math.max(0, b.maxRetaliations(s) - s.retaliations))), el('small', null, T('Отв. удари')))),
+      el('div', { class: 'row', style: 'gap:14px;justify-content:center' },
+        el('div', { style: 'text-align:center' }, el('div', { class: 'tiny' }, T('Морал')), el('b', { style: 'color:' + (mor > 0 ? '#9fe39f' : mor < 0 ? '#ff9d8a' : 'inherit') }, ml(mor))),
+        el('div', { style: 'text-align:center' }, el('div', { class: 'tiny' }, T('Късмет')), el('b', { style: 'color:' + (luck > 0 ? '#9fe39f' : luck < 0 ? '#ff9d8a' : 'inherit') }, ml(luck)))),
+      el('p', { class: 'sub' }, T('Способности: ') + (abilityText(c) || T('няма'))),
+      effs.length ? el('p', { class: 'sub' }, T('Ефекти: ') + effs.join(', ')) : null,
+      el('p', { class: 'tiny' }, (s.defended ? T('В защита. ') : '') + (s.waited ? T('Изчаква. ') : '') + (b.isNative(s) ? T('Родна земя: +1 атака, защита и скорост. ') : '') + (b.inMoat && b.inMoat(s) ? T('В рова: −3 защита.') : ''))
+    );
+    return dialog({ title: c.name, content });
+  }
   function creatureInfo(c, extra) {
     const f = D.factionById(c.faction);
     const content = el('div', null,
@@ -868,5 +894,5 @@
     });
   }
 
-  MK.UI = { showAdvSpells, showOverview, showExchange, el, dialog, toast, loading, splash, reward, dayBanner, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
+  MK.UI = { showAdvSpells, showOverview, showExchange, el, dialog, toast, loading, splash, reward, dayBanner, showMenu, showHelp, showCampaign, showCampaignScenarios, passDevice, showSetup, updateHUD, showHero, showTown, levelUpDialog, dwellingDialog, creatureInfo, stackDetail, stackInfo, guardInfo, heroQuickInfo, townQuickInfo, closeScreens, screen, spriteCanvas, costHtml, armyRow, armyPick, abilityText };
 })();
