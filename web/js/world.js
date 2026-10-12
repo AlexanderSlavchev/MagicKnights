@@ -98,7 +98,7 @@
         res: Object.assign({}, D.DIFFICULTY[w.difficulty][p.human ? 'start' : 'ai']),
         heroes: [], towns: [], alive: true, daysWithoutTown: 0, visited: {}, fog: null
       }));
-      w.map = MK.MapGen.generate({ seed: w.seed, size: opts.size, players: opts.players, template: opts.template });
+      w.map = MK.MapGen.generate({ seed: w.seed, size: opts.size, players: opts.players, template: opts.template, relic: opts.relic || null });
       w.players.forEach((p) => { p.fog = w.map.levels.map(() => new Uint8Array(w.map.w * w.map.h)); });
       w.map.objects.forEach((o) => {
         if (o.type === 'town') w.createTown(o);
@@ -110,8 +110,20 @@
       });
       w.players.forEach((p, i) => {
         const town = w.towns[p.towns[0]];
-        const h = w.createHero(p.faction, i, town.x, town.y, true, opts.carryHero && i === 0 ? opts.carryHero : null);
+        let proto = opts.carryHero && i === 0 ? opts.carryHero : null;
+        // Кампания: именуван начален герой на играча (първи сценарий)
+        if (!proto && i === 0 && opts.startHero) { const sh = opts.startHero; proto = Object.assign(w.rollHero(p.faction), { cls: sh.cls, name: sh.name, portrait: sh.portrait || 0 }); proto.spec = w.rollSpecialty(p.faction, proto.cls); }
+        const h = w.createHero(p.faction, i, town.x, town.y, true, proto);
         h.inTown = town.id; town.visitor = h.id;
+        // Кампания: именувани вражески военачалници („босове“) с ниво, артефакт и армия
+        const boss = i > 0 && opts.bosses && opts.bosses[i - 1];
+        if (boss) {
+          h.name = boss.name; h.boss = true; h.nameKey = boss.name;
+          if (boss.level > 1) { h.xp = D.LEVEL_XP[Math.min(boss.level, D.LEVEL_XP.length - 1)]; h.level = 1; h.pendingLevels = 0; const nl = D.levelForXp(h.xp); while (h.level < nl) { h.level++; h.pendingLevels++; } w.autoLevelUp(h); }
+          (boss.arts || []).forEach((aid) => { if (D.artById[aid]) w.equipArtifact(h, aid); });
+          (boss.army || []).forEach((st) => { if (D.creatureOf(st.c)) Army.add(h.army, st.c, st.n); });
+          h.mana = w.maxMana(h); h._native = undefined;
+        }
         w.revealAround(i, town.x, town.y, 0, 6);
         w.revealAround(i, h.x, h.y, 0, w.sightRadius(h));
       });

@@ -148,6 +148,60 @@
           win: 'Бащата и дъщерята се прибират на един кораб. Пристанът пее.',
           bonuses: [cre('harbor7', 2, '2 морски змея'), gold(8000), art('helm_sage', 'Шлем на мъдреца')] }
       ]
+    },
+    {
+      id: 'empire', title: 'Империята на света', faction: 'kingdom', difficulty: 'Експертна',
+      hero: { name: 'Максимус', cls: 'knight', portrait: 2 },
+      intro: 'Ти си просто човек в Империята — центурион от затънтен гарнизон. Никой не вярва, че един ден ще станеш не само император, а господар на света. Дълъг поход в осем части: от първата сеч с Гервулф през двореца на Цезар, трите подземни крепости и блатните шампиони до огъня на Пир, бегемотите на Йегер и трона на Императора. Максимус е един и същ във всички части — всичко, което спечели, остава с него.',
+      scenarios: [
+        { id: 1, title: 'Просто човек', size: 36, difficulty: 0, template: 'duel', playerFaction: 'kingdom', opponents: ['horde'],
+          text: 'Варваринът Гервулф гори селата около твоя гарнизон, а легионът на Империята е далеч. Събери копиеносците, превземи лагера на ордата и прогони Гервулф. Така започват легендите.',
+          win: 'Гервулф е прогонен и в Рим се чува за центуриона Максимус. Цезар те вика в двореца си — не за да те награди.',
+          bosses: [{ name: 'Гервулф', level: 4, army: [{ c: 'horde4', n: 6 }] }],
+          bonuses: [gold(2500), cre('kingdom1', 24, '24 копиеносци'), art('badge_courage', 'Знак за храброст')] },
+        { id: 2, title: 'Дворецът на Цезар', size: 54, difficulty: 1, template: 'balanced', playerFaction: 'kingdom', opponents: ['kingdom', 'academy'],
+          text: 'Цезар се бои от популярния центурион и праща легионите си срещу теб, а магьосниците на Академията му служат за злато. Намери двореца му и го победи — само това отваря тайната порта под трона.',
+          win: 'Цезар е победен. Под двореца му намираш скрита порта към подземие, в което стоят три стари крепости.',
+          goal: { type: 'boss', name: 'Цезар' },
+          bosses: [{ name: 'Цезар', level: 8, arts: ['crown_kings'], army: [{ c: 'kingdom4', n: 20 }, { c: 'kingdom3', n: 15 }] }],
+          bonuses: [cre('kingdom2', 20, '20 стрелци'), spell('haste', 'магия Ускорение'), res('15 дърво и 15 руда', { wood: 15, ore: 15 })] },
+        { id: 3, title: 'Трите подземни крепости', size: 54, difficulty: 1, template: 'underworld', playerFaction: 'kingdom', opponents: ['dungeon', 'necropolis', 'horde'],
+          text: 'Под двореца на Цезар лежи цял свят: чернокнижниците на Леандегорд, некромантите на Тъмния лорд и остатъците от ордата на Гервулф делят три крепости. Слез долу и ги вземи — четири града до 120-ия ден, иначе Сенатът ще обяви Максимус за изменник.',
+          win: 'Трите подземни крепости са твои и Сенатът те обявява за консул. Но на изток, в блатата, се надига нов враг.',
+          goal: { type: 'towns', n: 4 }, days: 120,
+          bosses: [{ name: 'Леандегорд', level: 10 }, { name: 'Тъмният лорд', level: 10, arts: ['cursed_skull'] }, { name: 'Гервулф', level: 7 }],
+          bonuses: [cre('kingdom3', 8, '8 грифона'), art('armor_plate', 'Ризница на пазителя'), gold(6000)] },
+        { id: 4, title: 'Блатните шампиони', size: 54, difficulty: 2, template: 'balanced', playerFaction: 'kingdom', opponents: ['grove', 'marsh'],
+          text: 'Най-коравите градове на картата са блатните крепости на Горското царство, а техният шампион води златни дракони. Превземи 3 от градовете им — тогава червената шатра на границата ще се отвори и пътят на юг покрай Църквата ще бъде твой.',
+          win: 'Блатата са прегазени, драконите на шампиона лежат в тинята. Червената шатра пада и границите на Империята се разтварят.',
+          goal: { type: 'towns', n: 3 },
+          bosses: [{ name: 'Блатният шампион', level: 14, arts: ['shield_dragon'], army: [{ c: 'grove7u', n: 4 }] }, { name: 'Горгонската кралица', level: 10 }],
+          bonuses: [cre('kingdom5', 10, '10 монаси'), spell('resurrection', 'магия Възкресение'), art('ring_life', 'Пръстен на живота')] },
+        { id: 5, title: 'Шатрите на границата', size: 54, difficulty: 2, template: 'islands', playerFaction: 'kingdom', opponents: ['harbor', 'elements'],
+          text: 'Пътят напред минава през верига от шатри и портали, а между тях — море. Пиратите на Пристана и Стихиите пазят островите. На остров, пазен от грифони и дракони, лежи Шапката на магьосника — с нея Максимус ще знае всички магии, включително Градския портал, без който от огъня на Пир няма връщане.',
+          win: 'Шапката на магьосника е на главата на Максимус. Градският портал е негов и вече никой път не е еднопосочен.',
+          goal: { type: 'artifact', aid: 'spellbinder_hat' }, relic: { aid: 'spellbinder_hat', mult: 1.2 },
+          bosses: [{ name: 'Нерон', level: 14, arts: ['sea_compass'] }, { name: 'Жрецът на стихиите', level: 12 }],
+          bonuses: [spell('water_walk', 'магия Ходене по вода'), spell('summon_boat', 'магия Призови кораб'), cre('kingdom4', 15, '15 мечоносци')] },
+        { id: 6, title: 'Огънят на Пир', size: 72, difficulty: 2, template: 'underworld', playerFaction: 'kingdom', opponents: ['inferno', 'dungeon', 'necropolis'],
+          text: 'Черната шатра води до острова на Пъкъла. Там властва Пир — демон, който не оставя никого да се върне. Леандегорд и Тъмният лорд се крият в същото подземие. Намери Пир и го победи; Градският портал ще те върне, когато огънят догори.',
+          win: 'Пир е повален, а подземието на Пъкъла мълчи. Остава най-страшният пълководец на Севера — Йегер и неговите бегемоти.',
+          goal: { type: 'boss', name: 'Пир' },
+          bosses: [{ name: 'Пир', level: 18, arts: ['orb_fire', 'cape_ash'], army: [{ c: 'inferno7', n: 12 }, { c: 'inferno6u', n: 20 }] }, { name: 'Леандегорд', level: 14 }, { name: 'Тъмният лорд', level: 14, arts: ['cursed_skull'] }],
+          bonuses: [cre('kingdom6', 10, '10 конници'), art('shield_of_faith', 'Щит на вярата'), spell('prayer', 'магия Молитва')] },
+        { id: 7, title: 'Бегемотите на Йегер', size: 72, difficulty: 3, template: 'rich', playerFaction: 'kingdom', opponents: ['horde', 'workshop', 'marsh'],
+          text: 'Йегер държи Севера със стотици древни бегемоти, а Работилницата му кове машини. Някъде на картата хиляди черни дракони пазят Тома на въздуха — книгата, с която се печели последната война. Вземи я; Йегер ще дойде сам при теб.',
+          win: 'Томът на въздуха е у Максимус, бегемотите на Йегер са кости в снега. Пред теб е само Императорът.',
+          goal: { type: 'artifact', aid: 'tome_air' }, relic: { aid: 'tome_air', mult: 2.2 },
+          bosses: [{ name: 'Йегер', level: 22, arts: ['axe_titan', 'armor_stars'], army: [{ c: 'horde7u', n: 30 }] }, { name: 'Главният инженер', level: 14 }, { name: 'Хидрата майка', level: 12 }],
+          bonuses: [cre('kingdom7', 6, '6 ангела'), art('angel_wings', 'Крила на ангела'), gold(15000)] },
+        { id: 8, title: 'Императорът на света', size: 72, difficulty: 3, template: 'rich', playerFaction: 'kingdom', opponents: ['kingdom', 'inferno', 'dungeon'],
+          text: 'Императорът седи в столицата с цялата мощ на Империята и съюзниците си от Пъкъла и Подземието. Говори се, че носи Броня на прокълнатите. Победи ги всички до 300-ия ден — и центурионът от затънтения гарнизон ще стане император на света.',
+          win: 'Императорът пада пред Максимус. Простият човек от граничния гарнизон седи на трона — не на Империята, а на света. Легендата е завършена.',
+          days: 300,
+          bosses: [{ name: 'Императорът', level: 26, arts: ['armor_damned', 'crown_kings', 'boots_speed'], army: [{ c: 'kingdom7u', n: 10 }, { c: 'kingdom6u', n: 30 }] }, { name: 'Демонският легат', level: 18 }, { name: 'Чернокнижникът на трона', level: 18 }],
+          bonuses: [cre('kingdom7u', 8, '8 архангела'), art('angelic_alliance', 'Ангелски съюз'), spell('town_portal', 'магия Градски портал')] }
+      ]
     }
   ];
   MK.CAMPAIGN = MK.CAMPAIGNS[0];
@@ -172,8 +226,8 @@
     /* Описание на целта на сценария */
     goalText(sc) {
       const g = sc.goal;
-      let t = g ? (g.type === 'towns' ? 'Цел: владей ' + g.n + ' града.' : g.type === 'level' ? 'Цел: герой на ниво ' + g.n + '.' : '') : 'Цел: победи всички противници.';
-      if (sc.days) t += ' Срок: ' + sc.days + ' дни.';
+      let t = g ? (g.type === 'towns' ? T('Цел: владей ') + g.n + T(' града.') : g.type === 'level' ? T('Цел: герой на ниво ') + g.n + '.' : g.type === 'artifact' ? T('Цел: намери артефакта ') + (MK.data.artById[g.aid] ? MK.data.artById[g.aid].name : g.aid) + '.' : g.type === 'boss' ? T('Цел: победи ') + g.name + '.' : '') : T('Цел: победи всички противници.');
+      if (sc.days) t += T(' Срок: ') + sc.days + T(' дни.');
       return t;
     },
     /* true ако специалната цел е изпълнена */
@@ -182,6 +236,8 @@
       const p = w.players[pid];
       if (g.type === 'towns') return p.towns.length >= g.n;
       if (g.type === 'level') return p.heroes.some((id) => w.heroes[id].level >= g.n);
+      if (g.type === 'artifact') return p.heroes.some((id) => { const h = w.heroes[id]; return h.arts.includes(g.aid) || h.backpack.includes(g.aid); });
+      if (g.type === 'boss') return !Object.values(w.heroes).some((h) => h.boss && h.owner !== pid);
       return false;
     }
   };

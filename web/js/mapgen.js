@@ -243,6 +243,16 @@
       o.guard = dragonGuard((N >= 72 ? 1.2 : N >= 54 ? 1 : 0.75) * [0.85, 1, 1.15, 1.35][tier]);
       o.loot = utopiaLoot(tier);
     }
+    // Кампания: реликва — определен артефакт, далеч от старта и пазен от много силна стража
+    if (opts.relic && D.artById[opts.relic.aid]) {
+      const sp = anySpot((x, y) => distToStart(x, y) > N * 0.38) || anySpot((x, y) => distToStart(x, y) > N * 0.25);
+      if (sp) {
+        const o = place({ type: 'artifact', x: sp.x, y: sp.y, art: opts.relic.aid, relic: true });
+        // стража от дракони (като утопия), по-голяма от обикновената; mult ≈ колко утопии струва
+        o.guard = dragonGuard((N >= 72 ? 1.2 : N >= 54 ? 1 : 0.75) * (opts.relic.mult || 1));
+        const pi = artPool.findIndex((a) => a.id === opts.relic.aid); if (pi >= 0) artPool.splice(pi, 1);
+      }
+    }
     for (let k = 0; k < artN && artPool.length; k++) {
       const sp = anySpot((x, y) => distToStart(x, y) > 5);
       if (!sp) continue;
@@ -298,6 +308,7 @@
     // ценните са оставени без пазач — за късмет. Пазачът е закачен за обекта.
     map.objects.slice().forEach((o) => {
       if (o.guard && o.guard.stacks) return; // собствена стража (драконова утопия)
+      if (o.relic) return; // реликва от кампания — пазачът ѝ е вече определен
       delete o.guard;
       const v = D.treasureValue(o);
       if (v <= 0) return;

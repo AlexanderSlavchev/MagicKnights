@@ -151,7 +151,7 @@
       switch (o.type) {
         case 'resource': v = o.res === 'gold' ? o.amount : o.res === 'wood' || o.res === 'ore' ? o.amount * 60 : o.amount * 120; break;
         case 'chest': v = 1500; break;
-        case 'artifact': v = 1800; break;
+        case 'artifact': v = o.relic ? 0 : 1800; break; // реликвите на кампанията са за играча
         case 'dragon_utopia': v = o.empty ? 0 : 9000; break;
         case 'shipyard': v = 0; break;
         case 'campfire': v = 900; break;

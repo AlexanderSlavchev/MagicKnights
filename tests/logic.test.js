@@ -378,6 +378,47 @@ test('ИИ: 25 дни с 11 фракции на подземна карта бе
   assert(w.day >= 25);
   assert(Object.values(w.heroes).length > 0);
 });
+
+test('кампания „Империята на света“: именуван герой, босове, реликва и цели', () => {
+  const C = MK.campaignById('empire');
+  assert.strictEqual(C.scenarios.length, 8);
+  C.scenarios.forEach((sc) => {
+    sc.bonuses.forEach((b) => { if (b.type === 'creatures') assert(D.creatureOf(b.cid), b.cid); if (b.type === 'art') assert(D.artById[b.aid], b.aid); if (b.type === 'spell') assert(D.SPELLS.find((x) => x.id === b.sid), b.sid); });
+    const players = [{ faction: sc.playerFaction, human: true }].concat(sc.opponents.map((f) => ({ faction: f })));
+    const w = MK.World.create({ size: sc.size, difficulty: sc.difficulty, players, template: D.TEMPLATE(sc.template), seed: 100 + sc.id, relic: sc.relic || null, bosses: sc.bosses || null, startHero: sc.id === 1 ? C.hero : null });
+    const hs = Object.values(w.heroes);
+    if (sc.id === 1) { const me = hs.find((h) => h.owner === 0); assert.strictEqual(me.name, 'Максимус'); assert.strictEqual(me.cls, 'knight'); }
+    (sc.bosses || []).forEach((b, i) => {
+      const h = hs.find((x) => x.owner === i + 1);
+      assert(h && h.boss && h.name === b.name, 'бос ' + b.name);
+      if (b.level) assert.strictEqual(h.level, b.level);
+      assert.strictEqual(h.pendingLevels, 0);
+      (b.arts || []).forEach((a) => assert(h.arts.includes(a) || h.backpack.includes(a), a));
+      (b.army || []).forEach((st) => assert(h.army.some((s) => s && s.c === st.c && s.n >= st.n), st.c));
+    });
+    if (sc.relic) { const o = w.map.objects.find((x) => x.type === 'artifact' && x.relic); assert(o && o.art === sc.relic.aid && o.guard && o.guard.stacks && o.guard.stacks.length, 'реликва с драконова стража'); }
+    assert(!/undefined/.test(MK.Campaign.goalText(sc)));
+    if (sc.goal) assert.strictEqual(MK.Campaign.goalMet(w, 0, sc), false);
+  });
+  // цел „бос“ и цел „артефакт“
+  const sc = C.scenarios[1];
+  const w = MK.World.create({ size: 36, difficulty: 1, players: [{ faction: 'kingdom', human: true }, { faction: 'kingdom' }, { faction: 'academy' }], template: D.TEMPLATE('duel'), seed: 7, bosses: sc.bosses });
+  const boss = Object.values(w.heroes).find((h) => h.boss);
+  assert(!MK.Campaign.goalMet(w, 0, sc));
+  // сейв/лоуд пази флага на боса
+  const w2 = MK.World.fromJSON(JSON.parse(JSON.stringify(w.toJSON())));
+  assert(Object.values(w2.heroes).some((h) => h.boss));
+  w.removeHero(boss);
+  assert(MK.Campaign.goalMet(w, 0, sc));
+  w.heroes[w.players[0].heroes[0]].backpack.push('tome_air');
+  assert(MK.Campaign.goalMet(w, 0, { goal: { type: 'artifact', aid: 'tome_air' } }));
+  // ИИ играе 12 дни с босове и реликва без грешки; реликвата остава на място
+  const sc7 = C.scenarios[6];
+  const w3 = MK.World.create({ size: 54, difficulty: 2, players: [{ faction: 'kingdom' }].concat(sc7.opponents.map((f) => ({ faction: f }))), template: D.TEMPLATE('balanced'), seed: 77, relic: sc7.relic, bosses: sc7.bosses });
+  for (let d = 0; d < 12 * 4; d++) { const p = w3.cur(); if (p.alive) { const gen = MK.AI.turn(w3, p, { autoAll: true }); let r = gen.next(); while (!r.done) r = gen.next(); } w3.endTurn(); w3.events.length = 0; }
+  assert(w3.map.objects.some((o) => o.type === 'artifact' && o.relic), 'реликвата не е взета от ИИ');
+});
+
 console.log(passed + ' теста общо');
 
 test('острови: всеки стартов град е до вода, има кораб на брега и всички градове са достижими по суша+вода', () => {

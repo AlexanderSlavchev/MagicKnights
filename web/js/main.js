@@ -72,7 +72,7 @@
         if (!bonus) return;
       }
       const players = [{ faction: sc.playerFaction, human: true }].concat(sc.opponents.map((f) => ({ faction: f, human: false })));
-      this.newGame({ size: sc.size, difficulty: sc.difficulty, players, template: D.TEMPLATE(sc.template), seed: (Math.random() * 4294967295) >>> 0, carryHero: prog.hero ? { carry: prog.hero, faction: sc.playerFaction, cls: prog.hero.cls, name: prog.hero.name, portrait: prog.hero.portrait, spec: prog.hero.spec } : null, campaign: { id: cid, index: i, title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc), win: sc.win, goal: sc.goal || null, days: sc.days || 0 } });
+      this.newGame({ size: sc.size, difficulty: sc.difficulty, players, template: D.TEMPLATE(sc.template), seed: (Math.random() * 4294967295) >>> 0, relic: sc.relic || null, bosses: sc.bosses || null, startHero: C.hero || null, carryHero: prog.hero ? { carry: prog.hero, faction: sc.playerFaction, cls: prog.hero.cls, name: prog.hero.name, portrait: prog.hero.portrait, spec: prog.hero.spec } : null, campaign: { id: cid, index: i, title: sc.id + '. ' + sc.title, text: sc.text + ' ' + MK.Campaign.goalText(sc), win: sc.win, goal: sc.goal || null, days: sc.days || 0 } });
       if (bonus) { MK.Campaign.applyBonus(this.world, this.human, bonus); this.updateHUD(); this.save(); }
     }
     /* Проверка на специална цел / срок на кампанийния сценарий след края на хода */
