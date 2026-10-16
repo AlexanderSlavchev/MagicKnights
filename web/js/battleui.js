@@ -863,5 +863,5 @@
       if (this.hudWasVisible) document.getElementById('hud').hidden = false;
     }
   }
-  MK.BattleUI = { run: (battle, humanSides, game) => new BattleUI(battle, Array.isArray(humanSides) ? humanSides : humanSides < 0 ? [] : [humanSides], game).run() };
+  MK.BattleUI = { run: (battle, humanSides, game) => { const ui = new BattleUI(battle, Array.isArray(humanSides) ? humanSides : humanSides < 0 ? [] : [humanSides], game); MK.BattleUI.current = ui; return ui.run(); } };
 })();
