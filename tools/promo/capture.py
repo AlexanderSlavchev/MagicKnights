@@ -156,8 +156,11 @@ with sync_playwright() as p:
     page.wait_for_function("() => !document.querySelector('.loading-art')", timeout=60000)
     page.wait_for_timeout(1200)
     r = page.evaluate(GOTO_MONSTER, 'horde1'); print('monster', r)
-    page.wait_for_timeout(1000 + 450 * ((r or {}).get('steps', 6)))
-    page.wait_for_timeout(1500)
+    try:
+        page.wait_for_selector('#overlay .modal .buttons button', timeout=40000)
+    except Exception as e:
+        print('no prebattle dialog', e)
+    page.wait_for_timeout(2300)
     mark('prebattle')
     print('fight btn', page.evaluate(CLICK_FIGHT))
     mark('battle_start')
